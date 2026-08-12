@@ -9,8 +9,6 @@ CodeNotary（代码公证处）是面向 AI 生成代码的可信交付流水线
 本仓库包含 v3 剪辑版 demo 视频：
 
 - 视频：`demo/goai-agentteams-demo-v3.mp4`
-- 封面：`demo/cover.jpg`
-- 剪辑表：`demo/edit-decision-list-v3.md`
 
 视频展示 AgentTeams 多智能体协作流程：创建 10 个 worker、Team 任务分派、triage / contract / tester / release / postmortem 等角色协作，以及最终状态确认。该版本保留关键消息节点，并删除明显停顿段。
 
