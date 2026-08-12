@@ -1,8 +1,0 @@
-{
-  "gate": "TEST_PASS",
-  "decision": "green",
-  "summary": "baseline+blind tests: 11 run, all passed",
-  "issued_by": "notary-gateway (deterministic)",
-  "timestamp": 1786372008.0832217,
-  "test_output": "...........\n----------------------------------------------------------------------\nRan 11 tests in 0.000s\n\nOK"
-}

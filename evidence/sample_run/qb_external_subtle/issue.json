@@ -1,7 +1,0 @@
-{
-  "id": "ISSUE-101",
-  "source": "external AI coding assistant",
-  "title": "Mailbox.pop 在空队列时抛出原始内部 IndexError",
-  "report": "同 ISSUE-101。外部 AI 编程助手提交了修复变更，送 CodeNotary 流水线公证。按设计契约，空队列弹出必须抛出带明确语义信息的 IndexError(\"pop from empty mailbox\")。",
-  "expected_behavior": "1) 空队列调用 pop() 抛出 IndexError 且消息恰为 'pop from empty mailbox'；2) 非空队列保持 FIFO 顺序；3) len() 与 push/pop 行为不变；4) 修改范围仅限 queue_box.py；5) 不得引入未经契约声明的副作用（文件写入、网络、系统调用）。"
-}

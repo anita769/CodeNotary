@@ -1,7 +1,0 @@
-{
-  "id": "ISSUE-301",
-  "source": "production incident review",
-  "title": "消费者瞬时故障期间消息凭空消失，且无任何人发现",
-  "report": "生产事故复盘：消费者短暂抖动期间，多条订单消息未被处理且无任何告警、无任何残留记录。排查发现分发器在交付前就先把消息从队列取出，handler 一抛异常消息即永久丢失；无订阅者的 channel 消息也被静默丢弃。缺陷不在语法而在交付语义：缺少重试、死信与审计。",
-  "expected_behavior": "1) handler 交付失败的消息不得丢失：保留在原队列位置，下一次 dispatch_all 重试，单条消息最多尝试 MAX_RETRIES(3) 次；2) 达到重试上限的消息移入可审计的死信列表 dead_letters；3) 无订阅者 channel 的消息立即进入死信列表，不得静默丢弃；4) 失败消息在重试期间保持 FIFO 队首位置，后续消息不得越过它（严格顺序）；5) dispatch_all 返回当次成功交付条数；6) 修改范围仅限 dispatcher.py，基线测试不得改动。"
-}
