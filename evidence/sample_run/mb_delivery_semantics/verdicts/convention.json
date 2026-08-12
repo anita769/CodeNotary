@@ -1,0 +1,16 @@
+{
+  "gate": "CONVENTION",
+  "decision": "green",
+  "summary": "1 findings (0 veto-class)",
+  "issued_by": "notary-gateway (deterministic)",
+  "timestamp": 1786372009.5244637,
+  "findings": [
+    {
+      "file": "dispatcher.py",
+      "line": 43,
+      "severity": "warning",
+      "rule": "exception-handling-convention",
+      "detail": "over-broad except Exception"
+    }
+  ]
+}

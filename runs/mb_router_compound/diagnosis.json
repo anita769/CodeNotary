@@ -1,0 +1,11 @@
+{
+  "root_cause": "route capacity guard uses > instead of >= (admits cap+1); drain loops range(max_n+1) with an always-true >= 0 guard (drains one extra and panics on exhaustion)",
+  "evidence": [
+    "mailbox_router.py:route",
+    "mailbox_router.py:drain",
+    "repro stdout shows both defects"
+  ],
+  "fix_hypothesis": "guard to >= cap; drain loop to range(max_n) with > 0 guard",
+  "confidence": 0.95,
+  "repro": "BUG1: routed 4 messages into a cap=3 topic, no OverflowError\nBUG2: drain panicked mid-way: IndexError: pop from empty mailbox"
+}

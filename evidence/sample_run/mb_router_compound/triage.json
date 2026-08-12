@@ -1,0 +1,14 @@
+{
+  "verdict": "accept",
+  "scope": [
+    "mailbox_router.py"
+  ],
+  "route": [
+    "rca",
+    "contract",
+    "author",
+    "tester",
+    "gates"
+  ],
+  "rationale": "two interacting boundary defects in one module, deterministic repro available"
+}

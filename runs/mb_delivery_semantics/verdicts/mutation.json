@@ -1,0 +1,29 @@
+{
+  "gate": "MUTATION",
+  "decision": "green",
+  "summary": "mutation score after rebuttal 1.00 (7 killed, 0 survived, 3 exempted)",
+  "issued_by": "notary-gateway (deterministic)",
+  "timestamp": 1786372009.52012,
+  "killed": 7,
+  "survived_after_rebuttal": 0,
+  "exempted": 3,
+  "score": 1.0,
+  "note": "",
+  "rebuttals": [
+    {
+      "mutant_id": "M03",
+      "kind": "equivalent_mutant",
+      "justification": "monotonic counter / non-negative length makes this operator swap semantically equivalent at every reachable state"
+    },
+    {
+      "mutant_id": "M06",
+      "kind": "equivalent_mutant",
+      "justification": "monotonic counter / non-negative length makes this operator swap semantically equivalent at every reachable state"
+    },
+    {
+      "mutant_id": "M09",
+      "kind": "equivalent_mutant",
+      "justification": "monotonic counter / non-negative length makes this operator swap semantically equivalent at every reachable state"
+    }
+  ]
+}

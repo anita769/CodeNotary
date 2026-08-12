@@ -1,0 +1,19 @@
+{
+  "gate": "MUTATION",
+  "decision": "green",
+  "summary": "mutation score after rebuttal 1.00 (3 killed, 0 survived, 1 exempted)",
+  "issued_by": "notary-gateway (deterministic)",
+  "timestamp": 1786372007.8393915,
+  "killed": 3,
+  "survived_after_rebuttal": 0,
+  "exempted": 1,
+  "score": 1.0,
+  "note": "",
+  "rebuttals": [
+    {
+      "mutant_id": "M03",
+      "kind": "equivalent_mutant",
+      "justification": "len() is always >= 0, so '!= 0' and '> 0' are equivalent guards for this state"
+    }
+  ]
+}

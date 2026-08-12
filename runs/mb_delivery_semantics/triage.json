@@ -1,0 +1,14 @@
+{
+  "verdict": "accept",
+  "scope": [
+    "dispatcher.py"
+  ],
+  "route": [
+    "rca",
+    "contract",
+    "author",
+    "tester",
+    "gates"
+  ],
+  "rationale": "delivery-semantics defect: message loss on failure, silent drop on unknown channel"
+}

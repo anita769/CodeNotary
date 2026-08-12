@@ -1,0 +1,8 @@
+{
+  "gate": "TEST_PASS",
+  "decision": "red",
+  "summary": "baseline+blind tests: 6 run, failures present",
+  "issued_by": "notary-gateway (deterministic)",
+  "timestamp": 1786372009.7299194,
+  "test_output": "F..F..\n======================================================================\nFAIL: test_empty_pop_raises_clean_error (test_blind_contract.TestMailboxContract.test_empty_pop_raises_clean_error)\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/add03/users/shanzy/codenotary/agentteams/runs/qb_external_sloppy/work/test_gate/test_blind_contract.py\", line 9, in test_empty_pop_raises_clean_error\n    with self.assertRaises(IndexError) as ctx:\n         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nAssertionError: IndexError not raised\n\n======================================================================\nFAIL: test_single_element_then_empty (test_blind_contract.TestMailboxContract.test_single_element_then_empty)\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/add03/users/shanzy/codenotary/agentteams/runs/qb_external_sloppy/work/test_gate/test_blind_contract.py\", line 24, in test_single_element_then_empty\n    with self.assertRaises(IndexError):\n         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nAssertionError: IndexError not raised\n\n----------------------------------------------------------------------\nRan 6 tests in 0.001s\n\nFAILED (failures=2)"
+}

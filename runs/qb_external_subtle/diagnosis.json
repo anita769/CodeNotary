@@ -1,0 +1,9 @@
+{
+  "root_cause": "same planted boundary bug as ISSUE-101; external fix claimed correct plus an added audit log",
+  "evidence": [
+    "queue_box.py:25",
+    "submitted_change push() open(...,'a')"
+  ],
+  "fix_hypothesis": "validate submitted change against frozen contract with blind tests",
+  "confidence": 0.9
+}

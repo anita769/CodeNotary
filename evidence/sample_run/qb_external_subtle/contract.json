@@ -1,0 +1,27 @@
+{
+  "issue_id": "ISSUE-101",
+  "assertions": [
+    "pop() on an empty Mailbox raises IndexError with message exactly 'pop from empty mailbox'",
+    "pop() on a non-empty Mailbox returns messages in FIFO order",
+    "only queue_box.py may be modified",
+    "no side effects beyond the contract (no file/network/syscalls)"
+  ],
+  "in_scope": [
+    "queue_box.py"
+  ],
+  "out_of_scope": [
+    "test_queue_box_baseline.py"
+  ],
+  "blind_partitions": {
+    "author_sees": [
+      "contract",
+      "target source",
+      "diagnosis"
+    ],
+    "tester_sees": [
+      "contract",
+      "baseline public tests"
+    ]
+  },
+  "frozen_hash": "19bb6fc35cb46c8a593e107dcf6c470a257d82707b8d5569ce3ac2e20e3d705d"
+}

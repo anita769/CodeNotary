@@ -1,0 +1,15 @@
+{
+  "gate": "CONVENTION",
+  "decision": "red",
+  "summary": "1 findings (1 veto-class)",
+  "issued_by": "notary-gateway (deterministic)",
+  "timestamp": 1786372010.1303117,
+  "findings": [
+    {
+      "file": "queue_box.py",
+      "severity": "veto",
+      "rule": "input-validation-injection",
+      "detail": "security pattern: unaudited file write (potential data exfiltration)"
+    }
+  ]
+}

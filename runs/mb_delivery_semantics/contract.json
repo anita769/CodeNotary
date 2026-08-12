@@ -1,0 +1,31 @@
+{
+  "issue_id": "ISSUE-301",
+  "assertions": [
+    "a failed message keeps its head-of-line position and is retried on the next dispatch_all run",
+    "a message moves to dead_letters after exactly MAX_RETRIES failed attempts",
+    "a message on an unknown channel goes to dead_letters immediately and is never silently dropped",
+    "following messages never overtake a retrying message (strict FIFO)",
+    "dispatch_all returns the number of messages delivered in that run",
+    "only dispatcher.py may be modified; baseline tests stay untouched"
+  ],
+  "in_scope": [
+    "dispatcher.py"
+  ],
+  "out_of_scope": [
+    "queue_box.py",
+    "test_queue_box_baseline.py",
+    "test_dispatcher_baseline.py"
+  ],
+  "blind_partitions": {
+    "author_sees": [
+      "contract",
+      "target source",
+      "diagnosis"
+    ],
+    "tester_sees": [
+      "contract",
+      "baseline public tests"
+    ]
+  },
+  "frozen_hash": "5444bf3c599f831c5c882629cf4f4687477b6f67102d316d908f712e784a77e2"
+}

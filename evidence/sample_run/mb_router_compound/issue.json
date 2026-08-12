@@ -1,0 +1,7 @@
+{
+  "id": "ISSUE-201",
+  "source": "production incident review",
+  "title": "促销洪峰下消息路由服务双重失控：容量限制失效 + drain 批量拉取 panic",
+  "report": "促销活动期间两个交织事故：① 某 topic  mailbox 声明容量 100，监控却发现实际堆积 101 条后才拒绝新消息——容量护栏在边界上失效；② 消费者批量 drain 时服务 panic，日志出现 IndexError，已拉取的消息全部丢失。两个缺陷单独看都几乎正确，组合在一起造成事故。",
+  "expected_behavior": "1) topic 消息数达到 capacity_per_topic 时 route 必须立即抛出 OverflowError——恰好容纳 cap 条，一条不多一条不少；2) drain(topic, max_n) 返回恰好 min(max_n, 现存数) 条最老消息，FIFO 顺序；3) 邮箱在 drain 中途耗尽时，返回已收集的消息，不得抛异常；4) 未知 topic 的 drain 返回 []；5) 修改范围仅限 mailbox_router.py，基线测试不得改动。"
+}

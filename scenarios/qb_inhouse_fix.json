@@ -1,0 +1,19 @@
+{
+  "scenario_id": "qb_inhouse_fix",
+  "mode": "inhouse",
+  "title": "流水线自研修复：Mailbox 空弹出边界缺陷",
+  "issue": {
+    "id": "ISSUE-101",
+    "source": "production incident review",
+    "title": "Mailbox.pop 在空队列时抛出原始内部 IndexError",
+    "report": "生产环境消息消费者日志出现未包装的 IndexError: pop from empty list。按设计契约，空队列弹出必须抛出带明确语义信息的 IndexError(\"pop from empty mailbox\")。当前实现对空队列直接落入 list.pop，泄漏了内部实现细节。",
+    "expected_behavior": "1) 空队列调用 pop() 抛出 IndexError 且消息恰为 'pop from empty mailbox'；2) 非空队列保持 FIFO 顺序；3) len() 与 push/pop 行为不变；4) 修改范围仅限 queue_box.py，不得改动既有基线测试。"
+  },
+  "target_files": ["queue_box.py"],
+  "baseline_test_file": "test_queue_box_baseline.py",
+  "reference": {
+    "note": "评审用参考产物，不对 Worker 提供。local_dryrun.py 用同内容产出样例运行证据。",
+    "implementation": "class Mailbox:\n    \"\"\"A minimal FIFO message box.\"\"\"\n\n    def __init__(self) -> None:\n        self._items: list[str] = []\n\n    def __len__(self) -> int:\n        return len(self._items)\n\n    def push(self, msg: str) -> None:\n        self._items.append(msg)\n\n    def pop(self) -> str:\n        \"\"\"Pop the oldest message; raise a clean error when empty.\"\"\"\n        if len(self._items) > 0:\n            return self._items.pop(0)\n        raise IndexError(\"pop from empty mailbox\")\n",
+    "tests": "import unittest\n\nfrom queue_box import Mailbox\n\n\nclass TestMailboxContract(unittest.TestCase):\n    def test_empty_pop_raises_clean_error(self):\n        box = Mailbox()\n        with self.assertRaises(IndexError) as ctx:\n            box.pop()\n        self.assertEqual(str(ctx.exception), \"pop from empty mailbox\")\n\n    def test_fifo_order_preserved(self):\n        box = Mailbox()\n        box.push(\"first\")\n        box.push(\"second\")\n        self.assertEqual(box.pop(), \"first\")\n        self.assertEqual(box.pop(), \"second\")\n\n    def test_single_element_then_empty(self):\n        box = Mailbox()\n        box.push(\"only\")\n        self.assertEqual(box.pop(), \"only\")\n        with self.assertRaises(IndexError):\n            box.pop()\n\n    def test_len_after_pop(self):\n        box = Mailbox()\n        box.push(\"a\")\n        box.pop()\n        self.assertEqual(len(box), 0)\n\n\nif __name__ == \"__main__\":\n    unittest.main()\n"
+  }
+}

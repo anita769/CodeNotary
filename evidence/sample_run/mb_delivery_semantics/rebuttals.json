@@ -1,0 +1,17 @@
+[
+  {
+    "mutant_id": "M03",
+    "kind": "equivalent_mutant",
+    "justification": "monotonic counter / non-negative length makes this operator swap semantically equivalent at every reachable state"
+  },
+  {
+    "mutant_id": "M06",
+    "kind": "equivalent_mutant",
+    "justification": "monotonic counter / non-negative length makes this operator swap semantically equivalent at every reachable state"
+  },
+  {
+    "mutant_id": "M09",
+    "kind": "equivalent_mutant",
+    "justification": "monotonic counter / non-negative length makes this operator swap semantically equivalent at every reachable state"
+  }
+]

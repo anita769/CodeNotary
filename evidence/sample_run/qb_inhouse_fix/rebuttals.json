@@ -1,0 +1,7 @@
+[
+  {
+    "mutant_id": "M03",
+    "kind": "equivalent_mutant",
+    "justification": "len() is always >= 0, so '!= 0' and '> 0' are equivalent guards for this state"
+  }
+]

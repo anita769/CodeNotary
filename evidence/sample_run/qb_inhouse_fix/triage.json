@@ -1,0 +1,14 @@
+{
+  "verdict": "accept",
+  "scope": [
+    "queue_box.py"
+  ],
+  "route": [
+    "rca",
+    "contract",
+    "author",
+    "tester",
+    "gates"
+  ],
+  "rationale": "single-module boundary defect, deterministic repro"
+}

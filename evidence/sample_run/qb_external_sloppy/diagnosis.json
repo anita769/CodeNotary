@@ -1,0 +1,9 @@
+{
+  "root_cause": "same planted boundary bug as ISSUE-101; external fix claims to handle empty pop",
+  "evidence": [
+    "queue_box.py:25",
+    "submitted_change pop() try/except"
+  ],
+  "fix_hypothesis": "submitted change must be validated against the frozen contract by blind tests",
+  "confidence": 0.9
+}
