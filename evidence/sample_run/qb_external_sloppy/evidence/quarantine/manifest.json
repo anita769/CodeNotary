@@ -1,0 +1,36 @@
+{
+  "run_id": "qb_external_sloppy",
+  "scanned_files": [
+    "notes.md",
+    "queue_box.py"
+  ],
+  "file_sha256": {
+    "queue_box.py": "33327e465de932701bef42970a47095b39951327f112f9ad2f379c815f655e9c",
+    "notes.md": "077988aec2fae682aa6223a62332bef2b0ba1b8d88ce1b3d785b2a98df202e06"
+  },
+  "findings": [
+    {
+      "file": "queue_box.py",
+      "line": 24,
+      "severity": "high",
+      "label": "shell invocation via os.system",
+      "match": "os.system("
+    },
+    {
+      "file": "queue_box.py",
+      "line": 3,
+      "severity": "high",
+      "label": "suspected hardcoded credential",
+      "match": "API_KEY = \"sk-DEMO-FIXTURE-NOT-A-REAL-KEY-000000\""
+    },
+    {
+      "file": "queue_box.py",
+      "line": 3,
+      "severity": "high",
+      "label": "suspected hardcoded API key",
+      "match": "sk-DEMO-FIXTURE-NOT-A-REAL-KEY-000000"
+    }
+  ],
+  "decision": "pass",
+  "status": "yellow"
+}

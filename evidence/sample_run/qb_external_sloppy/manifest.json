@@ -1,0 +1,14 @@
+{
+  "contract.json": "3def9b9de04bdd3d803dd68cc02be36b0b270557f8516b81008e298589ac309c",
+  "diagnosis.json": "3c3dda87dc00e64d723b48aece68a16f332af07e51ff39b8c10e17f059d2c139",
+  "evidence/blind_test_files.json": "7b5d7aa4acf723e71ad80d585fb18af6822f8f66e91b5838082b98b085ffd391",
+  "issue.json": "712e98f3601b97dfeac626881007e4384a41dd7439af5d9afbec55f1140f3fbd",
+  "trace.jsonl": "67dd89881ed715824c6eb6c895d4e38de08aafe3d9cf7a5a4bb209454463d371",
+  "triage.json": "4158f598493175c40c7274ae8c7a0bf76d276a2f18a95eaf47013f4a558e2bcd",
+  "verdicts/convention.json": "2b027a089af5f4c49bbf4825429fcfa7521a3c510d7f2cec5c4f3e02e119d0de",
+  "verdicts/test_pass.json": "1abfcba90488528ead972b84ab9059189c6c9ffca5754a17741ed0a01c5e414f",
+  "work/test_gate/queue_box.py": "33327e465de932701bef42970a47095b39951327f112f9ad2f379c815f655e9c",
+  "work/test_gate/test_blind_contract.py": "a73966cb8c166cb53337357ed41a3ddb37d038a55fe5c48011b719bfd2643bd0",
+  "work/test_gate/test_queue_box_baseline.py": "790ebbb3b2cdcf4be578b1e3d0d33dd7507d7edc4b549affd5bfae09f4e2849b",
+  "work/tester_wt/test_blind_contract.py": "a73966cb8c166cb53337357ed41a3ddb37d038a55fe5c48011b719bfd2643bd0"
+}

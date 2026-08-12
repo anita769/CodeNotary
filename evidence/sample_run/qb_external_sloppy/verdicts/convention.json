@@ -1,0 +1,40 @@
+{
+  "gate": "CONVENTION",
+  "decision": "red",
+  "summary": "5 findings (5 veto-class)",
+  "issued_by": "notary-gateway (deterministic)",
+  "timestamp": 1786372009.7334142,
+  "findings": [
+    {
+      "file": "notes.md",
+      "severity": "veto",
+      "rule": "diff-scope-discipline",
+      "detail": "file outside contract in_scope"
+    },
+    {
+      "file": "queue_box.py",
+      "line": 19,
+      "severity": "veto",
+      "rule": "exception-handling-convention",
+      "detail": "bare except"
+    },
+    {
+      "file": "queue_box.py",
+      "severity": "veto",
+      "rule": "input-validation-injection",
+      "detail": "security pattern: shell invocation via os.system"
+    },
+    {
+      "file": "queue_box.py",
+      "severity": "veto",
+      "rule": "input-validation-injection",
+      "detail": "security pattern: suspected hardcoded credential"
+    },
+    {
+      "file": "queue_box.py",
+      "severity": "veto",
+      "rule": "input-validation-injection",
+      "detail": "security pattern: suspected hardcoded API key"
+    }
+  ]
+}

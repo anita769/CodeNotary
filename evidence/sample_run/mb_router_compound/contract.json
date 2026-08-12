@@ -1,0 +1,30 @@
+{
+  "issue_id": "ISSUE-201",
+  "assertions": [
+    "route raises OverflowError exactly when the topic already holds capacity_per_topic messages",
+    "drain returns exactly min(max_n, available) oldest messages in FIFO order",
+    "drain returns collected messages without raising when the mailbox empties mid-drain",
+    "drain on an unknown topic returns []",
+    "only mailbox_router.py may be modified; baseline tests stay untouched"
+  ],
+  "in_scope": [
+    "mailbox_router.py"
+  ],
+  "out_of_scope": [
+    "queue_box.py",
+    "test_queue_box_baseline.py",
+    "test_router_baseline.py"
+  ],
+  "blind_partitions": {
+    "author_sees": [
+      "contract",
+      "target source",
+      "diagnosis"
+    ],
+    "tester_sees": [
+      "contract",
+      "baseline public tests"
+    ]
+  },
+  "frozen_hash": "f556e4dcbea189e64b6523cda177abb44757ce0f6ef3765c1b051c2a56cf36f7"
+}

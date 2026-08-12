@@ -1,0 +1,13 @@
+{
+  "verdict": "accept",
+  "scope": [
+    "queue_box.py"
+  ],
+  "route": [
+    "rca",
+    "contract",
+    "tester",
+    "gates"
+  ],
+  "rationale": "scope clear; findings forwarded to gates"
+}

@@ -1,0 +1,14 @@
+{
+  "run_id": "mb_router_compound",
+  "scanned_files": [
+    "mailbox_router.py",
+    "queue_box.py"
+  ],
+  "file_sha256": {
+    "queue_box.py": "a2236ccf100d06eb1cef877a69d5518af5f287089b5fec9e2a315e644375eb76",
+    "mailbox_router.py": "feea0b651e33d9243137202f2ba7f4734d85f8151c3c386a0b5a57981af60913"
+  },
+  "findings": [],
+  "decision": "pass",
+  "status": "green"
+}
