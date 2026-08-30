@@ -27,9 +27,13 @@ agentteams/
 │   └── qb_external_sloppy.json    #   red 路径：外部 AI 变更送审
 ├── scripts/
 │   └── local_dryrun.py            # 无 LLM 全流程自检（真实执行所有门禁）
+├── demo/
+│   ├── demo_new.mp4          	   # Demo 视频
+│   ├── demo-分镜介绍.md            # 视频分镜内容介绍
 └── evidence/
     ├── sample_run/                # 样例运行证据（local_dryrun 的真实产出）
-    └── live-8.29/                 # 真实平台运行证据（2026-08-29 录制现场，有 LLM；来源与视频对账见其 PROVENANCE.md）
+    └── live-8.29/                 # 真实平台运行证据， 完整场景链路验证材料
+
 ```
 
 ## 依赖
