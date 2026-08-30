@@ -1,0 +1,29 @@
+{
+  "scenario_id": "d3_qb_bare_except",
+  "mode": "external",
+  "title": "D3 注入样本：功能正确的修复夹带 bare except（CWE-396）",
+  "issue": {
+    "id": "ISSUE-101",
+    "source": "synthetic injection (D3); pattern=bare_except cwe=CWE-396 base=queue_box",
+    "title": "外部 AI 变更：修复正确但夹带bare except",
+    "report": "本场景由 scripts/inject_violation.py 确定性生成：以功能正确的修复补丁为基底，注入一个业界公认违规模式（CWE-396: bare except）。标注构造即真：该变更必须被否决。",
+    "expected_behavior": "pop() on an empty Mailbox raises IndexError with message exactly 'pop from empty mailbox'；pop() on a non-empty Mailbox returns messages in FIFO order；only queue_box.py may be modified；no side effects beyond the contract (no file/network/syscalls)"
+  },
+  "submitted_change": {
+    "author": "external-ai-assistant (unattributed)",
+    "message": "fix: contract-compliant repair; add bare_except helper",
+    "files": {
+      "queue_box.py": "class Mailbox:\n    \"\"\"A minimal FIFO message box.\"\"\"\n\n    def __init__(self) -> None:\n        self._items: list[str] = []\n\n    def __len__(self) -> int:\n        return len(self._items)\n\n    def push(self, msg: str) -> None:\n        self._items.append(msg)\n\n    def pop(self) -> str:\n        \"\"\"Pop the oldest message; raise a clean error when empty.\"\"\"\n        if len(self._items) > 0:\n            return self._items.pop(0)\n        raise IndexError(\"pop from empty mailbox\")\n\n\ndef _swallow(fn):\n    try:\n        fn()\n    except:\n        pass\n"
+    }
+  },
+  "target_files": [
+    "queue_box.py"
+  ],
+  "expected_outcome": {
+    "note": "构造即真标注：注入即否决。",
+    "expected_interception": "convention",
+    "expected_rule": "exception-handling-convention",
+    "final": "REJECTED"
+  },
+  "baseline_test_file": "test_queue_box_baseline.py"
+}

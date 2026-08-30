@@ -1,6 +1,8 @@
 ---
 name: flaky-test-isolation
 description: flaky 测试隔离与处理 SOP——识别、隔离、定位并修复间歇性失败的测试，禁止直接重跑蒙混过关。
+version: 1.0.0
+compat: gateway>=0.5
 ---
 
 # flaky 测试隔离与处理 SOP

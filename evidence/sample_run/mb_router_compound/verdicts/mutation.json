@@ -3,7 +3,7 @@
   "decision": "green",
   "summary": "mutation score after rebuttal 1.00 (4 killed, 0 survived, 2 exempted)",
   "issued_by": "notary-gateway (deterministic)",
-  "timestamp": 1786372008.5361433,
+  "timestamp": 1788096473.8218465,
   "killed": 4,
   "survived_after_rebuttal": 0,
   "exempted": 2,

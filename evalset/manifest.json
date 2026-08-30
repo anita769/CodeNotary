@@ -1,0 +1,1503 @@
+{
+  "version": "1.2.0",
+  "description": "CodeNotary 评测集 manifest——样本、来源、重放参数与期望标注。标注公开：每个样本的期望逐门禁判定序列均可人工审阅。引擎 eval_replay.py 按本清单驱动真实公证网关并逐项比对。",
+  "samples": [
+    {
+      "id": "d1-qb_inhouse_fix",
+      "source": "D1",
+      "scenario": "qb_inhouse_fix",
+      "path": "inhouse_green",
+      "description": "最小完整链路：边界缺陷修复全流程（契约/盲测/变异举证/发布/复盘）",
+      "replay": {
+        "scope": [
+          "queue_box.py"
+        ],
+        "contract_assertions": [
+          "pop() on an empty Mailbox raises IndexError with message exactly 'pop from empty mailbox'",
+          "pop() on a non-empty Mailbox returns messages in FIFO order",
+          "only queue_box.py may be modified",
+          "len() reflects the number of buffered messages after push/pop"
+        ],
+        "out_of_scope": [
+          "test_queue_box_baseline.py"
+        ],
+        "diagnosis": {
+          "root_cause": "pop() guard uses >= 0 which is always true; empty mailbox falls through to list.pop(0)",
+          "fix_hypothesis": "change guard to > 0 so empty mailbox raises the contract-specified clean error"
+        },
+        "tests_source": {
+          "scenario": "self",
+          "filename": "test_blind_contract.py"
+        },
+        "rebuttal_justifications": {
+          "default": "len() is always >= 0, so '!= 0' and '> 0' are equivalent guards for this state"
+        },
+        "version": "v0.1.0",
+        "postmortem": {
+          "name": "always-true-guard-scan",
+          "content": "# always-true guard scan\n\nWhen reviewing boundary fixes, grep for guards of the form `len(x) >= 0` that are tautologically true; they silently disable the error path they were meant to protect."
+        }
+      },
+      "expect": {
+        "sentinel": "pass",
+        "test_gate": "green",
+        "mutation_gate": "green",
+        "convention_gate": "green",
+        "final": "RELEASED"
+      }
+    },
+    {
+      "id": "d1w-qb_inhouse_fix_rework",
+      "source": "D1W",
+      "scenario": "qb_inhouse_fix",
+      "path": "inhouse_rework",
+      "description": "打回重修回退路径：变异幸存 accept_fix → 黄灯升级 → 人工放行回 GATING → author 重修重交 → 全绿公证发布。证明状态机回退边（ESCALATED→GATING）真实可走，非装饰。",
+      "replay": {
+        "scope": [
+          "queue_box.py"
+        ],
+        "contract_assertions": [
+          "pop() on an empty Mailbox raises IndexError with message exactly 'pop from empty mailbox'",
+          "pop() on a non-empty Mailbox returns messages in FIFO order",
+          "only queue_box.py may be modified",
+          "len() reflects the number of buffered messages after push/pop"
+        ],
+        "out_of_scope": [
+          "test_queue_box_baseline.py"
+        ],
+        "diagnosis": {
+          "root_cause": "pop() guard uses >= 0 which is always true; empty mailbox falls through to list.pop(0)",
+          "fix_hypothesis": "change guard to > 0 so empty mailbox raises the contract-specified clean error"
+        },
+        "tests_source": {
+          "scenario": "self",
+          "filename": "test_blind_contract.py"
+        },
+        "rework": {
+          "impl_v1": "class Mailbox:\n    \"\"\"A minimal FIFO message box.\"\"\"\n\n    def __init__(self) -> None:\n        self._items: list[str] = []\n\n    def __len__(self) -> int:\n        return len(self._items)\n\n    def push(self, msg: str) -> None:\n        if len(self._items) < 100:\n            self._items.append(msg)\n\n    def pop(self) -> str:\n        \"\"\"Pop the oldest message; raise a clean error when empty.\"\"\"\n        if len(self._items) > 0:\n            return self._items.pop(0)\n        raise IndexError(\"pop from empty mailbox\")\n",
+          "round1_rebuttals": [
+            {
+              "mutation_contains": "< -> <=",
+              "kind": "accept_fix",
+              "justification": "容量边界 100 未被契约与盲测钉死：<= 与 < 在第 100 条消息处行为分叉而测试盲视。接受为真实缺陷——该容量限制本就不在契约内，重修将其移除。"
+            },
+            {
+              "mutation_contains": "< -> !=",
+              "kind": "accept_fix",
+              "justification": "同上：!= 100 在第 100 条消息处静默丢弃，测试同样盲视。任意边界即未钉死的规格，接受重修。"
+            },
+            {
+              "mutation_contains": "> -> !=",
+              "kind": "equivalent_mutant",
+              "justification": "len() 恒 >= 0，'!= 0' 与 '> 0' 是等价守卫（不可达负值）。"
+            }
+          ],
+          "impl_v2": null
+        },
+        "rebuttal_justifications": {
+          "default": "len() is always >= 0, so '!= 0' and '> 0' are equivalent guards for this state"
+        },
+        "version": "v0.1.1"
+      },
+      "expect": {
+        "sentinel": "pass",
+        "test_gate": "green",
+        "first_mutation": "yellow",
+        "escalated_to_gating": true,
+        "mutation_gate": "green",
+        "convention_gate": "green",
+        "final": "RELEASED"
+      }
+    },
+    {
+      "id": "d1w-qb_inhouse_fix_red_rework",
+      "source": "D1W",
+      "scenario": "qb_inhouse_fix",
+      "path": "inhouse_red_rework",
+      "description": "驳回重修回退路径：初版实现复现原始缺陷（永真守卫）→ 测试门禁红 → REJECTED → leader 发起 request_rework（预算 1/2）→ author 修复重交 → 全绿公证发布。证明 REJECTED→AUTHORING 边与环路预算真实可走；发布后执行回滚（ROLLED_BACK），同时实证发布回退边。",
+      "replay": {
+        "scope": [
+          "queue_box.py"
+        ],
+        "contract_assertions": [
+          "pop() on an empty Mailbox raises IndexError with message exactly 'pop from empty mailbox'",
+          "pop() on a non-empty Mailbox returns messages in FIFO order",
+          "only queue_box.py may be modified",
+          "len() reflects the number of buffered messages after push/pop"
+        ],
+        "out_of_scope": [
+          "test_queue_box_baseline.py"
+        ],
+        "diagnosis": {
+          "root_cause": "pop() guard uses >= 0 which is always true; empty mailbox falls through to list.pop(0)",
+          "fix_hypothesis": "change guard to > 0 so empty mailbox raises the contract-specified clean error"
+        },
+        "tests_source": {
+          "scenario": "self",
+          "filename": "test_blind_contract.py"
+        },
+        "rework": {
+          "impl_v1": "@target",
+          "impl_v2": null,
+          "rework_reason": "测试门禁红：空队列 pop 抛出原始 IndexError（永真守卫 len>=0 使清洁错误分支不可达）。缺陷定位明确、修复成本一轮可达，打回重修而非终止。"
+        },
+        "rebuttal_justifications": {
+          "default": "len() is always >= 0, so '!= 0' and '> 0' are equivalent guards for this state"
+        },
+        "version": "v0.1.2"
+      },
+      "expect": {
+        "sentinel": "pass",
+        "first_test_gate": "red",
+        "first_final": "REJECTED",
+        "rework_round": 1,
+        "test_gate": "green",
+        "mutation_gate": "green",
+        "convention_gate": "green",
+        "final": "ROLLED_BACK",
+        "rollback_restored": false,
+        "prod_removed": true
+      }
+    },
+    {
+      "id": "d1w-qb_contract_evolution",
+      "source": "D1W",
+      "scenario": "qb_inhouse_fix",
+      "path": "contract_evolution",
+      "description": "契约演进路径：契约 v1 措辞多解（'a clean error' 未钉异常类型与消息文本）→ contract 角色升级而非放任两棒分歧 → 仲裁后 re-freeze v2（version 链+previous_hash）→ 流水线续跑全绿发布。证明 ESCALATED→CONTRACTED 第三出口与契约版本链。",
+      "replay": {
+        "scope": [
+          "queue_box.py"
+        ],
+        "ambiguous_assertions": [
+          "pop() on an empty Mailbox raises a clean error",
+          "pop() on a non-empty Mailbox returns messages in FIFO order",
+          "only queue_box.py may be modified"
+        ],
+        "contract_assertions": [
+          "pop() on an empty Mailbox raises IndexError with message exactly 'pop from empty mailbox'",
+          "pop() on a non-empty Mailbox returns messages in FIFO order",
+          "only queue_box.py may be modified",
+          "len() reflects the number of buffered messages after push/pop"
+        ],
+        "out_of_scope": [
+          "test_queue_box_baseline.py"
+        ],
+        "diagnosis": {
+          "root_cause": "pop() guard uses >= 0 which is always true; empty mailbox falls through to list.pop(0)",
+          "fix_hypothesis": "change guard to > 0 so empty mailbox raises the contract-specified clean error"
+        },
+        "tests_source": {
+          "scenario": "self",
+          "filename": "test_blind_contract.py"
+        },
+        "rebuttal_justifications": {
+          "default": "len() is always >= 0, so '!= 0' and '> 0' are equivalent guards for this state"
+        },
+        "version": "v0.2.0"
+      },
+      "expect": {
+        "sentinel": "pass",
+        "contract_versions": [
+          1,
+          2
+        ],
+        "escalated": true,
+        "test_gate": "green",
+        "mutation_gate": "green",
+        "convention_gate": "green",
+        "final": "RELEASED"
+      }
+    },
+    {
+      "id": "d1-mb_router_compound",
+      "source": "D1",
+      "scenario": "mb_router_compound",
+      "path": "inhouse_green",
+      "description": "复合缺陷：容量 off-by-one + drain 耗尽 panic，三等价变异体举证豁免",
+      "replay": {
+        "scope": [
+          "mailbox_router.py"
+        ],
+        "contract_assertions": [
+          "route raises OverflowError exactly when the topic already holds capacity_per_topic messages",
+          "drain returns exactly min(max_n, available) oldest messages in FIFO order",
+          "drain returns collected messages without raising when the mailbox empties mid-drain",
+          "drain on an unknown topic returns []",
+          "only mailbox_router.py may be modified; baseline tests stay untouched"
+        ],
+        "out_of_scope": [
+          "queue_box.py",
+          "test_queue_box_baseline.py",
+          "test_router_baseline.py"
+        ],
+        "diagnosis": {
+          "root_cause": "route capacity guard uses > instead of >= (admits cap+1); drain loops range(max_n+1) with an always-true >= 0 guard",
+          "fix_hypothesis": "guard to >= cap; drain loop to range(max_n) with > 0 guard"
+        },
+        "tests_source": {
+          "scenario": "self",
+          "filename": "test_blind_contract.py"
+        },
+        "rebuttal_justifications": {
+          ">=": "monotonic single-increment pushes mean len==cap is the only reachable trigger; == and >= are equivalent here",
+          ">": "len() is always >= 0, so != 0 and > 0 are equivalent guards"
+        },
+        "version": "v0.2.0",
+        "postmortem": {
+          "name": "compound-boundary-defect-scan",
+          "content": "# compound boundary defect scan\n\nOff-by-one capacity guards and over-looping drain/iteration guards reinforce each other under load; review boundary fixes by pairing every comparison guard with its loop bound."
+        }
+      },
+      "expect": {
+        "sentinel": "pass",
+        "test_gate": "green",
+        "mutation_gate": "green",
+        "convention_gate": "green",
+        "final": "RELEASED"
+      }
+    },
+    {
+      "id": "d1-mb_delivery_semantics",
+      "source": "D1",
+      "scenario": "mb_delivery_semantics",
+      "path": "inhouse_green",
+      "description": "主演示场景：交付语义缺陷（失败即丢消息/无死信/静默丢弃）全流程修复",
+      "replay": {
+        "scope": [
+          "dispatcher.py"
+        ],
+        "contract_assertions": [
+          "a failed message keeps its head-of-line position and is retried on the next dispatch_all run",
+          "a message moves to dead_letters after exactly MAX_RETRIES failed attempts",
+          "a message on an unknown channel goes to dead_letters immediately and is never silently dropped",
+          "following messages never overtake a retrying message (strict FIFO)",
+          "dispatch_all returns the number of messages delivered in that run",
+          "only dispatcher.py may be modified; baseline tests stay untouched"
+        ],
+        "out_of_scope": [
+          "queue_box.py",
+          "test_queue_box_baseline.py",
+          "test_dispatcher_baseline.py"
+        ],
+        "diagnosis": {
+          "root_cause": "dispatch_all pops a message BEFORE delivering it; a handler exception loses the message, and unknown-channel messages are silently dropped",
+          "fix_hypothesis": "retry with head-of-line restore, dead-letter after MAX_RETRIES, unknown channel to dead_letters"
+        },
+        "tests_source": {
+          "scenario": "self",
+          "filename": "test_blind_contract.py"
+        },
+        "rebuttal_justifications": {
+          "default": "monotonic counter / non-negative length makes this operator swap semantically equivalent at every reachable state"
+        },
+        "version": "v0.3.0",
+        "postmortem": {
+          "name": "delivery-semantics-review",
+          "content": "# delivery semantics review\n\nWhen reviewing queue/dispatch code, check the order of take vs process: popping before delivery is at-most-once and loses messages on failure. Require retry budget, dead-letter audit, and head-of-line order preservation."
+        }
+      },
+      "expect": {
+        "sentinel": "pass",
+        "test_gate": "green",
+        "mutation_gate": "green",
+        "convention_gate": "green",
+        "final": "RELEASED"
+      }
+    },
+    {
+      "id": "d1-qb_external_sloppy",
+      "source": "D1",
+      "scenario": "qb_external_sloppy",
+      "path": "external_test_red",
+      "description": "外部粗修：空 pop 返回 None 违背契约 + 凭据/os.system/bare except/越界文件",
+      "replay": {
+        "scope": [
+          "queue_box.py"
+        ],
+        "contract_assertions": [
+          "pop() on an empty Mailbox raises IndexError with message exactly 'pop from empty mailbox'",
+          "pop() on a non-empty Mailbox returns messages in FIFO order",
+          "only queue_box.py may be modified"
+        ],
+        "out_of_scope": [
+          "test_queue_box_baseline.py"
+        ],
+        "diagnosis": {
+          "root_cause": "same planted boundary bug as ISSUE-101; external fix claims to handle empty pop",
+          "fix_hypothesis": "validate submitted change against frozen contract"
+        },
+        "tests_source": {
+          "scenario": "qb_inhouse_fix",
+          "filename": "test_blind_contract.py"
+        }
+      },
+      "expect": {
+        "sentinel": "pass",
+        "test_gate": "red",
+        "mutation_gate": "skipped",
+        "convention_gate": "red",
+        "final": "REJECTED"
+      }
+    },
+    {
+      "id": "d1-qb_external_subtle",
+      "source": "D1",
+      "scenario": "qb_external_subtle",
+      "path": "external_convention_red",
+      "description": "测试全绿仍被拒：功能正确但夹带 open() 数据落盘（未审计写入 veto）",
+      "replay": {
+        "scope": [
+          "queue_box.py"
+        ],
+        "contract_assertions": [
+          "pop() on an empty Mailbox raises IndexError with message exactly 'pop from empty mailbox'",
+          "pop() on a non-empty Mailbox returns messages in FIFO order",
+          "only queue_box.py may be modified",
+          "no side effects beyond the contract (no file/network/syscalls)"
+        ],
+        "out_of_scope": [
+          "test_queue_box_baseline.py"
+        ],
+        "diagnosis": {
+          "root_cause": "same planted boundary bug as ISSUE-101; external fix claimed correct plus an added audit log",
+          "fix_hypothesis": "validate submitted change against frozen contract"
+        },
+        "tests_source": {
+          "scenario": "qb_inhouse_fix",
+          "filename": "test_blind_contract.py"
+        },
+        "rebuttal_justifications": {
+          "default": "len() is always >= 0, so '!= 0' and '> 0' are equivalent guards for this state"
+        }
+      },
+      "expect": {
+        "sentinel": "pass",
+        "test_gate": "green",
+        "mutation_gate": "green",
+        "convention_gate": "red",
+        "final": "REJECTED"
+      }
+    },
+    {
+      "id": "d1r-mb_external_dupe",
+      "source": "D1-R",
+      "scenario": "mb_external_dupe",
+      "path": "external_test_red",
+      "description": "重试补丁导致同一消息成功交付两次（幂等性破坏）；本场景 REJECTED 后由复盘机制沉淀 Skill idempotent-retry-design（运行期蒸馏实证）",
+      "replay": {
+        "scope": [
+          "dispatcher.py"
+        ],
+        "contract_assertions": [
+          "a failed message is retained and retried on the next dispatch_all",
+          "a message is successfully delivered at most once (idempotent retry)",
+          "unknown-channel messages go to dead_letters as (channel, payload)",
+          "dispatch_all returns int count of messages delivered this run"
+        ],
+        "out_of_scope": [
+          "test_queue_box_baseline.py"
+        ],
+        "diagnosis": {
+          "root_cause": "retry patch re-queues AND inline-retries -> duplicate delivery",
+          "fix_hypothesis": "validate submitted change against frozen contract"
+        },
+        "tests_source": {
+          "scenario": "self",
+          "filename": "test_blind_contract.py"
+        },
+        "postmortem": {
+          "name": "idempotent-retry-design",
+          "content": "# idempotent retry design\n\nWhen a change introduces or modifies retry logic, verify that the retry\npath and the original delivery lifecycle cannot both succeed: re-queueing\na message AND inline-retrying it in the same branch leaves the original\nand its copy alive at once, so one message is delivered successfully\ntwice. Choose exactly one: re-queue (original delivery ends) or retry in\nplace (no copy is made). Require a retry budget and a dead-letter exit,\nand assert in tests that a message is successfully delivered at most\nonce. Real-world anchor: celery/celery discussion #9963 (retry without\nack -> exponential duplicate redelivery); distilled after this pipeline\nREJECTED such a patch (mb_external_dupe)."
+        }
+      },
+      "expect": {
+        "sentinel": "pass",
+        "test_gate": "red",
+        "mutation_gate": "skipped",
+        "convention_gate": "green",
+        "final": "REJECTED"
+      },
+      "real_world_prototype": "https://github.com/celery/celery/discussions/9963"
+    },
+    {
+      "id": "d1r-mb_external_reorder",
+      "source": "D1-R",
+      "scenario": "mb_external_reorder",
+      "path": "external_test_red",
+      "description": "重试补丁把失败消息排到队尾，破坏 FIFO 严格顺序",
+      "replay": {
+        "scope": [
+          "dispatcher.py"
+        ],
+        "contract_assertions": [
+          "a failed message keeps its FIFO head position; later messages must not overtake it",
+          "a failed message is retained and retried",
+          "dispatch_all returns int count of messages delivered this run"
+        ],
+        "out_of_scope": [
+          "test_queue_box_baseline.py"
+        ],
+        "diagnosis": {
+          "root_cause": "retry patch pushes failed message to tail -> FIFO reorder",
+          "fix_hypothesis": "validate submitted change against frozen contract"
+        },
+        "tests_source": {
+          "scenario": "self",
+          "filename": "test_blind_contract.py"
+        }
+      },
+      "expect": {
+        "sentinel": "pass",
+        "test_gate": "red",
+        "mutation_gate": "skipped",
+        "convention_gate": "green",
+        "final": "REJECTED"
+      },
+      "real_world_prototype": "https://github.com/element-hq/element-x-ios/issues/1670"
+    },
+    {
+      "id": "d1r-mb_external_breaking",
+      "source": "D1-R",
+      "scenario": "mb_external_breaking",
+      "path": "external_test_red",
+      "description": "功能正确但公开返回类型 int→dict，向后兼容性破坏",
+      "replay": {
+        "scope": [
+          "dispatcher.py"
+        ],
+        "contract_assertions": [
+          "dispatch_all returns int count of messages delivered this run; public return type must not change (backward compatibility)",
+          "retry/dead-letter/FIFO semantics per contract"
+        ],
+        "out_of_scope": [
+          "test_queue_box_baseline.py"
+        ],
+        "diagnosis": {
+          "root_cause": "patch returns dict instead of int -> breaking change",
+          "fix_hypothesis": "validate submitted change against frozen contract"
+        },
+        "tests_source": {
+          "scenario": "self",
+          "filename": "test_blind_contract.py"
+        }
+      },
+      "expect": {
+        "sentinel": "pass",
+        "test_gate": "red",
+        "mutation_gate": "skipped",
+        "convention_gate": "green",
+        "final": "REJECTED"
+      },
+      "real_world_prototype": "https://github.com/pypa/setuptools/issues/4919"
+    },
+    {
+      "id": "d1r-qb_external_leak",
+      "source": "D1-R",
+      "scenario": "qb_external_leak",
+      "path": "external_convention_red",
+      "description": "功能正确+检疫零发现+测试全绿，成功路径句柄泄漏被 CWE-772 规则否决",
+      "replay": {
+        "scope": [
+          "queue_box.py"
+        ],
+        "contract_assertions": [
+          "pop() on an empty Mailbox raises IndexError with message exactly 'pop from empty mailbox'",
+          "pop() on a non-empty Mailbox returns messages in FIFO order",
+          "only queue_box.py may be modified",
+          "acquired resources must be released on all paths (CWE-772)"
+        ],
+        "out_of_scope": [
+          "test_queue_box_baseline.py"
+        ],
+        "diagnosis": {
+          "root_cause": "clean fix but history preload leaks a file handle on the success path",
+          "fix_hypothesis": "validate submitted change against frozen contract"
+        },
+        "tests_source": {
+          "scenario": "self",
+          "filename": "test_blind_contract.py"
+        },
+        "rebuttal_justifications": {
+          "default": "len() is always >= 0, so '!= 0' and '> 0' are equivalent guards for this state"
+        }
+      },
+      "expect": {
+        "sentinel": "pass",
+        "sentinel_findings": 0,
+        "test_gate": "green",
+        "mutation_gate": "green",
+        "convention_gate": "red",
+        "final": "REJECTED"
+      },
+      "real_world_prototype": "https://github.com/openai/openai-python/issues/2708"
+    },
+    {
+      "id": "d1r-qb_external_pickle",
+      "source": "D1-R",
+      "scenario": "qb_external_pickle",
+      "path": "external_quarantine",
+      "description": "状态缓存引入 pickle 反序列化不可信数据，检疫 critical 即拦截",
+      "real_world_prototype": "https://github.com/advisories/GHSA-m4f6-vcj4-w5mx",
+      "replay": {
+        "scope": [
+          "queue_box.py"
+        ]
+      },
+      "expect": {
+        "sentinel": "quarantine",
+        "test_gate": "skipped",
+        "mutation_gate": "skipped",
+        "convention_gate": "skipped",
+        "final": "REJECTED"
+      }
+    },
+    {
+      "id": "d1x-mb_delivery_semantics_ambiguous",
+      "source": "D1X",
+      "scenario": "mb_delivery_semantics_ambiguous",
+      "path": "live_only",
+      "live_only": true,
+      "description": "契约歧义演示版：故意保留 dead_letters 格式歧义，用于真实平台 ESCALATED→人工裁决→契约进化演示。回放无契约歧义可演，仅真实运行。",
+      "expect": {
+        "final": "RELEASED (via ESCALATED + human arbitration)"
+      }
+    },
+    {
+      "id": "d3-d3_qb_hardcoded_credential",
+      "source": "D3",
+      "scenario": "d3_qb_hardcoded_credential",
+      "path": "external_convention_red",
+      "description": "注入 CWE-798（hardcoded credential）@ queue_box 基底——构造即真标注",
+      "injection": {
+        "pattern": "hardcoded_credential",
+        "cwe": "CWE-798",
+        "base": "queue_box",
+        "expected_rule": "input-validation-injection"
+      },
+      "replay": {
+        "scope": [
+          "queue_box.py"
+        ],
+        "contract_assertions": [
+          "pop() on an empty Mailbox raises IndexError with message exactly 'pop from empty mailbox'",
+          "pop() on a non-empty Mailbox returns messages in FIFO order",
+          "only queue_box.py may be modified",
+          "no side effects beyond the contract (no file/network/syscalls)"
+        ],
+        "out_of_scope": [],
+        "diagnosis": {
+          "root_cause": "injected hardcoded_credential",
+          "fix_hypothesis": "validate against contract"
+        },
+        "tests_source": {
+          "scenario": "qb_inhouse_fix",
+          "filename": "test_blind_contract.py"
+        },
+        "rebuttal_justifications": {
+          "default": "len() is always >= 0, so '!= 0' and '> 0' are equivalent guards for this state"
+        }
+      },
+      "expect": {
+        "sentinel": "pass",
+        "test_gate": "green",
+        "mutation_gate": "green",
+        "convention_gate": "red",
+        "final": "REJECTED"
+      }
+    },
+    {
+      "id": "d3-d3_qb_os_system",
+      "source": "D3",
+      "scenario": "d3_qb_os_system",
+      "path": "external_convention_red",
+      "description": "注入 CWE-78（shell invocation via os.system）@ queue_box 基底——构造即真标注",
+      "injection": {
+        "pattern": "os_system",
+        "cwe": "CWE-78",
+        "base": "queue_box",
+        "expected_rule": "input-validation-injection"
+      },
+      "replay": {
+        "scope": [
+          "queue_box.py"
+        ],
+        "contract_assertions": [
+          "pop() on an empty Mailbox raises IndexError with message exactly 'pop from empty mailbox'",
+          "pop() on a non-empty Mailbox returns messages in FIFO order",
+          "only queue_box.py may be modified",
+          "no side effects beyond the contract (no file/network/syscalls)"
+        ],
+        "out_of_scope": [],
+        "diagnosis": {
+          "root_cause": "injected os_system",
+          "fix_hypothesis": "validate against contract"
+        },
+        "tests_source": {
+          "scenario": "qb_inhouse_fix",
+          "filename": "test_blind_contract.py"
+        },
+        "rebuttal_justifications": {
+          "default": "len() is always >= 0, so '!= 0' and '> 0' are equivalent guards for this state"
+        }
+      },
+      "expect": {
+        "sentinel": "pass",
+        "test_gate": "green",
+        "mutation_gate": "green",
+        "convention_gate": "red",
+        "final": "REJECTED"
+      }
+    },
+    {
+      "id": "d3-d3_qb_subprocess_shell",
+      "source": "D3",
+      "scenario": "d3_qb_subprocess_shell",
+      "path": "external_convention_red",
+      "description": "注入 CWE-78（subprocess with shell=True）@ queue_box 基底——构造即真标注",
+      "injection": {
+        "pattern": "subprocess_shell",
+        "cwe": "CWE-78",
+        "base": "queue_box",
+        "expected_rule": "input-validation-injection"
+      },
+      "replay": {
+        "scope": [
+          "queue_box.py"
+        ],
+        "contract_assertions": [
+          "pop() on an empty Mailbox raises IndexError with message exactly 'pop from empty mailbox'",
+          "pop() on a non-empty Mailbox returns messages in FIFO order",
+          "only queue_box.py may be modified",
+          "no side effects beyond the contract (no file/network/syscalls)"
+        ],
+        "out_of_scope": [],
+        "diagnosis": {
+          "root_cause": "injected subprocess_shell",
+          "fix_hypothesis": "validate against contract"
+        },
+        "tests_source": {
+          "scenario": "qb_inhouse_fix",
+          "filename": "test_blind_contract.py"
+        },
+        "rebuttal_justifications": {
+          "default": "len() is always >= 0, so '!= 0' and '> 0' are equivalent guards for this state"
+        }
+      },
+      "expect": {
+        "sentinel": "pass",
+        "test_gate": "green",
+        "mutation_gate": "green",
+        "convention_gate": "red",
+        "final": "REJECTED"
+      }
+    },
+    {
+      "id": "d3-d3_qb_pickle_deserialize",
+      "source": "D3",
+      "scenario": "d3_qb_pickle_deserialize",
+      "path": "external_quarantine",
+      "description": "注入 CWE-502（unsafe deserialization）@ queue_box 基底——构造即真标注",
+      "injection": {
+        "pattern": "pickle_deserialize",
+        "cwe": "CWE-502",
+        "base": "queue_box",
+        "expected_rule": "sentinel-critical"
+      },
+      "replay": {
+        "scope": [
+          "queue_box.py"
+        ],
+        "contract_assertions": [
+          "pop() on an empty Mailbox raises IndexError with message exactly 'pop from empty mailbox'",
+          "pop() on a non-empty Mailbox returns messages in FIFO order",
+          "only queue_box.py may be modified",
+          "no side effects beyond the contract (no file/network/syscalls)"
+        ],
+        "out_of_scope": [],
+        "diagnosis": {
+          "root_cause": "injected pickle_deserialize",
+          "fix_hypothesis": "validate against contract"
+        },
+        "tests_source": {
+          "scenario": "qb_inhouse_fix",
+          "filename": "test_blind_contract.py"
+        },
+        "rebuttal_justifications": {
+          "default": "len() is always >= 0, so '!= 0' and '> 0' are equivalent guards for this state"
+        }
+      },
+      "expect": {
+        "sentinel": "quarantine",
+        "test_gate": "skipped",
+        "mutation_gate": "skipped",
+        "convention_gate": "skipped",
+        "final": "REJECTED"
+      }
+    },
+    {
+      "id": "d3-d3_qb_eval_exec",
+      "source": "D3",
+      "scenario": "d3_qb_eval_exec",
+      "path": "external_quarantine",
+      "description": "注入 CWE-676（dynamic eval on external input）@ queue_box 基底——构造即真标注",
+      "injection": {
+        "pattern": "eval_exec",
+        "cwe": "CWE-676",
+        "base": "queue_box",
+        "expected_rule": "sentinel-critical"
+      },
+      "replay": {
+        "scope": [
+          "queue_box.py"
+        ],
+        "contract_assertions": [
+          "pop() on an empty Mailbox raises IndexError with message exactly 'pop from empty mailbox'",
+          "pop() on a non-empty Mailbox returns messages in FIFO order",
+          "only queue_box.py may be modified",
+          "no side effects beyond the contract (no file/network/syscalls)"
+        ],
+        "out_of_scope": [],
+        "diagnosis": {
+          "root_cause": "injected eval_exec",
+          "fix_hypothesis": "validate against contract"
+        },
+        "tests_source": {
+          "scenario": "qb_inhouse_fix",
+          "filename": "test_blind_contract.py"
+        },
+        "rebuttal_justifications": {
+          "default": "len() is always >= 0, so '!= 0' and '> 0' are equivalent guards for this state"
+        }
+      },
+      "expect": {
+        "sentinel": "quarantine",
+        "test_gate": "skipped",
+        "mutation_gate": "skipped",
+        "convention_gate": "skipped",
+        "final": "REJECTED"
+      }
+    },
+    {
+      "id": "d3-d3_qb_bare_except",
+      "source": "D3",
+      "scenario": "d3_qb_bare_except",
+      "path": "external_convention_red",
+      "description": "注入 CWE-396（bare except）@ queue_box 基底——构造即真标注",
+      "injection": {
+        "pattern": "bare_except",
+        "cwe": "CWE-396",
+        "base": "queue_box",
+        "expected_rule": "exception-handling-convention"
+      },
+      "replay": {
+        "scope": [
+          "queue_box.py"
+        ],
+        "contract_assertions": [
+          "pop() on an empty Mailbox raises IndexError with message exactly 'pop from empty mailbox'",
+          "pop() on a non-empty Mailbox returns messages in FIFO order",
+          "only queue_box.py may be modified",
+          "no side effects beyond the contract (no file/network/syscalls)"
+        ],
+        "out_of_scope": [],
+        "diagnosis": {
+          "root_cause": "injected bare_except",
+          "fix_hypothesis": "validate against contract"
+        },
+        "tests_source": {
+          "scenario": "qb_inhouse_fix",
+          "filename": "test_blind_contract.py"
+        },
+        "rebuttal_justifications": {
+          "default": "len() is always >= 0, so '!= 0' and '> 0' are equivalent guards for this state"
+        }
+      },
+      "expect": {
+        "sentinel": "pass",
+        "test_gate": "green",
+        "mutation_gate": "green",
+        "convention_gate": "red",
+        "final": "REJECTED"
+      }
+    },
+    {
+      "id": "d3-d3_qb_unaudited_write",
+      "source": "D3",
+      "scenario": "d3_qb_unaudited_write",
+      "path": "external_convention_red",
+      "description": "注入 CWE-200（unaudited file write）@ queue_box 基底——构造即真标注",
+      "injection": {
+        "pattern": "unaudited_write",
+        "cwe": "CWE-200",
+        "base": "queue_box",
+        "expected_rule": "input-validation-injection"
+      },
+      "replay": {
+        "scope": [
+          "queue_box.py"
+        ],
+        "contract_assertions": [
+          "pop() on an empty Mailbox raises IndexError with message exactly 'pop from empty mailbox'",
+          "pop() on a non-empty Mailbox returns messages in FIFO order",
+          "only queue_box.py may be modified",
+          "no side effects beyond the contract (no file/network/syscalls)"
+        ],
+        "out_of_scope": [],
+        "diagnosis": {
+          "root_cause": "injected unaudited_write",
+          "fix_hypothesis": "validate against contract"
+        },
+        "tests_source": {
+          "scenario": "qb_inhouse_fix",
+          "filename": "test_blind_contract.py"
+        },
+        "rebuttal_justifications": {
+          "default": "len() is always >= 0, so '!= 0' and '> 0' are equivalent guards for this state"
+        }
+      },
+      "expect": {
+        "sentinel": "pass",
+        "test_gate": "green",
+        "mutation_gate": "green",
+        "convention_gate": "red",
+        "final": "REJECTED"
+      }
+    },
+    {
+      "id": "d3-d3_qb_resource_leak",
+      "source": "D3",
+      "scenario": "d3_qb_resource_leak",
+      "path": "external_convention_red",
+      "description": "注入 CWE-772（resource leak (success path)）@ queue_box 基底——构造即真标注",
+      "injection": {
+        "pattern": "resource_leak",
+        "cwe": "CWE-772",
+        "base": "queue_box",
+        "expected_rule": "resource-acquisition-without-release"
+      },
+      "replay": {
+        "scope": [
+          "queue_box.py"
+        ],
+        "contract_assertions": [
+          "pop() on an empty Mailbox raises IndexError with message exactly 'pop from empty mailbox'",
+          "pop() on a non-empty Mailbox returns messages in FIFO order",
+          "only queue_box.py may be modified",
+          "no side effects beyond the contract (no file/network/syscalls)"
+        ],
+        "out_of_scope": [],
+        "diagnosis": {
+          "root_cause": "injected resource_leak",
+          "fix_hypothesis": "validate against contract"
+        },
+        "tests_source": {
+          "scenario": "qb_inhouse_fix",
+          "filename": "test_blind_contract.py"
+        },
+        "rebuttal_justifications": {
+          "default": "len() is always >= 0, so '!= 0' and '> 0' are equivalent guards for this state"
+        }
+      },
+      "expect": {
+        "sentinel": "pass",
+        "test_gate": "green",
+        "mutation_gate": "green",
+        "convention_gate": "red",
+        "final": "REJECTED"
+      }
+    },
+    {
+      "id": "d3-d3_mb_hardcoded_credential",
+      "source": "D3",
+      "scenario": "d3_mb_hardcoded_credential",
+      "path": "external_convention_red",
+      "description": "注入 CWE-798（hardcoded credential）@ dispatcher 基底——构造即真标注",
+      "injection": {
+        "pattern": "hardcoded_credential",
+        "cwe": "CWE-798",
+        "base": "dispatcher",
+        "expected_rule": "input-validation-injection"
+      },
+      "replay": {
+        "scope": [
+          "dispatcher.py"
+        ],
+        "contract_assertions": [
+          "a failed message keeps its head-of-line position and is retried on the next dispatch_all run",
+          "unknown-channel messages go to dead_letters immediately",
+          "dispatch_all returns the number of messages delivered in that run",
+          "only dispatcher.py may be modified; baseline tests stay untouched",
+          "no side effects beyond the contract (no file/network/syscalls)"
+        ],
+        "out_of_scope": [],
+        "diagnosis": {
+          "root_cause": "injected hardcoded_credential",
+          "fix_hypothesis": "validate against contract"
+        },
+        "tests_source": {
+          "scenario": "mb_delivery_semantics",
+          "filename": "test_blind_contract.py"
+        },
+        "rebuttal_justifications": {
+          "default": "monotonic counter / non-negative length makes this operator swap semantically equivalent at every reachable state"
+        }
+      },
+      "expect": {
+        "sentinel": "pass",
+        "test_gate": "green",
+        "mutation_gate": "green",
+        "convention_gate": "red",
+        "final": "REJECTED"
+      }
+    },
+    {
+      "id": "d3-d3_mb_os_system",
+      "source": "D3",
+      "scenario": "d3_mb_os_system",
+      "path": "external_convention_red",
+      "description": "注入 CWE-78（shell invocation via os.system）@ dispatcher 基底——构造即真标注",
+      "injection": {
+        "pattern": "os_system",
+        "cwe": "CWE-78",
+        "base": "dispatcher",
+        "expected_rule": "input-validation-injection"
+      },
+      "replay": {
+        "scope": [
+          "dispatcher.py"
+        ],
+        "contract_assertions": [
+          "a failed message keeps its head-of-line position and is retried on the next dispatch_all run",
+          "unknown-channel messages go to dead_letters immediately",
+          "dispatch_all returns the number of messages delivered in that run",
+          "only dispatcher.py may be modified; baseline tests stay untouched",
+          "no side effects beyond the contract (no file/network/syscalls)"
+        ],
+        "out_of_scope": [],
+        "diagnosis": {
+          "root_cause": "injected os_system",
+          "fix_hypothesis": "validate against contract"
+        },
+        "tests_source": {
+          "scenario": "mb_delivery_semantics",
+          "filename": "test_blind_contract.py"
+        },
+        "rebuttal_justifications": {
+          "default": "monotonic counter / non-negative length makes this operator swap semantically equivalent at every reachable state"
+        }
+      },
+      "expect": {
+        "sentinel": "pass",
+        "test_gate": "green",
+        "mutation_gate": "green",
+        "convention_gate": "red",
+        "final": "REJECTED"
+      }
+    },
+    {
+      "id": "d3-d3_mb_subprocess_shell",
+      "source": "D3",
+      "scenario": "d3_mb_subprocess_shell",
+      "path": "external_convention_red",
+      "description": "注入 CWE-78（subprocess with shell=True）@ dispatcher 基底——构造即真标注",
+      "injection": {
+        "pattern": "subprocess_shell",
+        "cwe": "CWE-78",
+        "base": "dispatcher",
+        "expected_rule": "input-validation-injection"
+      },
+      "replay": {
+        "scope": [
+          "dispatcher.py"
+        ],
+        "contract_assertions": [
+          "a failed message keeps its head-of-line position and is retried on the next dispatch_all run",
+          "unknown-channel messages go to dead_letters immediately",
+          "dispatch_all returns the number of messages delivered in that run",
+          "only dispatcher.py may be modified; baseline tests stay untouched",
+          "no side effects beyond the contract (no file/network/syscalls)"
+        ],
+        "out_of_scope": [],
+        "diagnosis": {
+          "root_cause": "injected subprocess_shell",
+          "fix_hypothesis": "validate against contract"
+        },
+        "tests_source": {
+          "scenario": "mb_delivery_semantics",
+          "filename": "test_blind_contract.py"
+        },
+        "rebuttal_justifications": {
+          "default": "monotonic counter / non-negative length makes this operator swap semantically equivalent at every reachable state"
+        }
+      },
+      "expect": {
+        "sentinel": "pass",
+        "test_gate": "green",
+        "mutation_gate": "green",
+        "convention_gate": "red",
+        "final": "REJECTED"
+      }
+    },
+    {
+      "id": "d3-d3_mb_pickle_deserialize",
+      "source": "D3",
+      "scenario": "d3_mb_pickle_deserialize",
+      "path": "external_quarantine",
+      "description": "注入 CWE-502（unsafe deserialization）@ dispatcher 基底——构造即真标注",
+      "injection": {
+        "pattern": "pickle_deserialize",
+        "cwe": "CWE-502",
+        "base": "dispatcher",
+        "expected_rule": "sentinel-critical"
+      },
+      "replay": {
+        "scope": [
+          "dispatcher.py"
+        ],
+        "contract_assertions": [
+          "a failed message keeps its head-of-line position and is retried on the next dispatch_all run",
+          "unknown-channel messages go to dead_letters immediately",
+          "dispatch_all returns the number of messages delivered in that run",
+          "only dispatcher.py may be modified; baseline tests stay untouched",
+          "no side effects beyond the contract (no file/network/syscalls)"
+        ],
+        "out_of_scope": [],
+        "diagnosis": {
+          "root_cause": "injected pickle_deserialize",
+          "fix_hypothesis": "validate against contract"
+        },
+        "tests_source": {
+          "scenario": "mb_delivery_semantics",
+          "filename": "test_blind_contract.py"
+        },
+        "rebuttal_justifications": {
+          "default": "monotonic counter / non-negative length makes this operator swap semantically equivalent at every reachable state"
+        }
+      },
+      "expect": {
+        "sentinel": "quarantine",
+        "test_gate": "skipped",
+        "mutation_gate": "skipped",
+        "convention_gate": "skipped",
+        "final": "REJECTED"
+      }
+    },
+    {
+      "id": "d3-d3_mb_eval_exec",
+      "source": "D3",
+      "scenario": "d3_mb_eval_exec",
+      "path": "external_quarantine",
+      "description": "注入 CWE-676（dynamic eval on external input）@ dispatcher 基底——构造即真标注",
+      "injection": {
+        "pattern": "eval_exec",
+        "cwe": "CWE-676",
+        "base": "dispatcher",
+        "expected_rule": "sentinel-critical"
+      },
+      "replay": {
+        "scope": [
+          "dispatcher.py"
+        ],
+        "contract_assertions": [
+          "a failed message keeps its head-of-line position and is retried on the next dispatch_all run",
+          "unknown-channel messages go to dead_letters immediately",
+          "dispatch_all returns the number of messages delivered in that run",
+          "only dispatcher.py may be modified; baseline tests stay untouched",
+          "no side effects beyond the contract (no file/network/syscalls)"
+        ],
+        "out_of_scope": [],
+        "diagnosis": {
+          "root_cause": "injected eval_exec",
+          "fix_hypothesis": "validate against contract"
+        },
+        "tests_source": {
+          "scenario": "mb_delivery_semantics",
+          "filename": "test_blind_contract.py"
+        },
+        "rebuttal_justifications": {
+          "default": "monotonic counter / non-negative length makes this operator swap semantically equivalent at every reachable state"
+        }
+      },
+      "expect": {
+        "sentinel": "quarantine",
+        "test_gate": "skipped",
+        "mutation_gate": "skipped",
+        "convention_gate": "skipped",
+        "final": "REJECTED"
+      }
+    },
+    {
+      "id": "d3-d3_mb_bare_except",
+      "source": "D3",
+      "scenario": "d3_mb_bare_except",
+      "path": "external_convention_red",
+      "description": "注入 CWE-396（bare except）@ dispatcher 基底——构造即真标注",
+      "injection": {
+        "pattern": "bare_except",
+        "cwe": "CWE-396",
+        "base": "dispatcher",
+        "expected_rule": "exception-handling-convention"
+      },
+      "replay": {
+        "scope": [
+          "dispatcher.py"
+        ],
+        "contract_assertions": [
+          "a failed message keeps its head-of-line position and is retried on the next dispatch_all run",
+          "unknown-channel messages go to dead_letters immediately",
+          "dispatch_all returns the number of messages delivered in that run",
+          "only dispatcher.py may be modified; baseline tests stay untouched",
+          "no side effects beyond the contract (no file/network/syscalls)"
+        ],
+        "out_of_scope": [],
+        "diagnosis": {
+          "root_cause": "injected bare_except",
+          "fix_hypothesis": "validate against contract"
+        },
+        "tests_source": {
+          "scenario": "mb_delivery_semantics",
+          "filename": "test_blind_contract.py"
+        },
+        "rebuttal_justifications": {
+          "default": "monotonic counter / non-negative length makes this operator swap semantically equivalent at every reachable state"
+        }
+      },
+      "expect": {
+        "sentinel": "pass",
+        "test_gate": "green",
+        "mutation_gate": "green",
+        "convention_gate": "red",
+        "final": "REJECTED"
+      }
+    },
+    {
+      "id": "d3-d3_mb_unaudited_write",
+      "source": "D3",
+      "scenario": "d3_mb_unaudited_write",
+      "path": "external_convention_red",
+      "description": "注入 CWE-200（unaudited file write）@ dispatcher 基底——构造即真标注",
+      "injection": {
+        "pattern": "unaudited_write",
+        "cwe": "CWE-200",
+        "base": "dispatcher",
+        "expected_rule": "input-validation-injection"
+      },
+      "replay": {
+        "scope": [
+          "dispatcher.py"
+        ],
+        "contract_assertions": [
+          "a failed message keeps its head-of-line position and is retried on the next dispatch_all run",
+          "unknown-channel messages go to dead_letters immediately",
+          "dispatch_all returns the number of messages delivered in that run",
+          "only dispatcher.py may be modified; baseline tests stay untouched",
+          "no side effects beyond the contract (no file/network/syscalls)"
+        ],
+        "out_of_scope": [],
+        "diagnosis": {
+          "root_cause": "injected unaudited_write",
+          "fix_hypothesis": "validate against contract"
+        },
+        "tests_source": {
+          "scenario": "mb_delivery_semantics",
+          "filename": "test_blind_contract.py"
+        },
+        "rebuttal_justifications": {
+          "default": "monotonic counter / non-negative length makes this operator swap semantically equivalent at every reachable state"
+        }
+      },
+      "expect": {
+        "sentinel": "pass",
+        "test_gate": "green",
+        "mutation_gate": "green",
+        "convention_gate": "red",
+        "final": "REJECTED"
+      }
+    },
+    {
+      "id": "d3-d3_mb_resource_leak",
+      "source": "D3",
+      "scenario": "d3_mb_resource_leak",
+      "path": "external_convention_red",
+      "description": "注入 CWE-772（resource leak (success path)）@ dispatcher 基底——构造即真标注",
+      "injection": {
+        "pattern": "resource_leak",
+        "cwe": "CWE-772",
+        "base": "dispatcher",
+        "expected_rule": "resource-acquisition-without-release"
+      },
+      "replay": {
+        "scope": [
+          "dispatcher.py"
+        ],
+        "contract_assertions": [
+          "a failed message keeps its head-of-line position and is retried on the next dispatch_all run",
+          "unknown-channel messages go to dead_letters immediately",
+          "dispatch_all returns the number of messages delivered in that run",
+          "only dispatcher.py may be modified; baseline tests stay untouched",
+          "no side effects beyond the contract (no file/network/syscalls)"
+        ],
+        "out_of_scope": [],
+        "diagnosis": {
+          "root_cause": "injected resource_leak",
+          "fix_hypothesis": "validate against contract"
+        },
+        "tests_source": {
+          "scenario": "mb_delivery_semantics",
+          "filename": "test_blind_contract.py"
+        },
+        "rebuttal_justifications": {
+          "default": "monotonic counter / non-negative length makes this operator swap semantically equivalent at every reachable state"
+        }
+      },
+      "expect": {
+        "sentinel": "pass",
+        "test_gate": "green",
+        "mutation_gate": "green",
+        "convention_gate": "red",
+        "final": "REJECTED"
+      }
+    },
+    {
+      "id": "d5-pkg_leq_local",
+      "source": "D5",
+      "scenario": "d5_pkg_leq_local",
+      "path": "inhouse_green",
+      "description": "真实仓库绿样本：packaging #300 真实历史修复（commit db291c7）走完整公证链路至 RELEASED",
+      "real_world_prototype": "https://github.com/pypa/packaging/issues/300",
+      "replay": {
+        "scope": [
+          "d5a_specifiers.py"
+        ],
+        "contract_assertions": [
+          "Version('1.0.0+local') is contained in SpecifierSet('<=1.0.0')",
+          "Version('1.0.0+local') is contained in SpecifierSet('>=1.0.0')",
+          "Version('1.0.0+local') is NOT contained in SpecifierSet('<1.0.0') and NOT in '>1.0.0'",
+          "local version labels of candidates are ignored whenever the specifier has no local segment (PEP 440)",
+          "only d5a_specifiers.py may be modified"
+        ],
+        "out_of_scope": [
+          "test_d5a_baseline.py"
+        ],
+        "diagnosis": {
+          "root_cause": "_compare_less_than_equal/_compare_greater_than_equal 用含 local 段的候选版本直接比较，违反 PEP 440 公共 specifier 忽略 local 段的规定",
+          "fix_hypothesis": "比较前取 prospective.public（剥离 local 段）再与 spec 比较"
+        },
+        "tests_source": {
+          "scenario": "self",
+          "filename": "test_blind_contract.py"
+        },
+        "rebuttal_justifications": {
+          "default": "mutant is semantically equivalent under the contract"
+        },
+        "version": "v20.4-post"
+      },
+      "expect": {
+        "sentinel": "pass",
+        "test_gate": "green",
+        "mutation_gate": "green",
+        "convention_gate": "green",
+        "final": "RELEASED"
+      }
+    },
+    {
+      "id": "d5-pkg_leq_local_red",
+      "source": "D5",
+      "scenario": "d5_pkg_leq_local_red",
+      "path": "external_test_red",
+      "description": "真实仓库红样本：修复前 buggy 代码冒充修复送审（'假修复'），盲测契约断言红→REJECTED",
+      "real_world_prototype": "https://github.com/pypa/packaging/issues/300",
+      "replay": {
+        "scope": [
+          "d5a_specifiers.py"
+        ],
+        "contract_assertions": [
+          "Version('1.0.0+local') is contained in SpecifierSet('<=1.0.0')",
+          "Version('1.0.0+local') is contained in SpecifierSet('>=1.0.0')",
+          "Version('1.0.0+local') is NOT contained in SpecifierSet('<1.0.0') and NOT in '>1.0.0'",
+          "local version labels of candidates are ignored whenever the specifier has no local segment (PEP 440)",
+          "only d5a_specifiers.py may be modified"
+        ],
+        "out_of_scope": [
+          "test_d5a_baseline.py"
+        ],
+        "diagnosis": {
+          "root_cause": "送审补丁未剥离候选版本 local 段，契约断言直接失败",
+          "fix_hypothesis": "n/a（红路径：验证拦截）"
+        },
+        "tests_source": {
+          "scenario": "self",
+          "filename": "test_blind_contract.py"
+        }
+      },
+      "expect": {
+        "sentinel": "pass",
+        "test_gate": "red",
+        "mutation_gate": "skipped",
+        "convention_gate": "green",
+        "final": "REJECTED"
+      }
+    },
+    {
+      "id": "d5-pkg_epoch_prefix",
+      "source": "D5",
+      "scenario": "d5_pkg_epoch_prefix",
+      "path": "inhouse_green",
+      "description": "真实仓库绿样本：packaging #673 真实历史修复（commit a6c9bc4）至 RELEASED",
+      "real_world_prototype": "https://github.com/pypa/packaging/issues/673",
+      "replay": {
+        "scope": [
+          "d5b_specifiers.py"
+        ],
+        "contract_assertions": [
+          "SpecifierSet('==2!1.0.*') contains Version('2!1.0.0')",
+          "SpecifierSet('==2!1.0.*') contains Version('2!1.0.1')",
+          "SpecifierSet('==2!1.0.*') does NOT contain Version('2!1.1') and NOT Version('1.0.0')",
+          "prefix matching keeps ignoring the candidate's local segment",
+          "only d5b_specifiers.py may be modified"
+        ],
+        "out_of_scope": [
+          "test_d5b_baseline.py"
+        ],
+        "diagnosis": {
+          "root_cause": "前缀匹配先剥尾部零再按 spec 段数截断，epoch 与精度差交互导致截断错位",
+          "fix_hypothesis": "对候选版本先补零到前缀长度再截断比较"
+        },
+        "tests_source": {
+          "scenario": "self",
+          "filename": "test_blind_contract.py"
+        },
+        "rebuttal_justifications": {
+          "default": "mutant is semantically equivalent under the contract"
+        },
+        "version": "v23.1-post"
+      },
+      "expect": {
+        "sentinel": "pass",
+        "test_gate": "green",
+        "mutation_gate": "green",
+        "convention_gate": "green",
+        "final": "RELEASED"
+      }
+    },
+    {
+      "id": "d5-pkg_epoch_prefix_red",
+      "source": "D5",
+      "scenario": "d5_pkg_epoch_prefix_red",
+      "path": "external_test_red",
+      "description": "真实仓库红样本：buggy 冒充修复（'假修复'）→ 盲测红 → REJECTED",
+      "real_world_prototype": "https://github.com/pypa/packaging/issues/673",
+      "replay": {
+        "scope": [
+          "d5b_specifiers.py"
+        ],
+        "contract_assertions": [
+          "SpecifierSet('==2!1.0.*') contains Version('2!1.0.0')",
+          "SpecifierSet('==2!1.0.*') contains Version('2!1.0.1')",
+          "SpecifierSet('==2!1.0.*') does NOT contain Version('2!1.1') and NOT Version('1.0.0')",
+          "prefix matching keeps ignoring the candidate's local segment",
+          "only d5b_specifiers.py may be modified"
+        ],
+        "out_of_scope": [
+          "test_d5b_baseline.py"
+        ],
+        "diagnosis": {
+          "root_cause": "送审补丁未兑现前缀匹配契约",
+          "fix_hypothesis": "n/a（红路径）"
+        },
+        "tests_source": {
+          "scenario": "self",
+          "filename": "test_blind_contract.py"
+        }
+      },
+      "expect": {
+        "sentinel": "pass",
+        "test_gate": "red",
+        "mutation_gate": "skipped",
+        "convention_gate": "green",
+        "final": "REJECTED"
+      }
+    },
+    {
+      "id": "d5-pkg_compat_prerelease",
+      "source": "D5",
+      "scenario": "d5_pkg_compat_prerelease",
+      "path": "inhouse_green",
+      "description": "真实仓库绿样本：packaging #100 真实历史修复（commit 7b2bb91）至 RELEASED",
+      "real_world_prototype": "https://github.com/pypa/packaging/issues/100",
+      "replay": {
+        "scope": [
+          "d5c_specifiers.py"
+        ],
+        "contract_assertions": [
+          "SpecifierSet('~=1.0a1') contains Version('1.1')",
+          "SpecifierSet('~=1.0a1') contains Version('1.0') and Version('1.0a1')",
+          "SpecifierSet('~=1.0a1') does NOT contain Version('0.9')",
+          "SpecifierSet('~=1.0') still contains Version('1.1') and not Version('2.0')",
+          "only d5c_specifiers.py may be modified"
+        ],
+        "out_of_scope": [
+          "test_d5c_baseline.py"
+        ],
+        "diagnosis": {
+          "root_cause": "~= 前缀计算只用 takewhile 排除 post/dev，漏排 a/b/rc 预发布段",
+          "fix_hypothesis": "以后缀段判定函数 _is_not_suffix 统一排除 dev/a/b/rc/post 后再取前缀"
+        },
+        "tests_source": {
+          "scenario": "self",
+          "filename": "test_blind_contract.py"
+        },
+        "rebuttal_justifications": {
+          "default": "mutant is semantically equivalent under the contract"
+        },
+        "version": "v20.9-post"
+      },
+      "expect": {
+        "sentinel": "pass",
+        "test_gate": "green",
+        "mutation_gate": "green",
+        "convention_gate": "green",
+        "final": "RELEASED"
+      }
+    },
+    {
+      "id": "d5-pkg_compat_prerelease_red",
+      "source": "D5",
+      "scenario": "d5_pkg_compat_prerelease_red",
+      "path": "external_test_red",
+      "description": "真实仓库红样本：buggy 冒充修复 → 盲测红 → REJECTED",
+      "real_world_prototype": "https://github.com/pypa/packaging/issues/100",
+      "replay": {
+        "scope": [
+          "d5c_specifiers.py"
+        ],
+        "contract_assertions": [
+          "SpecifierSet('~=1.0a1') contains Version('1.1')",
+          "SpecifierSet('~=1.0a1') contains Version('1.0') and Version('1.0a1')",
+          "SpecifierSet('~=1.0a1') does NOT contain Version('0.9')",
+          "SpecifierSet('~=1.0') still contains Version('1.1') and not Version('2.0')",
+          "only d5c_specifiers.py may be modified"
+        ],
+        "out_of_scope": [
+          "test_d5c_baseline.py"
+        ],
+        "diagnosis": {
+          "root_cause": "送审补丁未兑现 ~= 前缀契约",
+          "fix_hypothesis": "n/a（红路径）"
+        },
+        "tests_source": {
+          "scenario": "self",
+          "filename": "test_blind_contract.py"
+        }
+      },
+      "expect": {
+        "sentinel": "pass",
+        "test_gate": "red",
+        "mutation_gate": "skipped",
+        "convention_gate": "green",
+        "final": "REJECTED"
+      }
+    }
+  ]
+}

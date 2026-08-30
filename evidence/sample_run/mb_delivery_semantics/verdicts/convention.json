@@ -3,7 +3,7 @@
   "decision": "green",
   "summary": "1 findings (0 veto-class)",
   "issued_by": "notary-gateway (deterministic)",
-  "timestamp": 1786372009.5244637,
+  "timestamp": 1788096474.8323333,
   "findings": [
     {
       "file": "dispatcher.py",

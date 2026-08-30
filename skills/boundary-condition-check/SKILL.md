@@ -1,6 +1,8 @@
 ---
 name: boundary-condition-check
 description: 边界条件核查 SOP——系统排查大于号与大于等于号混用、off-by-one、空集合、None/空值四类高频边界缺陷，适用于修 bug 与代码评审场景。
+version: 1.0.0
+compat: gateway>=0.5
 ---
 
 # 边界条件核查 SOP

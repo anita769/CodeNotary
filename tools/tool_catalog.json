@@ -2,6 +2,11 @@
   "transport": "http-notary-tool-gateway",
   "base_url": "http://<TOOL_HOST_REACHABLE_BY_WORKER>:18090",
   "call_pattern": "POST /tools/{scenario_id}/{tool_name}.{function_name}",
+  "gateway_version": "0.8.0",
+  "authentication": {
+    "role_field": "payload.role (optional, e.g. \"author\")",
+    "policy": "ROLE_POLICY least-privilege whitelist on sensitive endpoints (see gateway source). Calls without role proceed and are traced as \"unknown\"; calls with a denied role fail closed with an explicit error AND a persisted security event (runs/<sid>/evidence/security_events.json). Every trace line records the caller role."
+  },
   "tools": [
     {
       "name": "notary_change",
@@ -24,7 +29,7 @@
     {
       "name": "notary_flow",
       "kind": "deterministic-gateway (state machine)",
-      "functions": ["triage", "diagnosis", "reproduce", "resolve_human"],
+      "functions": ["triage", "diagnosis", "reproduce", "request_rework", "resolve_human"],
       "future_mcp_mapping": "pipeline.lifecycle"
     },
     {
@@ -82,9 +87,15 @@
       "future_mcp_mapping": "evidence.seal"
     },
     {
+      "name": "notary_intake",
+      "kind": "deterministic-gateway (CI/webhook issue intake; idempotent by content hash; reference implementation of the six-step onboarding process)",
+      "functions": ["submit_issue"],
+      "future_mcp_mapping": "intake.submit"
+    },
+    {
       "name": "notary_skill",
-      "kind": "deterministic-gateway (append-only registry)",
-      "functions": ["register"],
+      "kind": "deterministic-gateway (runtime loader + append-only registry with integrity index; compat validated at load, retire = tombstone rollback, fail-closed)",
+      "functions": ["register", "retire", "list", "get", "match"],
       "future_mcp_mapping": "skill_registry.register"
     }
   ]

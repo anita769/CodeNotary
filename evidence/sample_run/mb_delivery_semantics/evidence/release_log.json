@@ -1,10 +1,10 @@
 {
   "version": "v0.3.0",
-  "deployed_to": "/add03/users/shanzy/codenotary/agentteams/runs/mb_delivery_semantics/prod",
+  "deployed_to": "/tmp/codenotary-work/agentteams/runs/mb_delivery_semantics/prod",
   "smoke": {
     "tests_ran": 11,
     "ok": true
   },
   "pipeline_state": "RELEASED",
-  "ts": 1786372009.6044052
+  "ts": 1788096474.9165618
 }

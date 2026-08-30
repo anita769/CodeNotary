@@ -1,6 +1,8 @@
 ---
 name: input-validation-injection
 description: 输入校验与注入防护 SOP——追踪外部输入到 SQL/shell/路径/反序列化等 sink，逐路径确认校验与转义；并排查硬编码凭据。发现可达注入路径或明文密钥一律 red，无 yellow 折中。
+version: 1.0.0
+compat: gateway>=0.5
 ---
 
 # 输入校验与注入防护 SOP

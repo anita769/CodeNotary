@@ -1,0 +1,15 @@
+{
+  "mutation": {"red_below": 0.60, "green_above": 0.85, "max_mutants": 12},
+  "test_timeout_s": 30,
+  "rework": {"default_max_rounds": 2},
+  "convention": {
+    "max_line_length": 100,
+    "rules": {
+      "diff-scope-discipline": true,
+      "exception-handling-convention": true,
+      "style-fingerprint": true,
+      "input-validation-injection": true,
+      "resource-acquisition-without-release": true
+    }
+  }
+}

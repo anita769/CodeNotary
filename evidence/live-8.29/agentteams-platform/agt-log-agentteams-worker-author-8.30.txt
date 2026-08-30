@@ -1,0 +1,1146 @@
+[agentteams-copaw-worker 2026-08-29 03:31:46] Starting copaw-worker: author
+[agentteams-copaw-worker 2026-08-29 03:31:46]   FS endpoint: http://agentteams-controller:9000
+[agentteams-copaw-worker 2026-08-29 03:31:46]   Install dir: /root/.copaw-worker
+[agentteams-copaw-worker 2026-08-29 03:31:46]   Console port: 8088
+[agentteams-copaw-worker 2026-08-29 03:31:46]   CoPaw: standard (/opt/venv/standard)
+╭─── Starting ───╮
+│ CoPaw Worker   │
+│ Worker: author │
+╰────────────────╯
+Pulling all files from MinIO...
+2026-08-29 03:31:46,512 [INFO] copaw_worker.sync: mirror_all: preparing primary mirror runtime=none cloud_mode=False k8s_mode=False endpoint=http://agentteams-controller:9000 bucket=agentteams-storage worker_name=author access_key=<redacted> alias_set=False mc_host_set=False controller_url=http://agentteams-controller:8090
+2026-08-29 03:31:46,512 [INFO] copaw_worker.sync: _ensure_alias: runtime=none cloud_mode=False k8s_mode=False endpoint=http://agentteams-controller:9000 bucket=agentteams-storage worker_name=author access_key=<redacted> alias_set=False mc_host_set=False controller_url=http://agentteams-controller:8090
+2026-08-29 03:31:46,512 [INFO] copaw_worker.sync: _ensure_alias: credential path=static, setting alias url=http://agentteams-controller:9000 access_key=<redacted>
+2026-08-29 03:31:46,512 [INFO] copaw_worker.sync: mc cmd: /usr/local/bin/mc alias set agentteams http://agentteams-controller:9000 <redacted-access-key> <redacted-secret-key>
+2026-08-29 03:31:46,570 [INFO] copaw_worker.sync: mc stdout (33 chars): 'Added `agentteams` successfully.\n'
+2026-08-29 03:31:46,570 [INFO] copaw_worker.sync: _ensure_alias: static alias ready alias_set=True
+2026-08-29 03:31:46,570 [INFO] copaw_worker.sync: mirror_all: primary mirror remote=agentteams/agentteams-storage/agents/author/ local=/root/.copaw-worker/author/
+2026-08-29 03:31:46,571 [INFO] copaw_worker.sync: mc cmd: /usr/local/bin/mc mirror agentteams/agentteams-storage/agents/author/ /root/.copaw-worker/author/ --overwrite --exclude credentials/**
+2026-08-29 03:31:47,309 [INFO] copaw_worker.sync: mc stdout (4532 chars): '`agentteams/agentteams-storage/agents/author/.copaw.secret/providers/custom/agentteams-gateway.json` -> `/root/.copaw-worker/author/.copaw.secret/providers/custom/agentteams-gateway.json`\n`agentteams/'
+2026-08-29 03:31:47,310 [INFO] copaw_worker.sync: mirror_all: full mirror completed from agentteams/agentteams-storage/agents/author/
+2026-08-29 03:31:47,316 [INFO] copaw_worker.sync: mirror_all: shared mirror remote=agentteams/agentteams-storage/teams/codenotary/shared/ local=/root/.copaw-worker/author/shared/
+2026-08-29 03:31:47,316 [INFO] copaw_worker.sync: mc cmd: /usr/local/bin/mc mirror agentteams/agentteams-storage/teams/codenotary/shared/ /root/.copaw-worker/author/shared/ --overwrite
+2026-08-29 03:31:47,383 [INFO] copaw_worker.sync: mc stdout (2436 chars): '`agentteams/agentteams-storage/teams/codenotary/shared/.agentteams-keep` -> `/root/.copaw-worker/author/shared/.agentteams-keep`\n`agentteams/agentteams-storage/teams/codenotary/shared/knowledge/.keep`'
+2026-08-29 03:31:47,383 [INFO] copaw_worker.sync: mirror_all: shared/ mirror completed from agentteams/agentteams-storage/teams/codenotary/shared/
+2026-08-29 03:31:47,383 [INFO] copaw_worker.sync: _ensure_alias: runtime=none cloud_mode=False k8s_mode=False endpoint=http://agentteams-controller:9000 bucket=agentteams-storage worker_name=author access_key=<redacted> alias_set=True mc_host_set=False controller_url=http://agentteams-controller:8090
+2026-08-29 03:31:47,383 [INFO] copaw_worker.sync: _ensure_alias: credential path=static, alias already set
+2026-08-29 03:31:47,383 [INFO] copaw_worker.sync: mc cmd: /usr/local/bin/mc cat agentteams/agentteams-storage/agents/author/openclaw.json
+2026-08-29 03:31:47,415 [INFO] copaw_worker.sync: openclaw.json raw content (8889 chars): '{\n  "agents": {\n    "defaults": {\n      "maxConcurrent": 4,\n      "model": {\n        "primary": "agentteams-gateway/deepseek-v4-flash"\n      },\n      "models": {\n        "agentteams-gateway/MiniMax-M2.5": {\n          "alias": "MiniMax-M2.5"\n        },\n        "agentteams-gateway/MiniMax-M2.7": {\n          "alias": "MiniMax-M2.7"\n        },\n        "agentteams-gateway/MiniMax-M2.7-highspeed": {\n          "alias": "MiniMax-M2.7-highspeed"\n        },\n        "agentteams-gateway/claude-haiku-4-5": {'
+2026-08-29 03:31:47,416 [INFO] copaw_worker.sync: _ensure_alias: runtime=none cloud_mode=False k8s_mode=False endpoint=http://agentteams-controller:9000 bucket=agentteams-storage worker_name=author access_key=<redacted> alias_set=True mc_host_set=False controller_url=http://agentteams-controller:8090
+2026-08-29 03:31:47,416 [INFO] copaw_worker.sync: _ensure_alias: credential path=static, alias already set
+2026-08-29 03:31:47,416 [INFO] copaw_worker.sync: mc cmd: /usr/local/bin/mc cat agentteams/agentteams-storage/agents/author/credentials/matrix/password
+2026-08-29 03:31:47,483 [INFO] copaw_worker.sync: mc cat missing object for agents/author/credentials/matrix/password: mc.bin: <ERROR> Unable to read from `agentteams/agentteams-storage/agents/author/credentials/matrix/password`. Object does not exist.
+
+No Matrix password found in MinIO, skipping re-login (E2EE may not work after 
+restart)
+Bridging configuration to CoPaw...
+2026-08-29 03:31:47,567 [INFO] copaw_worker.sync: _ensure_alias: runtime=none cloud_mode=False k8s_mode=False endpoint=http://agentteams-controller:9000 bucket=agentteams-storage worker_name=author access_key=<redacted> alias_set=True mc_host_set=False controller_url=http://agentteams-controller:8090
+2026-08-29 03:31:47,568 [INFO] copaw_worker.sync: _ensure_alias: credential path=static, alias already set
+2026-08-29 03:31:47,568 [INFO] copaw_worker.sync: mc cmd: /usr/local/bin/mc ls --recursive agentteams/agentteams-storage/agents/author/skills/
+2026-08-29 03:31:47,600 [INFO] copaw_worker.sync: mc stdout (470 chars): '[2026-08-08 10:18:42 UTC] 1.9KiB STANDARD communication/SKILL.md\n[2026-08-08 10:18:42 UTC] 2.1KiB STANDARD file-sharing/SKILL.md\n[2026-08-08 10:18:42 UTC] 6.7KiB STANDARD find-skills/SKILL.md\n[2026-08'
+Worker initialized.
+Note: web console enabled on port 8088 (~500MB extra RAM). Remove --console-port
+to save memory.
+2026-08-29 03:31:47,612 [INFO] copaw_worker.hooks: AgentTeams CoPaw query-handler message filter hook is disabled
+CoPaw console available at http://127.0.0.1:8088/
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/runner/control_commands/__init__.py:62 | 2026-08-29 03:31:55 | Registered control command: /stop → StopCommandHandler
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/runner/control_commands/__init__.py:62 | 2026-08-29 03:31:55 | Registered control command: /model → ModelCommandHandler
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/runner/control_commands/__init__.py:62 | 2026-08-29 03:31:55 | Registered control command: /skills → SkillsCommandHandler
+2026-08-29 03:31:55,693 [WARNING] agentscope_runtime.engine.deployers.adapter.a2a.nacos_a2a_registry: [NacosRegistry] Nacos SDK (nacos-sdk-python) is not available. Install it with: pip install nacos-sdk-python
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/_app.py:480 | 2026-08-29 03:31:55 | STATIC_DIR: /opt/venv/standard/lib/python3.11/site-packages/copaw/console
+INFO:     Started server process [1]
+INFO:     Waiting for application startup.
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/_app.py:190 | 2026-08-29 03:31:56 | Checking for legacy config migration...
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/_app.py:197 | 2026-08-29 03:31:56 | Initializing MultiAgentManager...
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/multi_agent_manager.py:431 | 2026-08-29 03:31:56 | Starting 2 enabled agent(s) (0 disabled)
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/multi_agent_manager.py:439 | 2026-08-29 03:31:56 | Starting agent: default
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/multi_agent_manager.py:75 | 2026-08-29 03:31:56 | Creating new workspace: default
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/workspace/workspace.py:331 | 2026-08-29 03:31:56 | Starting workspace: default
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/multi_agent_manager.py:439 | 2026-08-29 03:31:56 | Starting agent: CoPaw_QA_Agent_0.1beta1
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/agents/memory/reme_light_memory_manager.py:65 | 2026-08-29 03:31:56 | ReMeLightMemoryManager init: agent_id=default, working_dir=/root/.copaw-worker/author/.copaw/workspaces/default
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/agents/memory/reme_light_memory_manager.py:104 | 2026-08-29 03:31:58 | Embedding config: {'backend': 'openai', 'api_key': '', 'base_url': '', 'model_name': '', 'dimensions': 1024, 'enable_cache': True, 'use_dimensions': False, 'max_cache_size': 3000, 'max_input_length': 8192, 'max_batch_size': 10}, vector_enabled=False
+2026-08-29 03:31:58.175 | INFO     | reme.core.service_context:__init__:85 - update with args: ['config=light'] kwargs: {'embedding_models': {'default': {'backend': 'openai', 'api_key': '', 'base_url': '', 'model_name': '', 'dimensions': 1024, 'enable_cache': True, 'use_dimensions': False, 'max_cache_size': 3000, 'max_input_length': 8192, 'max_batch_size': 10}}, 'file_stores': {'default': {'backend': 'chroma', 'store_name': 'copaw', 'vector_enabled': False, 'fts_enabled': True}}, 'file_watchers': {'default': {'rebuild_index_on_start': False, 'watch_paths': ['/root/.copaw-worker/author/.copaw/workspaces/default/MEMORY.md', '/root/.copaw-worker/author/.copaw/workspaces/default/memory.md', '/root/.copaw-worker/author/.copaw/workspaces/default/memory']}}, 'enable_logo': False, 'log_to_console': False, 'working_dir': '/root/.copaw-worker/author/.copaw/workspaces/default'}
+2026-08-29 03:31:58.175 | INFO     | reme.core.utils.pydantic_config_parser:_find_config_path:138 - load config=/opt/venv/standard/lib/python3.11/site-packages/reme/config/light.yaml
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/runner/manager.py:38 | 2026-08-29 03:31:58 | ChatManager created with repo path: /root/.copaw-worker/author/.copaw/workspaces/default/chats.json
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/workspace/service_factories.py:57 | 2026-08-29 03:31:58 | ChatManager created: /root/.copaw-worker/author/.copaw/workspaces/default/chats.json
+/opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/feishu/channel.py:88: DeprecationWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html
+  import pkg_resources as _pkg_resources_module  # type: ignore
+/opt/venv/standard/lib/python3.11/site-packages/lark_oapi/ws/pb/google/__init__.py:2: DeprecationWarning: Deprecated call to `pkg_resources.declare_namespace('lark_oapi.ws.pb.google')`.
+Implementing implicit namespace packages (as specified in PEP 420) is preferred to `pkg_resources.declare_namespace`. See https://setuptools.pypa.io/en/latest/references/keywords.html#keyword-namespace-packages
+  __import__('pkg_resources').declare_namespace(__name__)
+/opt/venv/standard/lib/python3.11/site-packages/pkg_resources/__init__.py:2559: DeprecationWarning: Deprecated call to `pkg_resources.declare_namespace('lark_oapi.ws.pb')`.
+Implementing implicit namespace packages (as specified in PEP 420) is preferred to `pkg_resources.declare_namespace`. See https://setuptools.pypa.io/en/latest/references/keywords.html#keyword-namespace-packages
+  declare_namespace(parent)
+/opt/venv/standard/lib/python3.11/site-packages/pkg_resources/__init__.py:2559: DeprecationWarning: Deprecated call to `pkg_resources.declare_namespace('lark_oapi.ws')`.
+Implementing implicit namespace packages (as specified in PEP 420) is preferred to `pkg_resources.declare_namespace`. See https://setuptools.pypa.io/en/latest/references/keywords.html#keyword-namespace-packages
+  declare_namespace(parent)
+/opt/venv/standard/lib/python3.11/site-packages/pkg_resources/__init__.py:2559: DeprecationWarning: Deprecated call to `pkg_resources.declare_namespace('lark_oapi')`.
+Implementing implicit namespace packages (as specified in PEP 420) is preferred to `pkg_resources.declare_namespace`. See https://setuptools.pypa.io/en/latest/references/keywords.html#keyword-namespace-packages
+  declare_namespace(parent)
+/opt/venv/standard/lib/python3.11/site-packages/aibot/ws.py:28: DeprecationWarning: websockets.client.WebSocketClientProtocol is deprecated
+  from websockets.client import WebSocketClientProtocol
+/opt/venv/standard/lib/python3.11/site-packages/websockets/legacy/__init__.py:6: DeprecationWarning: websockets.legacy is deprecated; see https://websockets.readthedocs.io/en/stable/howto/upgrade.html for upgrade instructions
+  warnings.warn(  # deprecated in 14.0 - 2024-11-09
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-29 03:32:14 | Registered command: /stop → level=0
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-29 03:32:14 | Registered command: /daemon status → level=10
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-29 03:32:14 | Registered command: /daemon restart → level=10
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-29 03:32:14 | Registered command: /daemon reload-config → level=10
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-29 03:32:14 | Registered command: /daemon version → level=10
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-29 03:32:14 | Registered command: /daemon logs → level=10
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-29 03:32:14 | Registered command: /daemon approve → level=10
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-29 03:32:14 | Registered command: /status → level=10
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-29 03:32:14 | Registered command: /restart → level=10
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-29 03:32:14 | Registered command: /reload-config → level=10
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-29 03:32:14 | Registered command: /reload_config → level=10
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-29 03:32:14 | Registered command: /version → level=10
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-29 03:32:14 | Registered command: /logs → level=10
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-29 03:32:14 | Registered command: /approve → level=10
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:62 | 2026-08-29 03:32:14 | CommandRegistry initialized
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/manager.py:543 | 2026-08-29 03:32:14 | Injected workspace into 1 channels
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/unified_queue_manager.py:112 | 2026-08-29 03:32:14 | UnifiedQueueManager initialized: maxsize=1000, idle_timeout=600.0s, cleanup_interval=60.0s
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/unified_queue_manager.py:289 | 2026-08-29 03:32:14 | Cleanup loop started
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/unified_queue_manager.py:382 | 2026-08-29 03:32:14 | Cleanup loop running
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/crons/manager.py:104 | 2026-08-29 03:32:14 | Heartbeat job scheduled for agent default: every=10m
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/agent_config_watcher.py:81 | 2026-08-29 03:32:14 | AgentConfigWatcher started for agent default (poll=2.0s, path=/root/.copaw-worker/author/.copaw/workspaces/default/agent.json)
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/workspace/workspace.py:353 | 2026-08-29 03:32:14 | Workspace started successfully: default
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/multi_agent_manager.py:85 | 2026-08-29 03:32:14 | Workspace created and started: default
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/multi_agent_manager.py:401 | 2026-08-29 03:32:14 | Successfully preloaded agent: default
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/multi_agent_manager.py:441 | 2026-08-29 03:32:14 | Agent started successfully: default
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/multi_agent_manager.py:75 | 2026-08-29 03:32:14 | Creating new workspace: CoPaw_QA_Agent_0.1beta1
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/workspace/workspace.py:331 | 2026-08-29 03:32:14 | Starting workspace: CoPaw_QA_Agent_0.1beta1
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/agents/memory/reme_light_memory_manager.py:65 | 2026-08-29 03:32:14 | ReMeLightMemoryManager init: agent_id=CoPaw_QA_Agent_0.1beta1, working_dir=/root/.copaw-worker/author/.copaw/workspaces/CoPaw_QA_Agent_0.1beta1
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/agents/memory/reme_light_memory_manager.py:104 | 2026-08-29 03:32:14 | Embedding config: {'backend': 'openai', 'api_key': '', 'base_url': '', 'model_name': '', 'dimensions': 1024, 'enable_cache': True, 'use_dimensions': False, 'max_cache_size': 3000, 'max_input_length': 8192, 'max_batch_size': 10}, vector_enabled=False
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/runner/manager.py:38 | 2026-08-29 03:32:14 | ChatManager created with repo path: /root/.copaw-worker/author/.copaw/workspaces/CoPaw_QA_Agent_0.1beta1/chats.json
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/workspace/service_factories.py:57 | 2026-08-29 03:32:14 | ChatManager created: /root/.copaw-worker/author/.copaw/workspaces/CoPaw_QA_Agent_0.1beta1/chats.json
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-29 03:32:14 | Registered command: /stop → level=0
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-29 03:32:14 | Registered command: /daemon status → level=10
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-29 03:32:14 | Registered command: /daemon restart → level=10
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-29 03:32:14 | Registered command: /daemon reload-config → level=10
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-29 03:32:14 | Registered command: /daemon version → level=10
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-29 03:32:14 | Registered command: /daemon logs → level=10
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-29 03:32:14 | Registered command: /daemon approve → level=10
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-29 03:32:14 | Registered command: /status → level=10
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-29 03:32:14 | Registered command: /restart → level=10
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-29 03:32:14 | Registered command: /reload-config → level=10
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-29 03:32:14 | Registered command: /reload_config → level=10
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-29 03:32:14 | Registered command: /version → level=10
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-29 03:32:14 | Registered command: /logs → level=10
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-29 03:32:14 | Registered command: /approve → level=10
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:62 | 2026-08-29 03:32:14 | CommandRegistry initialized
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/manager.py:543 | 2026-08-29 03:32:14 | Injected workspace into 1 channels
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/unified_queue_manager.py:112 | 2026-08-29 03:32:14 | UnifiedQueueManager initialized: maxsize=1000, idle_timeout=600.0s, cleanup_interval=60.0s
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/unified_queue_manager.py:289 | 2026-08-29 03:32:14 | Cleanup loop started
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/console/channel.py:566 | 2026-08-29 03:32:14 | Console channel started
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/agent_config_watcher.py:81 | 2026-08-29 03:32:14 | AgentConfigWatcher started for agent CoPaw_QA_Agent_0.1beta1 (poll=2.0s, path=/root/.copaw-worker/author/.copaw/workspaces/CoPaw_QA_Agent_0.1beta1/agent.json)
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/workspace/workspace.py:353 | 2026-08-29 03:32:14 | Workspace started successfully: CoPaw_QA_Agent_0.1beta1
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/multi_agent_manager.py:85 | 2026-08-29 03:32:14 | Workspace created and started: CoPaw_QA_Agent_0.1beta1
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/multi_agent_manager.py:401 | 2026-08-29 03:32:14 | Successfully preloaded agent: CoPaw_QA_Agent_0.1beta1
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/multi_agent_manager.py:441 | 2026-08-29 03:32:14 | Agent started successfully: CoPaw_QA_Agent_0.1beta1
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/unified_queue_manager.py:382 | 2026-08-29 03:32:14 | Cleanup loop running
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/multi_agent_manager.py:459 | 2026-08-29 03:32:14 | Agent startup complete: 2/2 agents started successfully, 0 disabled
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/_app.py:233 | 2026-08-29 03:32:14 | Initializing plugin system...
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/_app.py:250 | 2026-08-29 03:32:14 | Loading plugins with 0 config(s)
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/_app.py:256 | 2026-08-29 03:32:14 | ✓ Loaded 0 plugin(s)
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/_app.py:281 | 2026-08-29 03:32:14 | Registering plugin control commands...
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-29 03:32:14 | Registered command: /stop → level=0
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-29 03:32:14 | Registered command: /daemon status → level=10
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-29 03:32:14 | Registered command: /daemon restart → level=10
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-29 03:32:14 | Registered command: /daemon reload-config → level=10
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-29 03:32:14 | Registered command: /daemon version → level=10
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-29 03:32:14 | Registered command: /daemon logs → level=10
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-29 03:32:14 | Registered command: /daemon approve → level=10
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-29 03:32:14 | Registered command: /status → level=10
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-29 03:32:14 | Registered command: /restart → level=10
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-29 03:32:14 | Registered command: /reload-config → level=10
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-29 03:32:14 | Registered command: /reload_config → level=10
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-29 03:32:14 | Registered command: /version → level=10
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-29 03:32:14 | Registered command: /logs → level=10
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-29 03:32:14 | Registered command: /approve → level=10
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:62 | 2026-08-29 03:32:14 | CommandRegistry initialized
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/_app.py:315 | 2026-08-29 03:32:14 | Executing plugin startup hooks...
+INFO:     Application startup complete.
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/providers/provider_manager.py:831 | 2026-08-29 03:32:14 | Background local model restore completed
+INFO:     Uvicorn running on http://0.0.0.0:8088 (Press CTRL+C to quit)
+Stopping worker...
+Worker stopped.
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/_app.py:362 | 2026-08-29 04:30:15 | Executing plugin shutdown hooks...
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/_app.py:395 | 2026-08-29 04:30:15 | Stopping local model server...
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/_app.py:409 | 2026-08-29 04:30:15 | Stopping MultiAgentManager...
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/multi_agent_manager.py:352 | 2026-08-29 04:30:15 | Stopping all agents (2 running)...
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/workspace/workspace.py:374 | 2026-08-29 04:30:15 | Stopping agent instance: default (final=True)
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/agent_config_watcher.py:95 | 2026-08-29 04:30:15 | AgentConfigWatcher stopped for agent default
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/unified_queue_manager.py:428 | 2026-08-29 04:30:15 | Cleanup loop stopped
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/unified_queue_manager.py:374 | 2026-08-29 04:30:15 | Stopped all queues: total=0
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/manager.py:525 | 2026-08-29 04:30:15 | ChannelManager stopped
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/agents/memory/reme_light_memory_manager.py:229 | 2026-08-29 04:30:15 | ReMeLightMemoryManager closing: agent_id=default
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/agents/memory/reme_light_memory_manager.py:235 | 2026-08-29 04:30:15 | ReMeLightMemoryManager closed: agent_id=default, result=False
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/workspace/workspace.py:382 | 2026-08-29 04:30:15 | Workspace stopped: default
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/workspace/workspace.py:374 | 2026-08-29 04:30:15 | Stopping agent instance: CoPaw_QA_Agent_0.1beta1 (final=True)
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/agent_config_watcher.py:95 | 2026-08-29 04:30:15 | AgentConfigWatcher stopped for agent CoPaw_QA_Agent_0.1beta1
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/unified_queue_manager.py:428 | 2026-08-29 04:30:15 | Cleanup loop stopped
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/unified_queue_manager.py:374 | 2026-08-29 04:30:15 | Stopped all queues: total=0
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/console/channel.py:571 | 2026-08-29 04:30:15 | console channel stopped
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/manager.py:525 | 2026-08-29 04:30:15 | ChannelManager stopped
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/agents/memory/reme_light_memory_manager.py:229 | 2026-08-29 04:30:15 | ReMeLightMemoryManager closing: agent_id=CoPaw_QA_Agent_0.1beta1
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/agents/memory/reme_light_memory_manager.py:235 | 2026-08-29 04:30:15 | ReMeLightMemoryManager closed: agent_id=CoPaw_QA_Agent_0.1beta1, result=False
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/workspace/workspace.py:382 | 2026-08-29 04:30:15 | Workspace stopped: CoPaw_QA_Agent_0.1beta1
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/multi_agent_manager.py:369 | 2026-08-29 04:30:15 | All agents stopped
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/_app.py:415 | 2026-08-29 04:30:15 | Application shutdown complete
+INFO:     Application shutdown complete.
+INFO:     Finished server process [1]
+Stopping worker...
+Worker stopped.
+Stopping worker...
+Worker stopped.
+[agentteams-copaw-worker 2026-08-29 05:13:12] Starting copaw-worker: author
+[agentteams-copaw-worker 2026-08-29 05:13:12]   FS endpoint: http://agentteams-controller:9000
+[agentteams-copaw-worker 2026-08-29 05:13:12]   Install dir: /root/.copaw-worker
+[agentteams-copaw-worker 2026-08-29 05:13:12]   Console port: 8088
+[agentteams-copaw-worker 2026-08-29 05:13:12]   CoPaw: standard (/opt/venv/standard)
+╭─── Starting ───╮
+│ CoPaw Worker   │
+│ Worker: author │
+╰────────────────╯
+Pulling all files from MinIO...
+2026-08-29 05:13:12,829 [INFO] copaw_worker.sync: mirror_all: preparing primary mirror runtime=none cloud_mode=False k8s_mode=False endpoint=http://agentteams-controller:9000 bucket=agentteams-storage worker_name=author access_key=<redacted> alias_set=False mc_host_set=False controller_url=http://agentteams-controller:8090
+2026-08-29 05:13:12,830 [INFO] copaw_worker.sync: _ensure_alias: runtime=none cloud_mode=False k8s_mode=False endpoint=http://agentteams-controller:9000 bucket=agentteams-storage worker_name=author access_key=<redacted> alias_set=False mc_host_set=False controller_url=http://agentteams-controller:8090
+2026-08-29 05:13:12,830 [INFO] copaw_worker.sync: _ensure_alias: credential path=static, setting alias url=http://agentteams-controller:9000 access_key=<redacted>
+2026-08-29 05:13:12,831 [INFO] copaw_worker.sync: mc cmd: /usr/local/bin/mc alias set agentteams http://agentteams-controller:9000 <redacted-access-key> <redacted-secret-key>
+2026-08-29 05:13:12,943 [INFO] copaw_worker.sync: mc stdout (33 chars): 'Added `agentteams` successfully.\n'
+2026-08-29 05:13:12,944 [INFO] copaw_worker.sync: _ensure_alias: static alias ready alias_set=True
+2026-08-29 05:13:12,944 [INFO] copaw_worker.sync: mirror_all: primary mirror remote=agentteams/agentteams-storage/agents/author/ local=/root/.copaw-worker/author/
+2026-08-29 05:13:12,944 [INFO] copaw_worker.sync: mc cmd: /usr/local/bin/mc mirror agentteams/agentteams-storage/agents/author/ /root/.copaw-worker/author/ --overwrite --exclude credentials/**
+2026-08-29 05:13:14,083 [INFO] copaw_worker.sync: mc stdout (2280 chars): '`agentteams/agentteams-storage/agents/author/.agentteams-keep` -> `/root/.copaw-worker/author/.agentteams-keep`\n`agentteams/agentteams-storage/agents/author/.copaw.secret/providers/custom/agentteams-g'
+2026-08-29 05:13:14,083 [INFO] copaw_worker.sync: mirror_all: full mirror completed from agentteams/agentteams-storage/agents/author/
+2026-08-29 05:13:14,109 [INFO] copaw_worker.sync: mirror_all: shared mirror remote=agentteams/agentteams-storage/teams/codenotary/shared/ local=/root/.copaw-worker/author/shared/
+2026-08-29 05:13:14,109 [INFO] copaw_worker.sync: mc cmd: /usr/local/bin/mc mirror agentteams/agentteams-storage/teams/codenotary/shared/ /root/.copaw-worker/author/shared/ --overwrite
+2026-08-29 05:13:14,294 [INFO] copaw_worker.sync: mc stdout (672 chars): '`agentteams/agentteams-storage/teams/codenotary/shared/.agentteams-keep` -> `/root/.copaw-worker/author/shared/.agentteams-keep`\n`agentteams/agentteams-storage/teams/codenotary/shared/projects/.keep` '
+2026-08-29 05:13:14,296 [INFO] copaw_worker.sync: mirror_all: shared/ mirror completed from agentteams/agentteams-storage/teams/codenotary/shared/
+2026-08-29 05:13:14,301 [INFO] copaw_worker.sync: _ensure_alias: runtime=none cloud_mode=False k8s_mode=False endpoint=http://agentteams-controller:9000 bucket=agentteams-storage worker_name=author access_key=<redacted> alias_set=True mc_host_set=False controller_url=http://agentteams-controller:8090
+2026-08-29 05:13:14,301 [INFO] copaw_worker.sync: _ensure_alias: credential path=static, alias already set
+2026-08-29 05:13:14,301 [INFO] copaw_worker.sync: mc cmd: /usr/local/bin/mc cat agentteams/agentteams-storage/agents/author/openclaw.json
+2026-08-29 05:13:14,462 [INFO] copaw_worker.sync: openclaw.json raw content (8889 chars): '{\n  "agents": {\n    "defaults": {\n      "maxConcurrent": 4,\n      "model": {\n        "primary": "agentteams-gateway/deepseek-v4-flash"\n      },\n      "models": {\n        "agentteams-gateway/MiniMax-M2.5": {\n          "alias": "MiniMax-M2.5"\n        },\n        "agentteams-gateway/MiniMax-M2.7": {\n          "alias": "MiniMax-M2.7"\n        },\n        "agentteams-gateway/MiniMax-M2.7-highspeed": {\n          "alias": "MiniMax-M2.7-highspeed"\n        },\n        "agentteams-gateway/claude-haiku-4-5": {'
+2026-08-29 05:13:14,463 [INFO] copaw_worker.sync: _ensure_alias: runtime=none cloud_mode=False k8s_mode=False endpoint=http://agentteams-controller:9000 bucket=agentteams-storage worker_name=author access_key=<redacted> alias_set=True mc_host_set=False controller_url=http://agentteams-controller:8090
+2026-08-29 05:13:14,463 [INFO] copaw_worker.sync: _ensure_alias: credential path=static, alias already set
+2026-08-29 05:13:14,463 [INFO] copaw_worker.sync: mc cmd: /usr/local/bin/mc cat agentteams/agentteams-storage/agents/author/credentials/matrix/password
+2026-08-29 05:13:14,552 [INFO] copaw_worker.sync: mc cat missing object for agents/author/credentials/matrix/password: mc.bin: <ERROR> Unable to read from `agentteams/agentteams-storage/agents/author/credentials/matrix/password`. Object does not exist.
+
+No Matrix password found in MinIO, skipping re-login (E2EE may not work after 
+restart)
+Bridging configuration to CoPaw...
+2026-08-29 05:13:14,728 [INFO] copaw_worker.sync: _ensure_alias: runtime=none cloud_mode=False k8s_mode=False endpoint=http://agentteams-controller:9000 bucket=agentteams-storage worker_name=author access_key=<redacted> alias_set=True mc_host_set=False controller_url=http://agentteams-controller:8090
+2026-08-29 05:13:14,728 [INFO] copaw_worker.sync: _ensure_alias: credential path=static, alias already set
+2026-08-29 05:13:14,729 [INFO] copaw_worker.sync: mc cmd: /usr/local/bin/mc ls --recursive agentteams/agentteams-storage/agents/author/skills/
+2026-08-29 05:13:14,804 [INFO] copaw_worker.sync: mc stdout (470 chars): '[2026-08-08 10:18:42 UTC] 1.9KiB STANDARD communication/SKILL.md\n[2026-08-08 10:18:42 UTC] 2.1KiB STANDARD file-sharing/SKILL.md\n[2026-08-08 10:18:42 UTC] 6.7KiB STANDARD find-skills/SKILL.md\n[2026-08'
+Worker initialized.
+Note: web console enabled on port 8088 (~500MB extra RAM). Remove --console-port
+to save memory.
+2026-08-29 05:13:14,826 [INFO] copaw_worker.hooks: AgentTeams CoPaw query-handler message filter hook is disabled
+CoPaw console available at http://127.0.0.1:8088/
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/runner/control_commands/__init__.py:62 | 2026-08-29 05:13:25 | Registered control command: /stop → StopCommandHandler
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/runner/control_commands/__init__.py:62 | 2026-08-29 05:13:25 | Registered control command: /model → ModelCommandHandler
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/runner/control_commands/__init__.py:62 | 2026-08-29 05:13:25 | Registered control command: /skills → SkillsCommandHandler
+2026-08-29 05:13:25,937 [WARNING] agentscope_runtime.engine.deployers.adapter.a2a.nacos_a2a_registry: [NacosRegistry] Nacos SDK (nacos-sdk-python) is not available. Install it with: pip install nacos-sdk-python
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/_app.py:480 | 2026-08-29 05:13:25 | STATIC_DIR: /opt/venv/standard/lib/python3.11/site-packages/copaw/console
+INFO:     Started server process [1]
+INFO:     Waiting for application startup.
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/_app.py:190 | 2026-08-29 05:13:26 | Checking for legacy config migration...
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/_app.py:197 | 2026-08-29 05:13:26 | Initializing MultiAgentManager...
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/multi_agent_manager.py:431 | 2026-08-29 05:13:26 | Starting 2 enabled agent(s) (0 disabled)
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/multi_agent_manager.py:439 | 2026-08-29 05:13:26 | Starting agent: default
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/multi_agent_manager.py:75 | 2026-08-29 05:13:26 | Creating new workspace: default
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/workspace/workspace.py:331 | 2026-08-29 05:13:26 | Starting workspace: default
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/multi_agent_manager.py:439 | 2026-08-29 05:13:26 | Starting agent: CoPaw_QA_Agent_0.1beta1
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/agents/memory/reme_light_memory_manager.py:65 | 2026-08-29 05:13:26 | ReMeLightMemoryManager init: agent_id=default, working_dir=/root/.copaw-worker/author/.copaw/workspaces/default
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/agents/memory/reme_light_memory_manager.py:104 | 2026-08-29 05:13:31 | Embedding config: {'backend': 'openai', 'api_key': '', 'base_url': '', 'model_name': '', 'dimensions': 1024, 'enable_cache': True, 'use_dimensions': False, 'max_cache_size': 3000, 'max_input_length': 8192, 'max_batch_size': 10}, vector_enabled=False
+2026-08-29 05:13:31.645 | INFO     | reme.core.service_context:__init__:85 - update with args: ['config=light'] kwargs: {'embedding_models': {'default': {'backend': 'openai', 'api_key': '', 'base_url': '', 'model_name': '', 'dimensions': 1024, 'enable_cache': True, 'use_dimensions': False, 'max_cache_size': 3000, 'max_input_length': 8192, 'max_batch_size': 10}}, 'file_stores': {'default': {'backend': 'chroma', 'store_name': 'copaw', 'vector_enabled': False, 'fts_enabled': True}}, 'file_watchers': {'default': {'rebuild_index_on_start': False, 'watch_paths': ['/root/.copaw-worker/author/.copaw/workspaces/default/MEMORY.md', '/root/.copaw-worker/author/.copaw/workspaces/default/memory.md', '/root/.copaw-worker/author/.copaw/workspaces/default/memory']}}, 'enable_logo': False, 'log_to_console': False, 'working_dir': '/root/.copaw-worker/author/.copaw/workspaces/default'}
+2026-08-29 05:13:31.645 | INFO     | reme.core.utils.pydantic_config_parser:_find_config_path:138 - load config=/opt/venv/standard/lib/python3.11/site-packages/reme/config/light.yaml
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/runner/manager.py:38 | 2026-08-29 05:13:31 | ChatManager created with repo path: /root/.copaw-worker/author/.copaw/workspaces/default/chats.json
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/workspace/service_factories.py:57 | 2026-08-29 05:13:31 | ChatManager created: /root/.copaw-worker/author/.copaw/workspaces/default/chats.json
+/opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/feishu/channel.py:88: DeprecationWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html
+  import pkg_resources as _pkg_resources_module  # type: ignore
+/opt/venv/standard/lib/python3.11/site-packages/lark_oapi/ws/pb/google/__init__.py:2: DeprecationWarning: Deprecated call to `pkg_resources.declare_namespace('lark_oapi.ws.pb.google')`.
+Implementing implicit namespace packages (as specified in PEP 420) is preferred to `pkg_resources.declare_namespace`. See https://setuptools.pypa.io/en/latest/references/keywords.html#keyword-namespace-packages
+  __import__('pkg_resources').declare_namespace(__name__)
+/opt/venv/standard/lib/python3.11/site-packages/pkg_resources/__init__.py:2559: DeprecationWarning: Deprecated call to `pkg_resources.declare_namespace('lark_oapi.ws.pb')`.
+Implementing implicit namespace packages (as specified in PEP 420) is preferred to `pkg_resources.declare_namespace`. See https://setuptools.pypa.io/en/latest/references/keywords.html#keyword-namespace-packages
+  declare_namespace(parent)
+/opt/venv/standard/lib/python3.11/site-packages/pkg_resources/__init__.py:2559: DeprecationWarning: Deprecated call to `pkg_resources.declare_namespace('lark_oapi.ws')`.
+Implementing implicit namespace packages (as specified in PEP 420) is preferred to `pkg_resources.declare_namespace`. See https://setuptools.pypa.io/en/latest/references/keywords.html#keyword-namespace-packages
+  declare_namespace(parent)
+/opt/venv/standard/lib/python3.11/site-packages/pkg_resources/__init__.py:2559: DeprecationWarning: Deprecated call to `pkg_resources.declare_namespace('lark_oapi')`.
+Implementing implicit namespace packages (as specified in PEP 420) is preferred to `pkg_resources.declare_namespace`. See https://setuptools.pypa.io/en/latest/references/keywords.html#keyword-namespace-packages
+  declare_namespace(parent)
+/opt/venv/standard/lib/python3.11/site-packages/aibot/ws.py:28: DeprecationWarning: websockets.client.WebSocketClientProtocol is deprecated
+  from websockets.client import WebSocketClientProtocol
+/opt/venv/standard/lib/python3.11/site-packages/websockets/legacy/__init__.py:6: DeprecationWarning: websockets.legacy is deprecated; see https://websockets.readthedocs.io/en/stable/howto/upgrade.html for upgrade instructions
+  warnings.warn(  # deprecated in 14.0 - 2024-11-09
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-29 05:13:41 | Registered command: /stop → level=0
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-29 05:13:41 | Registered command: /daemon status → level=10
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-29 05:13:41 | Registered command: /daemon restart → level=10
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-29 05:13:41 | Registered command: /daemon reload-config → level=10
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-29 05:13:41 | Registered command: /daemon version → level=10
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-29 05:13:41 | Registered command: /daemon logs → level=10
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-29 05:13:41 | Registered command: /daemon approve → level=10
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-29 05:13:41 | Registered command: /status → level=10
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-29 05:13:41 | Registered command: /restart → level=10
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-29 05:13:41 | Registered command: /reload-config → level=10
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-29 05:13:41 | Registered command: /reload_config → level=10
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-29 05:13:41 | Registered command: /version → level=10
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-29 05:13:41 | Registered command: /logs → level=10
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-29 05:13:41 | Registered command: /approve → level=10
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:62 | 2026-08-29 05:13:41 | CommandRegistry initialized
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/manager.py:543 | 2026-08-29 05:13:41 | Injected workspace into 1 channels
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/unified_queue_manager.py:112 | 2026-08-29 05:13:41 | UnifiedQueueManager initialized: maxsize=1000, idle_timeout=600.0s, cleanup_interval=60.0s
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/unified_queue_manager.py:289 | 2026-08-29 05:13:41 | Cleanup loop started
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/unified_queue_manager.py:382 | 2026-08-29 05:13:41 | Cleanup loop running
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/crons/manager.py:104 | 2026-08-29 05:13:41 | Heartbeat job scheduled for agent default: every=10m
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/agent_config_watcher.py:81 | 2026-08-29 05:13:41 | AgentConfigWatcher started for agent default (poll=2.0s, path=/root/.copaw-worker/author/.copaw/workspaces/default/agent.json)
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/workspace/workspace.py:353 | 2026-08-29 05:13:41 | Workspace started successfully: default
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/multi_agent_manager.py:85 | 2026-08-29 05:13:41 | Workspace created and started: default
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/multi_agent_manager.py:401 | 2026-08-29 05:13:41 | Successfully preloaded agent: default
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/multi_agent_manager.py:441 | 2026-08-29 05:13:41 | Agent started successfully: default
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/multi_agent_manager.py:75 | 2026-08-29 05:13:41 | Creating new workspace: CoPaw_QA_Agent_0.1beta1
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/workspace/workspace.py:331 | 2026-08-29 05:13:41 | Starting workspace: CoPaw_QA_Agent_0.1beta1
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/agents/memory/reme_light_memory_manager.py:65 | 2026-08-29 05:13:41 | ReMeLightMemoryManager init: agent_id=CoPaw_QA_Agent_0.1beta1, working_dir=/root/.copaw-worker/author/.copaw/workspaces/CoPaw_QA_Agent_0.1beta1
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/agents/memory/reme_light_memory_manager.py:104 | 2026-08-29 05:13:41 | Embedding config: {'backend': 'openai', 'api_key': '', 'base_url': '', 'model_name': '', 'dimensions': 1024, 'enable_cache': True, 'use_dimensions': False, 'max_cache_size': 3000, 'max_input_length': 8192, 'max_batch_size': 10}, vector_enabled=False
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/runner/manager.py:38 | 2026-08-29 05:13:41 | ChatManager created with repo path: /root/.copaw-worker/author/.copaw/workspaces/CoPaw_QA_Agent_0.1beta1/chats.json
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/workspace/service_factories.py:57 | 2026-08-29 05:13:41 | ChatManager created: /root/.copaw-worker/author/.copaw/workspaces/CoPaw_QA_Agent_0.1beta1/chats.json
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-29 05:13:41 | Registered command: /stop → level=0
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-29 05:13:41 | Registered command: /daemon status → level=10
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-29 05:13:41 | Registered command: /daemon restart → level=10
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-29 05:13:41 | Registered command: /daemon reload-config → level=10
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-29 05:13:41 | Registered command: /daemon version → level=10
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-29 05:13:41 | Registered command: /daemon logs → level=10
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-29 05:13:41 | Registered command: /daemon approve → level=10
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-29 05:13:41 | Registered command: /status → level=10
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-29 05:13:41 | Registered command: /restart → level=10
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-29 05:13:41 | Registered command: /reload-config → level=10
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-29 05:13:41 | Registered command: /reload_config → level=10
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-29 05:13:41 | Registered command: /version → level=10
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-29 05:13:41 | Registered command: /logs → level=10
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-29 05:13:41 | Registered command: /approve → level=10
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:62 | 2026-08-29 05:13:41 | CommandRegistry initialized
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/manager.py:543 | 2026-08-29 05:13:41 | Injected workspace into 1 channels
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/unified_queue_manager.py:112 | 2026-08-29 05:13:41 | UnifiedQueueManager initialized: maxsize=1000, idle_timeout=600.0s, cleanup_interval=60.0s
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/unified_queue_manager.py:289 | 2026-08-29 05:13:41 | Cleanup loop started
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/console/channel.py:566 | 2026-08-29 05:13:41 | Console channel started
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/agent_config_watcher.py:81 | 2026-08-29 05:13:41 | AgentConfigWatcher started for agent CoPaw_QA_Agent_0.1beta1 (poll=2.0s, path=/root/.copaw-worker/author/.copaw/workspaces/CoPaw_QA_Agent_0.1beta1/agent.json)
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/workspace/workspace.py:353 | 2026-08-29 05:13:41 | Workspace started successfully: CoPaw_QA_Agent_0.1beta1
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/multi_agent_manager.py:85 | 2026-08-29 05:13:41 | Workspace created and started: CoPaw_QA_Agent_0.1beta1
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/multi_agent_manager.py:401 | 2026-08-29 05:13:41 | Successfully preloaded agent: CoPaw_QA_Agent_0.1beta1
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/multi_agent_manager.py:441 | 2026-08-29 05:13:41 | Agent started successfully: CoPaw_QA_Agent_0.1beta1
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/unified_queue_manager.py:382 | 2026-08-29 05:13:41 | Cleanup loop running
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/multi_agent_manager.py:459 | 2026-08-29 05:13:41 | Agent startup complete: 2/2 agents started successfully, 0 disabled
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/_app.py:233 | 2026-08-29 05:13:41 | Initializing plugin system...
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/_app.py:250 | 2026-08-29 05:13:41 | Loading plugins with 0 config(s)
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/_app.py:256 | 2026-08-29 05:13:41 | ✓ Loaded 0 plugin(s)
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/_app.py:281 | 2026-08-29 05:13:41 | Registering plugin control commands...
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-29 05:13:41 | Registered command: /stop → level=0
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-29 05:13:41 | Registered command: /daemon status → level=10
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-29 05:13:41 | Registered command: /daemon restart → level=10
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-29 05:13:41 | Registered command: /daemon reload-config → level=10
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-29 05:13:41 | Registered command: /daemon version → level=10
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-29 05:13:41 | Registered command: /daemon logs → level=10
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-29 05:13:41 | Registered command: /daemon approve → level=10
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-29 05:13:41 | Registered command: /status → level=10
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-29 05:13:41 | Registered command: /restart → level=10
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-29 05:13:41 | Registered command: /reload-config → level=10
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-29 05:13:41 | Registered command: /reload_config → level=10
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-29 05:13:41 | Registered command: /version → level=10
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-29 05:13:41 | Registered command: /logs → level=10
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-29 05:13:41 | Registered command: /approve → level=10
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:62 | 2026-08-29 05:13:41 | CommandRegistry initialized
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/_app.py:315 | 2026-08-29 05:13:41 | Executing plugin startup hooks...
+INFO:     Application startup complete.
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/providers/provider_manager.py:831 | 2026-08-29 05:13:41 | Background local model restore completed
+INFO:     Uvicorn running on http://0.0.0.0:8088 (Press CTRL+C to quit)
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/unified_queue_manager.py:206 | 2026-08-29 05:39:58 | Created queue: channel=matrix session=matrix:!EuVouIUbBt7WyhlW32:mat priority=20
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/unified_queue_manager.py:234 | 2026-08-29 05:39:58 | Consumer started: channel=matrix session=matrix:!EuVouIUbBt7WyhlW32:mat priority=20
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/manager.py:382 | 2026-08-29 05:39:58 | Consumer started: channel=matrix session=matrix:!EuVouIUbBt7WyhlW32:mat priority=20
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/base.py:400 | 2026-08-29 05:39:58 | _consume_with_tracker: chat_id=3e93ea11-f1fc-4d2b-b4a9-51141f9f2d8d session=matrix:!EuVouIUbBt7WyhlW32:mat
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/runner/runner.py:404 | 2026-08-29 05:39:58 | Handle agent query:
+{
+  "session_id": "matrix:!EuVouIUbBt7WyhlW32:matrix-local.agentteams.io:18080",
+  "user_id": "!EuVouIUbBt7WyhlW32:matrix-local.agentteams.io:18080",
+  "channel": "matrix",
+  "msgs_len": 1,
+  "msgs_str": "[Msg(id='msg_fcdf1b54-062b-4471-955e-c73202e9770a', name='user', content=[{'type': 'text', 'text': '[Chat messages since your last reply - for context]\\nrca: 收到确认指令。复核根因诊断状态：先核验网关当前状态，并重新尝试提交诊断： [id:$AFlWEkYCx36_373EFZBDjNx5dx2B3Phn9x7edCzgUms]\\ncodenotary-leader: 网关状态确认：**GATING**，`contract_version..."
+}
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/agents/react_agent.py:150 | 2026-08-29 05:39:59 | Agent 'default' initialized with model: global-fallback (class: RetryChatModel)
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/runner/session.py:119 | 2026-08-29 05:39:59 | Load session state from /root/.copaw-worker/author/.copaw/workspaces/default/sessions/!EuVouIUbBt7WyhlW32--matrix-local.agentteams.io--18080_matrix--!EuVouIUbBt7WyhlW32--matrix-local.agentteams.io--18080.json successfully.
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/agents/react_agent.py:989 | 2026-08-29 05:39:59 | CoPawAgent.reply: max_iters=200
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/providers/rate_limiter.py:264 | 2026-08-29 05:39:59 | LLM rate limiter initialized: max_concurrent=10, max_qpm=600, default_pause=5.0s, jitter=1.0s
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/runner/session.py:92 | 2026-08-29 05:40:36 | Saved session state to /root/.copaw-worker/author/.copaw/workspaces/default/sessions/!EuVouIUbBt7WyhlW32--matrix-local.agentteams.io--18080_matrix--!EuVouIUbBt7WyhlW32--matrix-local.agentteams.io--18080.json successfully.
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/base.py:400 | 2026-08-29 05:40:36 | _consume_with_tracker: chat_id=3e93ea11-f1fc-4d2b-b4a9-51141f9f2d8d session=matrix:!EuVouIUbBt7WyhlW32:mat
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/runner/runner.py:404 | 2026-08-29 05:40:36 | Handle agent query:
+{
+  "session_id": "matrix:!EuVouIUbBt7WyhlW32:matrix-local.agentteams.io:18080",
+  "user_id": "!EuVouIUbBt7WyhlW32:matrix-local.agentteams.io:18080",
+  "channel": "matrix",
+  "msgs_len": 1,
+  "msgs_str": "[Msg(id='msg_38bd080a-160a-45af-8122-5091e0c50807', name='user', content=[{'type': 'text', 'text': \"[Chat messages since your last reply - for context]\\ncodenotary-leader: @tester:matrix-local.agentteams.io:18080 盲测开工：scenario `mb_delivery_semantics_ambiguous` 已进入 CONTRACTED（契约 v1 已冻结）。开工前先调用 notary..."
+}
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/agents/react_agent.py:150 | 2026-08-29 05:40:36 | Agent 'default' initialized with model: global-fallback (class: RetryChatModel)
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/runner/session.py:119 | 2026-08-29 05:40:36 | Load session state from /root/.copaw-worker/author/.copaw/workspaces/default/sessions/!EuVouIUbBt7WyhlW32--matrix-local.agentteams.io--18080_matrix--!EuVouIUbBt7WyhlW32--matrix-local.agentteams.io--18080.json successfully.
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/agents/react_agent.py:989 | 2026-08-29 05:40:36 | CoPawAgent.reply: max_iters=200
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/runner/session.py:92 | 2026-08-29 05:40:48 | Saved session state to /root/.copaw-worker/author/.copaw/workspaces/default/sessions/!EuVouIUbBt7WyhlW32--matrix-local.agentteams.io--18080_matrix--!EuVouIUbBt7WyhlW32--matrix-local.agentteams.io--18080.json successfully.
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/base.py:400 | 2026-08-29 05:40:48 | _consume_with_tracker: chat_id=3e93ea11-f1fc-4d2b-b4a9-51141f9f2d8d session=matrix:!EuVouIUbBt7WyhlW32:mat
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/runner/runner.py:404 | 2026-08-29 05:40:48 | Handle agent query:
+{
+  "session_id": "matrix:!EuVouIUbBt7WyhlW32:matrix-local.agentteams.io:18080",
+  "user_id": "!EuVouIUbBt7WyhlW32:matrix-local.agentteams.io:18080",
+  "channel": "matrix",
+  "msgs_len": 1,
+  "msgs_str": "[Msg(id='msg_ad75c64b-6190-45ad-b322-182b221f3662', name='user', content=[{'type': 'text', 'text': '[Chat messages since your last reply - for context]\\ncodenotary-leader: 收到 contract 冻结完成通知（CONTRACTED，frozen_hash=`df5ba5fb…74c7`）。author 与 tester 均已调度，检查其执行进展： [id:$6lHDY3Ibu3AwrLJ7DOJg6upQclbX1Yxisj..."
+}
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/agents/react_agent.py:150 | 2026-08-29 05:40:48 | Agent 'default' initialized with model: global-fallback (class: RetryChatModel)
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/runner/session.py:119 | 2026-08-29 05:40:48 | Load session state from /root/.copaw-worker/author/.copaw/workspaces/default/sessions/!EuVouIUbBt7WyhlW32--matrix-local.agentteams.io--18080_matrix--!EuVouIUbBt7WyhlW32--matrix-local.agentteams.io--18080.json successfully.
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/agents/react_agent.py:989 | 2026-08-29 05:40:48 | CoPawAgent.reply: max_iters=200
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/runner/session.py:92 | 2026-08-29 05:41:40 | Saved session state to /root/.copaw-worker/author/.copaw/workspaces/default/sessions/!EuVouIUbBt7WyhlW32--matrix-local.agentteams.io--18080_matrix--!EuVouIUbBt7WyhlW32--matrix-local.agentteams.io--18080.json successfully.
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/base.py:400 | 2026-08-29 05:41:40 | _consume_with_tracker: chat_id=3e93ea11-f1fc-4d2b-b4a9-51141f9f2d8d session=matrix:!EuVouIUbBt7WyhlW32:mat
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/runner/runner.py:404 | 2026-08-29 05:41:40 | Handle agent query:
+{
+  "session_id": "matrix:!EuVouIUbBt7WyhlW32:matrix-local.agentteams.io:18080",
+  "user_id": "!EuVouIUbBt7WyhlW32:matrix-local.agentteams.io:18080",
+  "channel": "matrix",
+  "msgs_len": 1,
+  "msgs_str": "[Msg(id='msg_43ec939c-1401-48fe-b29e-4ec14a50991d', name='user', content=[{'type': 'text', 'text': '[Chat messages since your last reply - for context]\\ntester: 技能已加载并遵循：\\n- **boundary-condition-check**（seed）：枚举空/单元素/端点/None 边界；检查比较运算符与循环端点（`range(n)` vs `range(n+1)`）；空集合路径\\n- **compound-boundary-de..."
+}
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/agents/react_agent.py:150 | 2026-08-29 05:41:40 | Agent 'default' initialized with model: global-fallback (class: RetryChatModel)
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/runner/session.py:119 | 2026-08-29 05:41:40 | Load session state from /root/.copaw-worker/author/.copaw/workspaces/default/sessions/!EuVouIUbBt7WyhlW32--matrix-local.agentteams.io--18080_matrix--!EuVouIUbBt7WyhlW32--matrix-local.agentteams.io--18080.json successfully.
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/agents/react_agent.py:989 | 2026-08-29 05:41:40 | CoPawAgent.reply: max_iters=200
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/runner/session.py:92 | 2026-08-29 05:42:10 | Saved session state to /root/.copaw-worker/author/.copaw/workspaces/default/sessions/!EuVouIUbBt7WyhlW32--matrix-local.agentteams.io--18080_matrix--!EuVouIUbBt7WyhlW32--matrix-local.agentteams.io--18080.json successfully.
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/base.py:400 | 2026-08-29 05:42:10 | _consume_with_tracker: chat_id=3e93ea11-f1fc-4d2b-b4a9-51141f9f2d8d session=matrix:!EuVouIUbBt7WyhlW32:mat
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/runner/runner.py:404 | 2026-08-29 05:42:10 | Handle agent query:
+{
+  "session_id": "matrix:!EuVouIUbBt7WyhlW32:matrix-local.agentteams.io:18080",
+  "user_id": "!EuVouIUbBt7WyhlW32:matrix-local.agentteams.io:18080",
+  "channel": "matrix",
+  "msgs_len": 1,
+  "msgs_str": "[Msg(id='msg_a7bbea60-121d-4fee-8ebf-3fa533dea98d', name='user', content=[{'type': 'text', 'text': '[Chat messages since your last reply - for context]\\ncodenotary-leader: ✅ 网关已推进：AUTHORING → **GATING**，TEST_PASS green（4 用例全过）。检查 verdicts 详情后继续变异门禁： [id:$WfNQ1rdiITR5tSE_tBsGsX7q48TRuUIpghVjd62rLzM]\\..."
+}
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/agents/react_agent.py:150 | 2026-08-29 05:42:10 | Agent 'default' initialized with model: global-fallback (class: RetryChatModel)
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/runner/session.py:119 | 2026-08-29 05:42:10 | Load session state from /root/.copaw-worker/author/.copaw/workspaces/default/sessions/!EuVouIUbBt7WyhlW32--matrix-local.agentteams.io--18080_matrix--!EuVouIUbBt7WyhlW32--matrix-local.agentteams.io--18080.json successfully.
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/agents/react_agent.py:989 | 2026-08-29 05:42:10 | CoPawAgent.reply: max_iters=200
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/runner/session.py:92 | 2026-08-29 05:42:41 | Saved session state to /root/.copaw-worker/author/.copaw/workspaces/default/sessions/!EuVouIUbBt7WyhlW32--matrix-local.agentteams.io--18080_matrix--!EuVouIUbBt7WyhlW32--matrix-local.agentteams.io--18080.json successfully.
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/base.py:400 | 2026-08-29 05:46:00 | _consume_with_tracker: chat_id=3e93ea11-f1fc-4d2b-b4a9-51141f9f2d8d session=matrix:!EuVouIUbBt7WyhlW32:mat
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/runner/runner.py:404 | 2026-08-29 05:46:00 | Handle agent query:
+{
+  "session_id": "matrix:!EuVouIUbBt7WyhlW32:matrix-local.agentteams.io:18080",
+  "user_id": "!EuVouIUbBt7WyhlW32:matrix-local.agentteams.io:18080",
+  "channel": "matrix",
+  "msgs_len": 1,
+  "msgs_str": "[Msg(id='msg_c8b96581-3c78-4b0a-97e2-17db3778b580', name='user', content=[{'type': 'text', 'text': '[Chat messages since your last reply - for context]\\ntester: 网关状态查证完毕，发现**状态不一致**：流水线已不在 CONTRACTED，而是 **REJECTED**（终态）。提交被拒原因明确。直接在本房间向协调者报告：\\n\\n@codenotary-leader:matrix-local.agentteams.io:18080 **..."
+}
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/agents/react_agent.py:150 | 2026-08-29 05:46:00 | Agent 'default' initialized with model: global-fallback (class: RetryChatModel)
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/runner/session.py:119 | 2026-08-29 05:46:00 | Load session state from /root/.copaw-worker/author/.copaw/workspaces/default/sessions/!EuVouIUbBt7WyhlW32--matrix-local.agentteams.io--18080_matrix--!EuVouIUbBt7WyhlW32--matrix-local.agentteams.io--18080.json successfully.
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/agents/react_agent.py:989 | 2026-08-29 05:46:00 | CoPawAgent.reply: max_iters=200
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/runner/session.py:92 | 2026-08-29 05:46:23 | Saved session state to /root/.copaw-worker/author/.copaw/workspaces/default/sessions/!EuVouIUbBt7WyhlW32--matrix-local.agentteams.io--18080_matrix--!EuVouIUbBt7WyhlW32--matrix-local.agentteams.io--18080.json successfully.
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/base.py:400 | 2026-08-29 05:53:03 | _consume_with_tracker: chat_id=3e93ea11-f1fc-4d2b-b4a9-51141f9f2d8d session=matrix:!EuVouIUbBt7WyhlW32:mat
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/runner/runner.py:404 | 2026-08-29 05:53:03 | Handle agent query:
+{
+  "session_id": "matrix:!EuVouIUbBt7WyhlW32:matrix-local.agentteams.io:18080",
+  "user_id": "!EuVouIUbBt7WyhlW32:matrix-local.agentteams.io:18080",
+  "channel": "matrix",
+  "msgs_len": 1,
+  "msgs_str": "[Msg(id='msg_d57830b9-f1b2-447c-b216-dbb67e006beb', name='user', content=[{'type': 'text', 'text': '[Chat messages since your last reply - for context]\\ncodenotary-leader: 收到 contract 冻结完成通知（CONTRACTED，frozen_hash=`788149de…d00`，dead_letters 元组格式与重试边界均已锚定）。author 与 tester 均已调度。检查两者提交进展（等待双轨合流至 TESTI..."
+}
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/agents/react_agent.py:150 | 2026-08-29 05:53:03 | Agent 'default' initialized with model: global-fallback (class: RetryChatModel)
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/runner/session.py:119 | 2026-08-29 05:53:03 | Load session state from /root/.copaw-worker/author/.copaw/workspaces/default/sessions/!EuVouIUbBt7WyhlW32--matrix-local.agentteams.io--18080_matrix--!EuVouIUbBt7WyhlW32--matrix-local.agentteams.io--18080.json successfully.
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/agents/react_agent.py:989 | 2026-08-29 05:53:03 | CoPawAgent.reply: max_iters=200
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/runner/session.py:92 | 2026-08-29 05:53:17 | Saved session state to /root/.copaw-worker/author/.copaw/workspaces/default/sessions/!EuVouIUbBt7WyhlW32--matrix-local.agentteams.io--18080_matrix--!EuVouIUbBt7WyhlW32--matrix-local.agentteams.io--18080.json successfully.
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/unified_queue_manager.py:268 | 2026-08-29 06:03:41 | Consumer stopped: channel=matrix session=matrix:!EuVouIUbBt7WyhlW32:mat priority=20
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/unified_queue_manager.py:415 | 2026-08-29 06:03:41 | Cleaned up idle queue: channel=matrix session=matrix:!EuVouIUbBt7WyhlW32:mat priority=20 processed=7
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/unified_queue_manager.py:206 | 2026-08-29 08:38:31 | Created queue: channel=matrix session=matrix:!EuVouIUbBt7WyhlW32:mat priority=20
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/unified_queue_manager.py:234 | 2026-08-29 08:38:31 | Consumer started: channel=matrix session=matrix:!EuVouIUbBt7WyhlW32:mat priority=20
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/manager.py:382 | 2026-08-29 08:38:31 | Consumer started: channel=matrix session=matrix:!EuVouIUbBt7WyhlW32:mat priority=20
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/base.py:400 | 2026-08-29 08:38:31 | _consume_with_tracker: chat_id=3e93ea11-f1fc-4d2b-b4a9-51141f9f2d8d session=matrix:!EuVouIUbBt7WyhlW32:mat
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/runner/runner.py:404 | 2026-08-29 08:38:31 | Handle agent query:
+{
+  "session_id": "matrix:!EuVouIUbBt7WyhlW32:matrix-local.agentteams.io:18080",
+  "user_id": "!EuVouIUbBt7WyhlW32:matrix-local.agentteams.io:18080",
+  "channel": "matrix",
+  "msgs_len": 1,
+  "msgs_str": "[Msg(id='msg_d1e9046e-30e4-401b-8e8d-688147bc32cc', name='user', content=[{'type': 'text', 'text': '[Chat messages since your last reply - for context]\\ncodenotary-leader: 🎉 网关已达 **NOTARIZED**（CONVENTION green，1 warning justified）！三门禁全绿。调度 gatekeeper 终审： [id:$0wzyIAarAeZi62fJjqvMHIoZQbjP4fYDpXZkB06M..."
+}
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/agents/react_agent.py:150 | 2026-08-29 08:38:31 | Agent 'default' initialized with model: global-fallback (class: RetryChatModel)
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/runner/session.py:119 | 2026-08-29 08:38:31 | Load session state from /root/.copaw-worker/author/.copaw/workspaces/default/sessions/!EuVouIUbBt7WyhlW32--matrix-local.agentteams.io--18080_matrix--!EuVouIUbBt7WyhlW32--matrix-local.agentteams.io--18080.json successfully.
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/agents/react_agent.py:989 | 2026-08-29 08:38:31 | CoPawAgent.reply: max_iters=200
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/runner/session.py:92 | 2026-08-29 08:38:46 | Saved session state to /root/.copaw-worker/author/.copaw/workspaces/default/sessions/!EuVouIUbBt7WyhlW32--matrix-local.agentteams.io--18080_matrix--!EuVouIUbBt7WyhlW32--matrix-local.agentteams.io--18080.json successfully.
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/base.py:400 | 2026-08-29 08:38:54 | _consume_with_tracker: chat_id=3e93ea11-f1fc-4d2b-b4a9-51141f9f2d8d session=matrix:!EuVouIUbBt7WyhlW32:mat
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/runner/runner.py:404 | 2026-08-29 08:38:54 | Handle agent query:
+{
+  "session_id": "matrix:!EuVouIUbBt7WyhlW32:matrix-local.agentteams.io:18080",
+  "user_id": "!EuVouIUbBt7WyhlW32:matrix-local.agentteams.io:18080",
+  "channel": "matrix",
+  "msgs_len": 1,
+  "msgs_str": "[Msg(id='msg_c45445d1-8109-47b7-9a0b-389a9615e778', name='user', content=[{'type': 'text', 'text': '[Chat messages since your last reply - for context]\\ncodenotary-leader: @tester:matrix-local.agentteams.io:18080 盲测开工：scenario `mb_delivery_semantics_ambiguous` 已进入 CONTRACTED（契约 v1 已冻结）。开工前先调用 notary..."
+}
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/agents/react_agent.py:150 | 2026-08-29 08:38:54 | Agent 'default' initialized with model: global-fallback (class: RetryChatModel)
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/runner/session.py:119 | 2026-08-29 08:38:54 | Load session state from /root/.copaw-worker/author/.copaw/workspaces/default/sessions/!EuVouIUbBt7WyhlW32--matrix-local.agentteams.io--18080_matrix--!EuVouIUbBt7WyhlW32--matrix-local.agentteams.io--18080.json successfully.
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/agents/react_agent.py:989 | 2026-08-29 08:38:54 | CoPawAgent.reply: max_iters=200
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/runner/session.py:92 | 2026-08-29 08:39:37 | Saved session state to /root/.copaw-worker/author/.copaw/workspaces/default/sessions/!EuVouIUbBt7WyhlW32--matrix-local.agentteams.io--18080_matrix--!EuVouIUbBt7WyhlW32--matrix-local.agentteams.io--18080.json successfully.
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/base.py:400 | 2026-08-29 08:39:37 | _consume_with_tracker: chat_id=3e93ea11-f1fc-4d2b-b4a9-51141f9f2d8d session=matrix:!EuVouIUbBt7WyhlW32:mat
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/runner/runner.py:404 | 2026-08-29 08:39:37 | Handle agent query:
+{
+  "session_id": "matrix:!EuVouIUbBt7WyhlW32:matrix-local.agentteams.io:18080",
+  "user_id": "!EuVouIUbBt7WyhlW32:matrix-local.agentteams.io:18080",
+  "channel": "matrix",
+  "msgs_len": 1,
+  "msgs_str": "[Msg(id='msg_2ebc5bb3-81b9-4d1b-9fb9-aa5d3c04ddd4', name='user', content=[{'type': 'text', 'text': '[Chat messages since your last reply - for context]\\ncodenotary-leader: 收到 author 实现完成通知（AUTHORING，精确重试边界已落实）。tester 已调度，检查其盲测提交进展： [id:$npLEoKpsQkliBcJKDFDzFJsZMVqslT8k8CkxcjeZTKE]\\n\\n[Current messag..."
+}
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/agents/react_agent.py:150 | 2026-08-29 08:39:37 | Agent 'default' initialized with model: global-fallback (class: RetryChatModel)
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/runner/session.py:119 | 2026-08-29 08:39:37 | Load session state from /root/.copaw-worker/author/.copaw/workspaces/default/sessions/!EuVouIUbBt7WyhlW32--matrix-local.agentteams.io--18080_matrix--!EuVouIUbBt7WyhlW32--matrix-local.agentteams.io--18080.json successfully.
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/agents/react_agent.py:989 | 2026-08-29 08:39:37 | CoPawAgent.reply: max_iters=200
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/runner/session.py:92 | 2026-08-29 08:39:52 | Saved session state to /root/.copaw-worker/author/.copaw/workspaces/default/sessions/!EuVouIUbBt7WyhlW32--matrix-local.agentteams.io--18080_matrix--!EuVouIUbBt7WyhlW32--matrix-local.agentteams.io--18080.json successfully.
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/base.py:400 | 2026-08-29 08:48:42 | _consume_with_tracker: chat_id=3e93ea11-f1fc-4d2b-b4a9-51141f9f2d8d session=matrix:!EuVouIUbBt7WyhlW32:mat
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/runner/runner.py:404 | 2026-08-29 08:48:42 | Handle agent query:
+{
+  "session_id": "matrix:!EuVouIUbBt7WyhlW32:matrix-local.agentteams.io:18080",
+  "user_id": "!EuVouIUbBt7WyhlW32:matrix-local.agentteams.io:18080",
+  "channel": "matrix",
+  "msgs_len": 1,
+  "msgs_str": "[Msg(id='msg_fa1fef12-9904-41e6-8a52-f299dfe920f0', name='user', content=[{'type': 'text', 'text': '[Chat messages since your last reply - for context]\\ntester: 复制 mocks 与测试文件并运行自检： [id:$-g4mLLeoQKtw2zUyiW1TSZl3Q5dhPgtm-mssHQdthx4]\\ntester: 自检全部通过：\\n- 元组格式 mock：**20/20 绿**（双跑确定）\\n- 纯字符串格式 mock：**20/..."
+}
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/agents/react_agent.py:150 | 2026-08-29 08:48:42 | Agent 'default' initialized with model: global-fallback (class: RetryChatModel)
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/runner/session.py:119 | 2026-08-29 08:48:42 | Load session state from /root/.copaw-worker/author/.copaw/workspaces/default/sessions/!EuVouIUbBt7WyhlW32--matrix-local.agentteams.io--18080_matrix--!EuVouIUbBt7WyhlW32--matrix-local.agentteams.io--18080.json successfully.
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/agents/react_agent.py:989 | 2026-08-29 08:48:42 | CoPawAgent.reply: max_iters=200
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/runner/session.py:92 | 2026-08-29 08:49:06 | Saved session state to /root/.copaw-worker/author/.copaw/workspaces/default/sessions/!EuVouIUbBt7WyhlW32--matrix-local.agentteams.io--18080_matrix--!EuVouIUbBt7WyhlW32--matrix-local.agentteams.io--18080.json successfully.
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/base.py:400 | 2026-08-29 08:50:52 | _consume_with_tracker: chat_id=3e93ea11-f1fc-4d2b-b4a9-51141f9f2d8d session=matrix:!EuVouIUbBt7WyhlW32:mat
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/runner/runner.py:404 | 2026-08-29 08:50:52 | Handle agent query:
+{
+  "session_id": "matrix:!EuVouIUbBt7WyhlW32:matrix-local.agentteams.io:18080",
+  "user_id": "!EuVouIUbBt7WyhlW32:matrix-local.agentteams.io:18080",
+  "channel": "matrix",
+  "msgs_len": 1,
+  "msgs_str": "[Msg(id='msg_f13f8477-5e12-4fcb-8381-7b91e52c9ad7', name='user', content=[{'type': 'text', 'text': '[Chat messages since your last reply - for context]\\ntester: 收到新场景盲测指令（intake_06f1d7b4f5，ISSUE-06F1D7B4F5，CONTRACTED）。先调用公证网关获取测试上下文： [id:$kt8fah5LaijIZKcgJG2kwh0g2TtOkG3eVvmKYepSqhY]\\ntester: 契约确认：与 ..."
+}
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/agents/react_agent.py:150 | 2026-08-29 08:50:52 | Agent 'default' initialized with model: global-fallback (class: RetryChatModel)
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/runner/session.py:119 | 2026-08-29 08:50:52 | Load session state from /root/.copaw-worker/author/.copaw/workspaces/default/sessions/!EuVouIUbBt7WyhlW32--matrix-local.agentteams.io--18080_matrix--!EuVouIUbBt7WyhlW32--matrix-local.agentteams.io--18080.json successfully.
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/agents/react_agent.py:989 | 2026-08-29 08:50:52 | CoPawAgent.reply: max_iters=200
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/runner/session.py:92 | 2026-08-29 08:51:03 | Saved session state to /root/.copaw-worker/author/.copaw/workspaces/default/sessions/!EuVouIUbBt7WyhlW32--matrix-local.agentteams.io--18080_matrix--!EuVouIUbBt7WyhlW32--matrix-local.agentteams.io--18080.json successfully.
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/base.py:400 | 2026-08-29 08:51:47 | _consume_with_tracker: chat_id=3e93ea11-f1fc-4d2b-b4a9-51141f9f2d8d session=matrix:!EuVouIUbBt7WyhlW32:mat
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/runner/runner.py:404 | 2026-08-29 08:51:47 | Handle agent query:
+{
+  "session_id": "matrix:!EuVouIUbBt7WyhlW32:matrix-local.agentteams.io:18080",
+  "user_id": "!EuVouIUbBt7WyhlW32:matrix-local.agentteams.io:18080",
+  "channel": "matrix",
+  "msgs_len": 1,
+  "msgs_str": "[Msg(id='msg_2dfbba75-8b88-488e-8785-9d089590ff72', name='user', content=[{'type': 'text', 'text': '[Chat messages since your last reply - for context]\\ncodenotary-leader: 收到 tester 盲测完成通知（16 用例，TESTING）。TEST_PASS 已 green，变异门禁等待 author 举证（M03）。检查状态确认 author 举证进展： [id:$JE76JuFXLSOqt-sztJ43muN7jeA0Kdp..."
+}
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/agents/react_agent.py:150 | 2026-08-29 08:51:47 | Agent 'default' initialized with model: global-fallback (class: RetryChatModel)
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/runner/session.py:119 | 2026-08-29 08:51:47 | Load session state from /root/.copaw-worker/author/.copaw/workspaces/default/sessions/!EuVouIUbBt7WyhlW32--matrix-local.agentteams.io--18080_matrix--!EuVouIUbBt7WyhlW32--matrix-local.agentteams.io--18080.json successfully.
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/agents/react_agent.py:989 | 2026-08-29 08:51:47 | CoPawAgent.reply: max_iters=200
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/runner/session.py:92 | 2026-08-29 08:52:00 | Saved session state to /root/.copaw-worker/author/.copaw/workspaces/default/sessions/!EuVouIUbBt7WyhlW32--matrix-local.agentteams.io--18080_matrix--!EuVouIUbBt7WyhlW32--matrix-local.agentteams.io--18080.json successfully.
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/unified_queue_manager.py:268 | 2026-08-29 09:02:41 | Consumer stopped: channel=matrix session=matrix:!EuVouIUbBt7WyhlW32:mat priority=20
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/unified_queue_manager.py:415 | 2026-08-29 09:02:41 | Cleaned up idle queue: channel=matrix session=matrix:!EuVouIUbBt7WyhlW32:mat priority=20 processed=6
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/unified_queue_manager.py:206 | 2026-08-29 11:47:01 | Created queue: channel=matrix session=matrix:!EuVouIUbBt7WyhlW32:mat priority=20
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/unified_queue_manager.py:234 | 2026-08-29 11:47:01 | Consumer started: channel=matrix session=matrix:!EuVouIUbBt7WyhlW32:mat priority=20
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/manager.py:382 | 2026-08-29 11:47:01 | Consumer started: channel=matrix session=matrix:!EuVouIUbBt7WyhlW32:mat priority=20
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/base.py:400 | 2026-08-29 11:47:01 | _consume_with_tracker: chat_id=3e93ea11-f1fc-4d2b-b4a9-51141f9f2d8d session=matrix:!EuVouIUbBt7WyhlW32:mat
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/runner/runner.py:404 | 2026-08-29 11:47:01 | Handle agent query:
+{
+  "session_id": "matrix:!EuVouIUbBt7WyhlW32:matrix-local.agentteams.io:18080",
+  "user_id": "!EuVouIUbBt7WyhlW32:matrix-local.agentteams.io:18080",
+  "channel": "matrix",
+  "msgs_len": 1,
+  "msgs_str": "[Msg(id='msg_c3f1a625-bfc2-4e5b-91a4-eed6bff6fb9f', name='user', content=[{'type': 'text', 'text': '[Chat messages since your last reply - for context]\\ncodenotary-leader: @gatekeeper:matrix-local.agentteams.io:18080 流水线已达 **NOTARIZED**（三门禁全绿：TEST_PASS 18/18、MUTATION score 1.00、CONVENTION 0 findings..."
+}
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/agents/react_agent.py:150 | 2026-08-29 11:47:01 | Agent 'default' initialized with model: global-fallback (class: RetryChatModel)
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/runner/session.py:119 | 2026-08-29 11:47:01 | Load session state from /root/.copaw-worker/author/.copaw/workspaces/default/sessions/!EuVouIUbBt7WyhlW32--matrix-local.agentteams.io--18080_matrix--!EuVouIUbBt7WyhlW32--matrix-local.agentteams.io--18080.json successfully.
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/agents/react_agent.py:989 | 2026-08-29 11:47:01 | CoPawAgent.reply: max_iters=200
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/runner/session.py:92 | 2026-08-29 11:47:32 | Saved session state to /root/.copaw-worker/author/.copaw/workspaces/default/sessions/!EuVouIUbBt7WyhlW32--matrix-local.agentteams.io--18080_matrix--!EuVouIUbBt7WyhlW32--matrix-local.agentteams.io--18080.json successfully.
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/unified_queue_manager.py:268 | 2026-08-29 11:57:41 | Consumer stopped: channel=matrix session=matrix:!EuVouIUbBt7WyhlW32:mat priority=20
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/unified_queue_manager.py:415 | 2026-08-29 11:57:41 | Cleaned up idle queue: channel=matrix session=matrix:!EuVouIUbBt7WyhlW32:mat priority=20 processed=1
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/unified_queue_manager.py:206 | 2026-08-29 12:31:36 | Created queue: channel=matrix session=matrix:!EuVouIUbBt7WyhlW32:mat priority=20
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/unified_queue_manager.py:234 | 2026-08-29 12:31:36 | Consumer started: channel=matrix session=matrix:!EuVouIUbBt7WyhlW32:mat priority=20
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/manager.py:382 | 2026-08-29 12:31:36 | Consumer started: channel=matrix session=matrix:!EuVouIUbBt7WyhlW32:mat priority=20
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/base.py:400 | 2026-08-29 12:31:36 | _consume_with_tracker: chat_id=3e93ea11-f1fc-4d2b-b4a9-51141f9f2d8d session=matrix:!EuVouIUbBt7WyhlW32:mat
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/runner/runner.py:404 | 2026-08-29 12:31:36 | Handle agent query:
+{
+  "session_id": "matrix:!EuVouIUbBt7WyhlW32:matrix-local.agentteams.io:18080",
+  "user_id": "!EuVouIUbBt7WyhlW32:matrix-local.agentteams.io:18080",
+  "channel": "matrix",
+  "msgs_len": 1,
+  "msgs_str": "[Msg(id='msg_5f24c170-ee4f-4568-b72c-b2ec601089e1', name='user', content=[{'type': 'text', 'text': '[Chat messages since your last reply - for context]\\npostmortem: 收到复盘封印指令（**intake_5ddcf66a82**，ISSUE-5DDCF66A82 双边界缺陷，RELEASED）。执行步骤：先列出证据工件并确认状态： [id:$4BIoDEpMyjFYqTp24Urem8WexSMt770NEAtwQs84Ud4]\\np..."
+}
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/agents/react_agent.py:150 | 2026-08-29 12:31:36 | Agent 'default' initialized with model: global-fallback (class: RetryChatModel)
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/runner/session.py:119 | 2026-08-29 12:31:36 | Load session state from /root/.copaw-worker/author/.copaw/workspaces/default/sessions/!EuVouIUbBt7WyhlW32--matrix-local.agentteams.io--18080_matrix--!EuVouIUbBt7WyhlW32--matrix-local.agentteams.io--18080.json successfully.
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/agents/react_agent.py:989 | 2026-08-29 12:31:36 | CoPawAgent.reply: max_iters=200
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/runner/session.py:92 | 2026-08-29 12:31:52 | Saved session state to /root/.copaw-worker/author/.copaw/workspaces/default/sessions/!EuVouIUbBt7WyhlW32--matrix-local.agentteams.io--18080_matrix--!EuVouIUbBt7WyhlW32--matrix-local.agentteams.io--18080.json successfully.
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/base.py:400 | 2026-08-29 12:32:00 | _consume_with_tracker: chat_id=3e93ea11-f1fc-4d2b-b4a9-51141f9f2d8d session=matrix:!EuVouIUbBt7WyhlW32:mat
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/runner/runner.py:404 | 2026-08-29 12:32:00 | Handle agent query:
+{
+  "session_id": "matrix:!EuVouIUbBt7WyhlW32:matrix-local.agentteams.io:18080",
+  "user_id": "!EuVouIUbBt7WyhlW32:matrix-local.agentteams.io:18080",
+  "channel": "matrix",
+  "msgs_len": 1,
+  "msgs_str": "[Msg(id='msg_61c20749-6a8a-4809-a791-62f8ff87f54e', name='user', content=[{'type': 'text', 'text': '[Chat messages since your last reply - for context]\\ncodenotary-leader: @tester:matrix-local.agentteams.io:18080 盲测开工：scenario `mb_delivery_semantics` 已进入 CONTRACTED（契约 v1 已冻结）。开工前先调用 notary_skill.mat..."
+}
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/agents/react_agent.py:150 | 2026-08-29 12:32:00 | Agent 'default' initialized with model: global-fallback (class: RetryChatModel)
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/runner/session.py:119 | 2026-08-29 12:32:00 | Load session state from /root/.copaw-worker/author/.copaw/workspaces/default/sessions/!EuVouIUbBt7WyhlW32--matrix-local.agentteams.io--18080_matrix--!EuVouIUbBt7WyhlW32--matrix-local.agentteams.io--18080.json successfully.
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/agents/react_agent.py:989 | 2026-08-29 12:32:00 | CoPawAgent.reply: max_iters=200
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/runner/session.py:92 | 2026-08-29 12:32:31 | Saved session state to /root/.copaw-worker/author/.copaw/workspaces/default/sessions/!EuVouIUbBt7WyhlW32--matrix-local.agentteams.io--18080_matrix--!EuVouIUbBt7WyhlW32--matrix-local.agentteams.io--18080.json successfully.
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/base.py:400 | 2026-08-29 12:32:31 | _consume_with_tracker: chat_id=3e93ea11-f1fc-4d2b-b4a9-51141f9f2d8d session=matrix:!EuVouIUbBt7WyhlW32:mat
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/runner/runner.py:404 | 2026-08-29 12:32:31 | Handle agent query:
+{
+  "session_id": "matrix:!EuVouIUbBt7WyhlW32:matrix-local.agentteams.io:18080",
+  "user_id": "!EuVouIUbBt7WyhlW32:matrix-local.agentteams.io:18080",
+  "channel": "matrix",
+  "msgs_len": 1,
+  "msgs_str": "[Msg(id='msg_58ec7897-d4da-48d8-aadf-495a383eb81d', name='user', content=[{'type': 'text', 'text': '[Chat messages since your last reply - for context]\\ncodenotary-leader: ⚠️ **TEST_PASS 仅 4 基线用例**（盲测未参与门禁——与此前同类问题）。检查当前状态与 tester 提交情况： [id:$rZEEj1QGWSEefUM3wZO6Mu6mdZLvPVrKR07aDamJC58]\\ncodenotary-l..."
+}
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/agents/react_agent.py:150 | 2026-08-29 12:32:31 | Agent 'default' initialized with model: global-fallback (class: RetryChatModel)
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/runner/session.py:119 | 2026-08-29 12:32:31 | Load session state from /root/.copaw-worker/author/.copaw/workspaces/default/sessions/!EuVouIUbBt7WyhlW32--matrix-local.agentteams.io--18080_matrix--!EuVouIUbBt7WyhlW32--matrix-local.agentteams.io--18080.json successfully.
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/agents/react_agent.py:989 | 2026-08-29 12:32:31 | CoPawAgent.reply: max_iters=200
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/runner/session.py:92 | 2026-08-29 12:32:41 | Saved session state to /root/.copaw-worker/author/.copaw/workspaces/default/sessions/!EuVouIUbBt7WyhlW32--matrix-local.agentteams.io--18080_matrix--!EuVouIUbBt7WyhlW32--matrix-local.agentteams.io--18080.json successfully.
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/unified_queue_manager.py:268 | 2026-08-29 12:43:41 | Consumer stopped: channel=matrix session=matrix:!EuVouIUbBt7WyhlW32:mat priority=20
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/unified_queue_manager.py:415 | 2026-08-29 12:43:41 | Cleaned up idle queue: channel=matrix session=matrix:!EuVouIUbBt7WyhlW32:mat priority=20 processed=3
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/unified_queue_manager.py:206 | 2026-08-29 13:06:07 | Created queue: channel=matrix session=matrix:!EuVouIUbBt7WyhlW32:mat priority=20
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/unified_queue_manager.py:234 | 2026-08-29 13:06:07 | Consumer started: channel=matrix session=matrix:!EuVouIUbBt7WyhlW32:mat priority=20
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/manager.py:382 | 2026-08-29 13:06:07 | Consumer started: channel=matrix session=matrix:!EuVouIUbBt7WyhlW32:mat priority=20
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/base.py:400 | 2026-08-29 13:06:07 | _consume_with_tracker: chat_id=3e93ea11-f1fc-4d2b-b4a9-51141f9f2d8d session=matrix:!EuVouIUbBt7WyhlW32:mat
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/runner/runner.py:404 | 2026-08-29 13:06:07 | Handle agent query:
+{
+  "session_id": "matrix:!EuVouIUbBt7WyhlW32:matrix-local.agentteams.io:18080",
+  "user_id": "!EuVouIUbBt7WyhlW32:matrix-local.agentteams.io:18080",
+  "channel": "matrix",
+  "msgs_len": 1,
+  "msgs_str": "[Msg(id='msg_550d3641-33f1-4327-b293-0908fde972a2', name='user', content=[{'type': 'text', 'text': '[Chat messages since your last reply - for context]\\ncodenotary-leader: 收到 tester 盲测受阻报告。当前局面已完全明确，与既往同型问题一致。状态汇总如下，等待您的处置指示：\\n\\n---\\n\\n## ⛔ 状态汇总 — mb_delivery_semantics（ISSUE-301）\\n\\n### 当前状态\\n- **pi..."
+}
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/agents/react_agent.py:150 | 2026-08-29 13:06:07 | Agent 'default' initialized with model: global-fallback (class: RetryChatModel)
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/runner/session.py:119 | 2026-08-29 13:06:07 | Load session state from /root/.copaw-worker/author/.copaw/workspaces/default/sessions/!EuVouIUbBt7WyhlW32--matrix-local.agentteams.io--18080_matrix--!EuVouIUbBt7WyhlW32--matrix-local.agentteams.io--18080.json successfully.
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/agents/react_agent.py:989 | 2026-08-29 13:06:07 | CoPawAgent.reply: max_iters=200
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/runner/session.py:92 | 2026-08-29 13:06:23 | Saved session state to /root/.copaw-worker/author/.copaw/workspaces/default/sessions/!EuVouIUbBt7WyhlW32--matrix-local.agentteams.io--18080_matrix--!EuVouIUbBt7WyhlW32--matrix-local.agentteams.io--18080.json successfully.
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/base.py:400 | 2026-08-29 13:06:42 | _consume_with_tracker: chat_id=3e93ea11-f1fc-4d2b-b4a9-51141f9f2d8d session=matrix:!EuVouIUbBt7WyhlW32:mat
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/runner/runner.py:404 | 2026-08-29 13:06:42 | Handle agent query:
+{
+  "session_id": "matrix:!EuVouIUbBt7WyhlW32:matrix-local.agentteams.io:18080",
+  "user_id": "!EuVouIUbBt7WyhlW32:matrix-local.agentteams.io:18080",
+  "channel": "matrix",
+  "msgs_len": 1,
+  "msgs_str": "[Msg(id='msg_76dddb59-8530-474f-897c-0fd29de70c61', name='user', content=[{'type': 'text', 'text': '[Chat messages since your last reply - for context]\\ncodenotary-leader: @tester:matrix-local.agentteams.io:18080 盲测开工：scenario `mb_delivery_semantics` 已进入 CONTRACTED（契约 v1 已冻结）。开工前先调用 notary_skill.mat..."
+}
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/agents/react_agent.py:150 | 2026-08-29 13:06:42 | Agent 'default' initialized with model: global-fallback (class: RetryChatModel)
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/runner/session.py:119 | 2026-08-29 13:06:42 | Load session state from /root/.copaw-worker/author/.copaw/workspaces/default/sessions/!EuVouIUbBt7WyhlW32--matrix-local.agentteams.io--18080_matrix--!EuVouIUbBt7WyhlW32--matrix-local.agentteams.io--18080.json successfully.
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/agents/react_agent.py:989 | 2026-08-29 13:06:42 | CoPawAgent.reply: max_iters=200
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/runner/session.py:92 | 2026-08-29 13:07:04 | Saved session state to /root/.copaw-worker/author/.copaw/workspaces/default/sessions/!EuVouIUbBt7WyhlW32--matrix-local.agentteams.io--18080_matrix--!EuVouIUbBt7WyhlW32--matrix-local.agentteams.io--18080.json successfully.
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/base.py:400 | 2026-08-29 13:07:04 | _consume_with_tracker: chat_id=3e93ea11-f1fc-4d2b-b4a9-51141f9f2d8d session=matrix:!EuVouIUbBt7WyhlW32:mat
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/runner/runner.py:404 | 2026-08-29 13:07:04 | Handle agent query:
+{
+  "session_id": "matrix:!EuVouIUbBt7WyhlW32:matrix-local.agentteams.io:18080",
+  "user_id": "!EuVouIUbBt7WyhlW32:matrix-local.agentteams.io:18080",
+  "channel": "matrix",
+  "msgs_len": 1,
+  "msgs_str": "[Msg(id='msg_b29b5850-8412-41fb-90c8-4f140b5f83b6', name='user', content=[{'type': 'text', 'text': '@author:matrix-local.agentteams.io:18080 变异门禁结果：**6 变异体杀灭 4（M05 `>=`→`>` 已被盲测精确边界断言击杀 ✅），幸存 2（M03: line 49 `>`→`!=`；M06: line 63 `>=`→`==`），score=0.6667**，网关状态 `awaiting_rebuttal`。请执行**幸存变异体举证**：\\n\\n1..."
+}
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/agents/react_agent.py:150 | 2026-08-29 13:07:04 | Agent 'default' initialized with model: global-fallback (class: RetryChatModel)
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/runner/session.py:119 | 2026-08-29 13:07:04 | Load session state from /root/.copaw-worker/author/.copaw/workspaces/default/sessions/!EuVouIUbBt7WyhlW32--matrix-local.agentteams.io--18080_matrix--!EuVouIUbBt7WyhlW32--matrix-local.agentteams.io--18080.json successfully.
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/agents/react_agent.py:989 | 2026-08-29 13:07:04 | CoPawAgent.reply: max_iters=200
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/runner/session.py:92 | 2026-08-29 13:07:15 | Saved session state to /root/.copaw-worker/author/.copaw/workspaces/default/sessions/!EuVouIUbBt7WyhlW32--matrix-local.agentteams.io--18080_matrix--!EuVouIUbBt7WyhlW32--matrix-local.agentteams.io--18080.json successfully.
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/unified_queue_manager.py:268 | 2026-08-29 13:17:41 | Consumer stopped: channel=matrix session=matrix:!EuVouIUbBt7WyhlW32:mat priority=20
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/unified_queue_manager.py:415 | 2026-08-29 13:17:41 | Cleaned up idle queue: channel=matrix session=matrix:!EuVouIUbBt7WyhlW32:mat priority=20 processed=4
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/unified_queue_manager.py:206 | 2026-08-29 14:04:09 | Created queue: channel=matrix session=matrix:!EuVouIUbBt7WyhlW32:mat priority=20
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/unified_queue_manager.py:234 | 2026-08-29 14:04:09 | Consumer started: channel=matrix session=matrix:!EuVouIUbBt7WyhlW32:mat priority=20
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/manager.py:382 | 2026-08-29 14:04:09 | Consumer started: channel=matrix session=matrix:!EuVouIUbBt7WyhlW32:mat priority=20
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/base.py:400 | 2026-08-29 14:04:09 | _consume_with_tracker: chat_id=3e93ea11-f1fc-4d2b-b4a9-51141f9f2d8d session=matrix:!EuVouIUbBt7WyhlW32:mat
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/runner/runner.py:404 | 2026-08-29 14:04:09 | Handle agent query:
+{
+  "session_id": "matrix:!EuVouIUbBt7WyhlW32:matrix-local.agentteams.io:18080",
+  "user_id": "!EuVouIUbBt7WyhlW32:matrix-local.agentteams.io:18080",
+  "channel": "matrix",
+  "msgs_len": 1,
+  "msgs_str": "[Msg(id='msg_5555ddf7-cf9b-493e-921a-7e69ae88fe49', name='user', content=[{'type': 'text', 'text': '[Chat messages since your last reply - for context]\\ntriage: @codenotary-leader:matrix-local.agentteams.io:18080 **分诊评估完成（mb_delivery_semantics_ambiguous，ISSUE-301，新一轮）— verdict=escalate，需人工裁决** — `no..."
+}
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/agents/react_agent.py:150 | 2026-08-29 14:04:09 | Agent 'default' initialized with model: global-fallback (class: RetryChatModel)
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/runner/session.py:119 | 2026-08-29 14:04:10 | Load session state from /root/.copaw-worker/author/.copaw/workspaces/default/sessions/!EuVouIUbBt7WyhlW32--matrix-local.agentteams.io--18080_matrix--!EuVouIUbBt7WyhlW32--matrix-local.agentteams.io--18080.json successfully.
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/agents/react_agent.py:989 | 2026-08-29 14:04:10 | CoPawAgent.reply: max_iters=200
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/runner/session.py:92 | 2026-08-29 14:04:57 | Saved session state to /root/.copaw-worker/author/.copaw/workspaces/default/sessions/!EuVouIUbBt7WyhlW32--matrix-local.agentteams.io--18080_matrix--!EuVouIUbBt7WyhlW32--matrix-local.agentteams.io--18080.json successfully.
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/base.py:400 | 2026-08-29 14:04:57 | _consume_with_tracker: chat_id=3e93ea11-f1fc-4d2b-b4a9-51141f9f2d8d session=matrix:!EuVouIUbBt7WyhlW32:mat
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/runner/runner.py:404 | 2026-08-29 14:04:57 | Handle agent query:
+{
+  "session_id": "matrix:!EuVouIUbBt7WyhlW32:matrix-local.agentteams.io:18080",
+  "user_id": "!EuVouIUbBt7WyhlW32:matrix-local.agentteams.io:18080",
+  "channel": "matrix",
+  "msgs_len": 1,
+  "msgs_str": "[Msg(id='msg_ed245739-20b6-4160-bd52-1ad408529375', name='user', content=[{'type': 'text', 'text': '[Chat messages since your last reply - for context]\\ncodenotary-leader: @tester:matrix-local.agentteams.io:18080 盲测开工：scenario `mb_delivery_semantics_ambiguous` 已进入 CONTRACTED（契约 v1 已冻结）。开工前先调用 notary..."
+}
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/agents/react_agent.py:150 | 2026-08-29 14:04:57 | Agent 'default' initialized with model: global-fallback (class: RetryChatModel)
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/runner/session.py:119 | 2026-08-29 14:04:57 | Load session state from /root/.copaw-worker/author/.copaw/workspaces/default/sessions/!EuVouIUbBt7WyhlW32--matrix-local.agentteams.io--18080_matrix--!EuVouIUbBt7WyhlW32--matrix-local.agentteams.io--18080.json successfully.
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/agents/react_agent.py:989 | 2026-08-29 14:04:57 | CoPawAgent.reply: max_iters=200
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/runner/session.py:92 | 2026-08-29 14:05:08 | Saved session state to /root/.copaw-worker/author/.copaw/workspaces/default/sessions/!EuVouIUbBt7WyhlW32--matrix-local.agentteams.io--18080_matrix--!EuVouIUbBt7WyhlW32--matrix-local.agentteams.io--18080.json successfully.
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/base.py:400 | 2026-08-29 14:05:13 | _consume_with_tracker: chat_id=3e93ea11-f1fc-4d2b-b4a9-51141f9f2d8d session=matrix:!EuVouIUbBt7WyhlW32:mat
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/runner/runner.py:404 | 2026-08-29 14:05:13 | Handle agent query:
+{
+  "session_id": "matrix:!EuVouIUbBt7WyhlW32:matrix-local.agentteams.io:18080",
+  "user_id": "!EuVouIUbBt7WyhlW32:matrix-local.agentteams.io:18080",
+  "channel": "matrix",
+  "msgs_len": 1,
+  "msgs_str": "[Msg(id='msg_9fe971ce-67d5-4405-9f2a-ae97c6845072', name='user', content=[{'type': 'text', 'text': '[Chat messages since your last reply - for context]\\ncodenotary-leader: 收到 contract 冻结确认（CONTRACTED，frozen_hash=`158e41cd…de03`，三元组格式已锚定）。author 与 tester 均已调度，检查双轨合流进展： [id:$1ty-Kj4bLyNPLZ7GmT-Qg9DzuT..."
+}
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/agents/react_agent.py:150 | 2026-08-29 14:05:13 | Agent 'default' initialized with model: global-fallback (class: RetryChatModel)
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/runner/session.py:119 | 2026-08-29 14:05:13 | Load session state from /root/.copaw-worker/author/.copaw/workspaces/default/sessions/!EuVouIUbBt7WyhlW32--matrix-local.agentteams.io--18080_matrix--!EuVouIUbBt7WyhlW32--matrix-local.agentteams.io--18080.json successfully.
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/agents/react_agent.py:989 | 2026-08-29 14:05:13 | CoPawAgent.reply: max_iters=200
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/runner/session.py:92 | 2026-08-29 14:05:51 | Saved session state to /root/.copaw-worker/author/.copaw/workspaces/default/sessions/!EuVouIUbBt7WyhlW32--matrix-local.agentteams.io--18080_matrix--!EuVouIUbBt7WyhlW32--matrix-local.agentteams.io--18080.json successfully.
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/base.py:400 | 2026-08-29 14:05:51 | _consume_with_tracker: chat_id=3e93ea11-f1fc-4d2b-b4a9-51141f9f2d8d session=matrix:!EuVouIUbBt7WyhlW32:mat
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/runner/runner.py:404 | 2026-08-29 14:05:51 | Handle agent query:
+{
+  "session_id": "matrix:!EuVouIUbBt7WyhlW32:matrix-local.agentteams.io:18080",
+  "user_id": "!EuVouIUbBt7WyhlW32:matrix-local.agentteams.io:18080",
+  "channel": "matrix",
+  "msgs_len": 1,
+  "msgs_str": "[Msg(id='msg_48c763e6-64ad-4665-8159-acb7dfb4b1e5', name='user', content=[{'type': 'text', 'text': '[Chat messages since your last reply - for context]\\ntester: 创建 mocks（正确实现产 `(消息, 失败原因, 时间戳)` 三元组死信；M05 变异；buggy）： [id:$YzwTqmrAa__YpobDx27EOmFzsmszcVnEX9My4GUZi8A]\\n\\n[Current message - respond to th..."
+}
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/agents/react_agent.py:150 | 2026-08-29 14:05:51 | Agent 'default' initialized with model: global-fallback (class: RetryChatModel)
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/runner/session.py:119 | 2026-08-29 14:05:51 | Load session state from /root/.copaw-worker/author/.copaw/workspaces/default/sessions/!EuVouIUbBt7WyhlW32--matrix-local.agentteams.io--18080_matrix--!EuVouIUbBt7WyhlW32--matrix-local.agentteams.io--18080.json successfully.
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/agents/react_agent.py:989 | 2026-08-29 14:05:51 | CoPawAgent.reply: max_iters=200
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/runner/session.py:92 | 2026-08-29 14:06:03 | Saved session state to /root/.copaw-worker/author/.copaw/workspaces/default/sessions/!EuVouIUbBt7WyhlW32--matrix-local.agentteams.io--18080_matrix--!EuVouIUbBt7WyhlW32--matrix-local.agentteams.io--18080.json successfully.
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/base.py:400 | 2026-08-29 14:08:53 | _consume_with_tracker: chat_id=3e93ea11-f1fc-4d2b-b4a9-51141f9f2d8d session=matrix:!EuVouIUbBt7WyhlW32:mat
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/runner/runner.py:404 | 2026-08-29 14:08:53 | Handle agent query:
+{
+  "session_id": "matrix:!EuVouIUbBt7WyhlW32:matrix-local.agentteams.io:18080",
+  "user_id": "!EuVouIUbBt7WyhlW32:matrix-local.agentteams.io:18080",
+  "channel": "matrix",
+  "msgs_len": 1,
+  "msgs_str": "[Msg(id='msg_a46334d2-ee50-4640-a6d2-c3ae12f11e0a', name='user', content=[{'type': 'text', 'text': '[Chat messages since your last reply - for context]\\ntester: 自检通过：契约满足 mock（三元组）**22/22 绿**（双跑确定）；M05 变异 **5 红**；buggy **17 红**。构建 payload 并**立即提交**（落实门禁前双轨合流）： [id:$POaXdzeRj15HPl9dixhsCdRdaMIInZDZjA..."
+}
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/agents/react_agent.py:150 | 2026-08-29 14:08:53 | Agent 'default' initialized with model: global-fallback (class: RetryChatModel)
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/runner/session.py:119 | 2026-08-29 14:08:54 | Load session state from /root/.copaw-worker/author/.copaw/workspaces/default/sessions/!EuVouIUbBt7WyhlW32--matrix-local.agentteams.io--18080_matrix--!EuVouIUbBt7WyhlW32--matrix-local.agentteams.io--18080.json successfully.
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/agents/react_agent.py:989 | 2026-08-29 14:08:54 | CoPawAgent.reply: max_iters=200
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/runner/session.py:92 | 2026-08-29 14:09:11 | Saved session state to /root/.copaw-worker/author/.copaw/workspaces/default/sessions/!EuVouIUbBt7WyhlW32--matrix-local.agentteams.io--18080_matrix--!EuVouIUbBt7WyhlW32--matrix-local.agentteams.io--18080.json successfully.
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/base.py:400 | 2026-08-29 14:09:21 | _consume_with_tracker: chat_id=3e93ea11-f1fc-4d2b-b4a9-51141f9f2d8d session=matrix:!EuVouIUbBt7WyhlW32:mat
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/runner/runner.py:404 | 2026-08-29 14:09:21 | Handle agent query:
+{
+  "session_id": "matrix:!EuVouIUbBt7WyhlW32:matrix-local.agentteams.io:18080",
+  "user_id": "!EuVouIUbBt7WyhlW32:matrix-local.agentteams.io:18080",
+  "channel": "matrix",
+  "msgs_len": 1,
+  "msgs_str": "[Msg(id='msg_8889e6e7-1a6d-48c2-81c7-9697f44e7801', name='user', content=[{'type': 'text', 'text': '[Chat messages since your last reply - for context]\\ncodenotary-leader: @tester:matrix-local.agentteams.io:18080 盲测开工：scenario `mb_delivery_semantics_ambiguous` 已进入 CONTRACTED（契约 v1 已冻结）。开工前先调用 notary..."
+}
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/agents/react_agent.py:150 | 2026-08-29 14:09:21 | Agent 'default' initialized with model: global-fallback (class: RetryChatModel)
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/runner/session.py:119 | 2026-08-29 14:09:21 | Load session state from /root/.copaw-worker/author/.copaw/workspaces/default/sessions/!EuVouIUbBt7WyhlW32--matrix-local.agentteams.io--18080_matrix--!EuVouIUbBt7WyhlW32--matrix-local.agentteams.io--18080.json successfully.
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/agents/react_agent.py:989 | 2026-08-29 14:09:21 | CoPawAgent.reply: max_iters=200
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/runner/session.py:92 | 2026-08-29 14:09:43 | Saved session state to /root/.copaw-worker/author/.copaw/workspaces/default/sessions/!EuVouIUbBt7WyhlW32--matrix-local.agentteams.io--18080_matrix--!EuVouIUbBt7WyhlW32--matrix-local.agentteams.io--18080.json successfully.
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/base.py:400 | 2026-08-29 14:09:43 | _consume_with_tracker: chat_id=3e93ea11-f1fc-4d2b-b4a9-51141f9f2d8d session=matrix:!EuVouIUbBt7WyhlW32:mat
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/runner/runner.py:404 | 2026-08-29 14:09:43 | Handle agent query:
+{
+  "session_id": "matrix:!EuVouIUbBt7WyhlW32:matrix-local.agentteams.io:18080",
+  "user_id": "!EuVouIUbBt7WyhlW32:matrix-local.agentteams.io:18080",
+  "channel": "matrix",
+  "msgs_len": 1,
+  "msgs_str": "[Msg(id='msg_1d65660d-711d-412f-9742-6ded80250399', name='user', content=[{'type': 'text', 'text': '[Chat messages since your last reply - for context]\\ncodenotary-leader: @tester:matrix-local.agentteams.io:18080 **紧急**：流水线当前 **AUTHORING**（author 实现已提交，变异门禁尚未运行——提交窗口打开中）。你的 **22 用例三元组套件**（含 M05 击杀器 ..."
+}
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/agents/react_agent.py:150 | 2026-08-29 14:09:43 | Agent 'default' initialized with model: global-fallback (class: RetryChatModel)
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/runner/session.py:119 | 2026-08-29 14:09:43 | Load session state from /root/.copaw-worker/author/.copaw/workspaces/default/sessions/!EuVouIUbBt7WyhlW32--matrix-local.agentteams.io--18080_matrix--!EuVouIUbBt7WyhlW32--matrix-local.agentteams.io--18080.json successfully.
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/agents/react_agent.py:989 | 2026-08-29 14:09:43 | CoPawAgent.reply: max_iters=200
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/runner/session.py:92 | 2026-08-29 14:09:55 | Saved session state to /root/.copaw-worker/author/.copaw/workspaces/default/sessions/!EuVouIUbBt7WyhlW32--matrix-local.agentteams.io--18080_matrix--!EuVouIUbBt7WyhlW32--matrix-local.agentteams.io--18080.json successfully.
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/base.py:400 | 2026-08-29 14:09:55 | _consume_with_tracker: chat_id=3e93ea11-f1fc-4d2b-b4a9-51141f9f2d8d session=matrix:!EuVouIUbBt7WyhlW32:mat
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/runner/runner.py:404 | 2026-08-29 14:09:55 | Handle agent query:
+{
+  "session_id": "matrix:!EuVouIUbBt7WyhlW32:matrix-local.agentteams.io:18080",
+  "user_id": "!EuVouIUbBt7WyhlW32:matrix-local.agentteams.io:18080",
+  "channel": "matrix",
+  "msgs_len": 1,
+  "msgs_str": "[Msg(id='msg_44b1e54e-e3b6-4e9b-916f-9960358e99a6', name='user', content=[{'type': 'text', 'text': '[Chat messages since your last reply - for context]\\ncodenotary-leader: ⚠️ 关键进展确认：网关已推进至 **GATING**——TEST_PASS green（**但仅 4 基线用例，盲测仍未参与**）、变异门禁已运行（M03/M06 幸存，M05 已被击杀——说明本次盲测**已部分入库**或 M05 被其他方式处理）。确认..."
+}
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/agents/react_agent.py:150 | 2026-08-29 14:09:55 | Agent 'default' initialized with model: global-fallback (class: RetryChatModel)
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/runner/session.py:119 | 2026-08-29 14:09:55 | Load session state from /root/.copaw-worker/author/.copaw/workspaces/default/sessions/!EuVouIUbBt7WyhlW32--matrix-local.agentteams.io--18080_matrix--!EuVouIUbBt7WyhlW32--matrix-local.agentteams.io--18080.json successfully.
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/agents/react_agent.py:989 | 2026-08-29 14:09:55 | CoPawAgent.reply: max_iters=200
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/runner/session.py:92 | 2026-08-29 14:10:06 | Saved session state to /root/.copaw-worker/author/.copaw/workspaces/default/sessions/!EuVouIUbBt7WyhlW32--matrix-local.agentteams.io--18080_matrix--!EuVouIUbBt7WyhlW32--matrix-local.agentteams.io--18080.json successfully.
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/unified_queue_manager.py:268 | 2026-08-29 14:20:41 | Consumer stopped: channel=matrix session=matrix:!EuVouIUbBt7WyhlW32:mat priority=20
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/unified_queue_manager.py:415 | 2026-08-29 14:20:41 | Cleaned up idle queue: channel=matrix session=matrix:!EuVouIUbBt7WyhlW32:mat priority=20 processed=8
+Stopping worker...
+Worker stopped.
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/_app.py:362 | 2026-08-29 17:37:07 | Executing plugin shutdown hooks...
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/_app.py:395 | 2026-08-29 17:37:07 | Stopping local model server...
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/_app.py:409 | 2026-08-29 17:37:07 | Stopping MultiAgentManager...
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/multi_agent_manager.py:352 | 2026-08-29 17:37:07 | Stopping all agents (2 running)...
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/workspace/workspace.py:374 | 2026-08-29 17:37:07 | Stopping agent instance: default (final=True)
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/agent_config_watcher.py:95 | 2026-08-29 17:37:07 | AgentConfigWatcher stopped for agent default
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/unified_queue_manager.py:428 | 2026-08-29 17:37:07 | Cleanup loop stopped
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/unified_queue_manager.py:374 | 2026-08-29 17:37:07 | Stopped all queues: total=0
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/manager.py:525 | 2026-08-29 17:37:07 | ChannelManager stopped
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/agents/memory/reme_light_memory_manager.py:229 | 2026-08-29 17:37:07 | ReMeLightMemoryManager closing: agent_id=default
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/agents/memory/reme_light_memory_manager.py:235 | 2026-08-29 17:37:07 | ReMeLightMemoryManager closed: agent_id=default, result=False
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/workspace/workspace.py:382 | 2026-08-29 17:37:07 | Workspace stopped: default
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/workspace/workspace.py:374 | 2026-08-29 17:37:07 | Stopping agent instance: CoPaw_QA_Agent_0.1beta1 (final=True)
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/agent_config_watcher.py:95 | 2026-08-29 17:37:07 | AgentConfigWatcher stopped for agent CoPaw_QA_Agent_0.1beta1
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/unified_queue_manager.py:428 | 2026-08-29 17:37:07 | Cleanup loop stopped
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/unified_queue_manager.py:374 | 2026-08-29 17:37:07 | Stopped all queues: total=0
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/console/channel.py:571 | 2026-08-29 17:37:07 | console channel stopped
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/manager.py:525 | 2026-08-29 17:37:07 | ChannelManager stopped
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/agents/memory/reme_light_memory_manager.py:229 | 2026-08-29 17:37:07 | ReMeLightMemoryManager closing: agent_id=CoPaw_QA_Agent_0.1beta1
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/agents/memory/reme_light_memory_manager.py:235 | 2026-08-29 17:37:07 | ReMeLightMemoryManager closed: agent_id=CoPaw_QA_Agent_0.1beta1, result=False
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/workspace/workspace.py:382 | 2026-08-29 17:37:07 | Workspace stopped: CoPaw_QA_Agent_0.1beta1
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/multi_agent_manager.py:369 | 2026-08-29 17:37:07 | All agents stopped
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/_app.py:415 | 2026-08-29 17:37:07 | Application shutdown complete
+INFO:     Application shutdown complete.
+INFO:     Finished server process [1]
+Stopping worker...
+Worker stopped.
+Stopping worker...
+Worker stopped.
+[agentteams-copaw-worker 2026-08-29 17:38:56] Starting copaw-worker: author
+[agentteams-copaw-worker 2026-08-29 17:38:56]   FS endpoint: http://agentteams-controller:9000
+[agentteams-copaw-worker 2026-08-29 17:38:56]   Install dir: /root/.copaw-worker
+[agentteams-copaw-worker 2026-08-29 17:38:56]   Console port: 8088
+[agentteams-copaw-worker 2026-08-29 17:38:56]   CoPaw: standard (/opt/venv/standard)
+╭─── Starting ───╮
+│ CoPaw Worker   │
+│ Worker: author │
+╰────────────────╯
+Pulling all files from MinIO...
+2026-08-29 17:38:57,674 [INFO] copaw_worker.sync: mirror_all: preparing primary mirror runtime=none cloud_mode=False k8s_mode=False endpoint=http://agentteams-controller:9000 bucket=agentteams-storage worker_name=author access_key=<redacted> alias_set=False mc_host_set=False controller_url=http://agentteams-controller:8090
+2026-08-29 17:38:57,675 [INFO] copaw_worker.sync: _ensure_alias: runtime=none cloud_mode=False k8s_mode=False endpoint=http://agentteams-controller:9000 bucket=agentteams-storage worker_name=author access_key=<redacted> alias_set=False mc_host_set=False controller_url=http://agentteams-controller:8090
+2026-08-29 17:38:57,675 [INFO] copaw_worker.sync: _ensure_alias: credential path=static, setting alias url=http://agentteams-controller:9000 access_key=<redacted>
+2026-08-29 17:38:57,675 [INFO] copaw_worker.sync: mc cmd: /usr/local/bin/mc alias set agentteams http://agentteams-controller:9000 <redacted-access-key> <redacted-secret-key>
+2026-08-29 17:38:57,994 [INFO] copaw_worker.sync: mc stdout (33 chars): 'Added `agentteams` successfully.\n'
+2026-08-29 17:38:57,994 [INFO] copaw_worker.sync: _ensure_alias: static alias ready alias_set=True
+2026-08-29 17:38:57,994 [INFO] copaw_worker.sync: mirror_all: primary mirror remote=agentteams/agentteams-storage/agents/author/ local=/root/.copaw-worker/author/
+2026-08-29 17:38:57,995 [INFO] copaw_worker.sync: mc cmd: /usr/local/bin/mc mirror agentteams/agentteams-storage/agents/author/ /root/.copaw-worker/author/ --overwrite --exclude credentials/**
+2026-08-29 17:38:59,774 [INFO] copaw_worker.sync: mc stdout (3354 chars): '`agentteams/agentteams-storage/agents/author/.agentteams-keep` -> `/root/.copaw-worker/author/.agentteams-keep`\n`agentteams/agentteams-storage/agents/author/.copaw.secret/providers/custom/agentteams-g'
+2026-08-29 17:38:59,779 [INFO] copaw_worker.sync: mirror_all: full mirror completed from agentteams/agentteams-storage/agents/author/
+2026-08-29 17:39:00,017 [INFO] copaw_worker.sync: mirror_all: shared mirror remote=agentteams/agentteams-storage/teams/codenotary/shared/ local=/root/.copaw-worker/author/shared/
+2026-08-29 17:39:00,018 [INFO] copaw_worker.sync: mc cmd: /usr/local/bin/mc mirror agentteams/agentteams-storage/teams/codenotary/shared/ /root/.copaw-worker/author/shared/ --overwrite
+2026-08-29 17:39:00,442 [INFO] copaw_worker.sync: mc stdout (672 chars): '`agentteams/agentteams-storage/teams/codenotary/shared/.agentteams-keep` -> `/root/.copaw-worker/author/shared/.agentteams-keep`\n`agentteams/agentteams-storage/teams/codenotary/shared/knowledge/.keep`'
+2026-08-29 17:39:00,442 [INFO] copaw_worker.sync: mirror_all: shared/ mirror completed from agentteams/agentteams-storage/teams/codenotary/shared/
+2026-08-29 17:39:00,442 [INFO] copaw_worker.sync: _ensure_alias: runtime=none cloud_mode=False k8s_mode=False endpoint=http://agentteams-controller:9000 bucket=agentteams-storage worker_name=author access_key=<redacted> alias_set=True mc_host_set=False controller_url=http://agentteams-controller:8090
+2026-08-29 17:39:00,443 [INFO] copaw_worker.sync: _ensure_alias: credential path=static, alias already set
+2026-08-29 17:39:00,443 [INFO] copaw_worker.sync: mc cmd: /usr/local/bin/mc cat agentteams/agentteams-storage/agents/author/openclaw.json
+2026-08-29 17:39:00,654 [INFO] copaw_worker.sync: openclaw.json raw content (8889 chars): '{\n  "agents": {\n    "defaults": {\n      "maxConcurrent": 4,\n      "model": {\n        "primary": "agentteams-gateway/deepseek-v4-flash"\n      },\n      "models": {\n        "agentteams-gateway/MiniMax-M2.5": {\n          "alias": "MiniMax-M2.5"\n        },\n        "agentteams-gateway/MiniMax-M2.7": {\n          "alias": "MiniMax-M2.7"\n        },\n        "agentteams-gateway/MiniMax-M2.7-highspeed": {\n          "alias": "MiniMax-M2.7-highspeed"\n        },\n        "agentteams-gateway/claude-haiku-4-5": {'
+2026-08-29 17:39:00,654 [INFO] copaw_worker.sync: _ensure_alias: runtime=none cloud_mode=False k8s_mode=False endpoint=http://agentteams-controller:9000 bucket=agentteams-storage worker_name=author access_key=<redacted> alias_set=True mc_host_set=False controller_url=http://agentteams-controller:8090
+2026-08-29 17:39:00,655 [INFO] copaw_worker.sync: _ensure_alias: credential path=static, alias already set
+2026-08-29 17:39:00,655 [INFO] copaw_worker.sync: mc cmd: /usr/local/bin/mc cat agentteams/agentteams-storage/agents/author/credentials/matrix/password
+2026-08-29 17:39:00,930 [INFO] copaw_worker.sync: mc cat missing object for agents/author/credentials/matrix/password: mc.bin: <ERROR> Unable to read from `agentteams/agentteams-storage/agents/author/credentials/matrix/password`. Object does not exist.
+
+No Matrix password found in MinIO, skipping re-login (E2EE may not work after 
+restart)
+Bridging configuration to CoPaw...
+2026-08-29 17:39:01,232 [INFO] copaw_worker.sync: _ensure_alias: runtime=none cloud_mode=False k8s_mode=False endpoint=http://agentteams-controller:9000 bucket=agentteams-storage worker_name=author access_key=<redacted> alias_set=True mc_host_set=False controller_url=http://agentteams-controller:8090
+2026-08-29 17:39:01,232 [INFO] copaw_worker.sync: _ensure_alias: credential path=static, alias already set
+2026-08-29 17:39:01,233 [INFO] copaw_worker.sync: mc cmd: /usr/local/bin/mc ls --recursive agentteams/agentteams-storage/agents/author/skills/
+2026-08-29 17:39:01,406 [INFO] copaw_worker.sync: mc stdout (470 chars): '[2026-08-08 10:18:42 UTC] 1.9KiB STANDARD communication/SKILL.md\n[2026-08-08 10:18:42 UTC] 2.1KiB STANDARD file-sharing/SKILL.md\n[2026-08-08 10:18:42 UTC] 6.7KiB STANDARD find-skills/SKILL.md\n[2026-08'
+Worker initialized.
+Note: web console enabled on port 8088 (~500MB extra RAM). Remove --console-port
+to save memory.
+2026-08-29 17:39:01,437 [INFO] copaw_worker.hooks: AgentTeams CoPaw query-handler message filter hook is disabled
+CoPaw console available at http://127.0.0.1:8088/
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/runner/control_commands/__init__.py:62 | 2026-08-29 17:39:17 | Registered control command: /stop → StopCommandHandler
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/runner/control_commands/__init__.py:62 | 2026-08-29 17:39:17 | Registered control command: /model → ModelCommandHandler
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/runner/control_commands/__init__.py:62 | 2026-08-29 17:39:17 | Registered control command: /skills → SkillsCommandHandler
+2026-08-29 17:39:17,861 [WARNING] agentscope_runtime.engine.deployers.adapter.a2a.nacos_a2a_registry: [NacosRegistry] Nacos SDK (nacos-sdk-python) is not available. Install it with: pip install nacos-sdk-python
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/_app.py:480 | 2026-08-29 17:39:17 | STATIC_DIR: /opt/venv/standard/lib/python3.11/site-packages/copaw/console
+INFO:     Started server process [1]
+INFO:     Waiting for application startup.
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/_app.py:190 | 2026-08-29 17:39:18 | Checking for legacy config migration...
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/_app.py:197 | 2026-08-29 17:39:18 | Initializing MultiAgentManager...
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/multi_agent_manager.py:431 | 2026-08-29 17:39:18 | Starting 2 enabled agent(s) (0 disabled)
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/multi_agent_manager.py:439 | 2026-08-29 17:39:18 | Starting agent: default
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/multi_agent_manager.py:75 | 2026-08-29 17:39:18 | Creating new workspace: default
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/workspace/workspace.py:331 | 2026-08-29 17:39:18 | Starting workspace: default
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/multi_agent_manager.py:439 | 2026-08-29 17:39:18 | Starting agent: CoPaw_QA_Agent_0.1beta1
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/agents/memory/reme_light_memory_manager.py:65 | 2026-08-29 17:39:18 | ReMeLightMemoryManager init: agent_id=default, working_dir=/root/.copaw-worker/author/.copaw/workspaces/default
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/agents/memory/reme_light_memory_manager.py:104 | 2026-08-29 17:39:22 | Embedding config: {'backend': 'openai', 'api_key': '', 'base_url': '', 'model_name': '', 'dimensions': 1024, 'enable_cache': True, 'use_dimensions': False, 'max_cache_size': 3000, 'max_input_length': 8192, 'max_batch_size': 10}, vector_enabled=False
+2026-08-29 17:39:22.702 | INFO     | reme.core.service_context:__init__:85 - update with args: ['config=light'] kwargs: {'embedding_models': {'default': {'backend': 'openai', 'api_key': '', 'base_url': '', 'model_name': '', 'dimensions': 1024, 'enable_cache': True, 'use_dimensions': False, 'max_cache_size': 3000, 'max_input_length': 8192, 'max_batch_size': 10}}, 'file_stores': {'default': {'backend': 'chroma', 'store_name': 'copaw', 'vector_enabled': False, 'fts_enabled': True}}, 'file_watchers': {'default': {'rebuild_index_on_start': False, 'watch_paths': ['/root/.copaw-worker/author/.copaw/workspaces/default/MEMORY.md', '/root/.copaw-worker/author/.copaw/workspaces/default/memory.md', '/root/.copaw-worker/author/.copaw/workspaces/default/memory']}}, 'enable_logo': False, 'log_to_console': False, 'working_dir': '/root/.copaw-worker/author/.copaw/workspaces/default'}
+2026-08-29 17:39:22.703 | INFO     | reme.core.utils.pydantic_config_parser:_find_config_path:138 - load config=/opt/venv/standard/lib/python3.11/site-packages/reme/config/light.yaml
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/runner/manager.py:38 | 2026-08-29 17:39:35 | ChatManager created with repo path: /root/.copaw-worker/author/.copaw/workspaces/default/chats.json
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/workspace/service_factories.py:57 | 2026-08-29 17:39:35 | ChatManager created: /root/.copaw-worker/author/.copaw/workspaces/default/chats.json
+/opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/feishu/channel.py:88: DeprecationWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html
+  import pkg_resources as _pkg_resources_module  # type: ignore
+/opt/venv/standard/lib/python3.11/site-packages/lark_oapi/ws/pb/google/__init__.py:2: DeprecationWarning: Deprecated call to `pkg_resources.declare_namespace('lark_oapi.ws.pb.google')`.
+Implementing implicit namespace packages (as specified in PEP 420) is preferred to `pkg_resources.declare_namespace`. See https://setuptools.pypa.io/en/latest/references/keywords.html#keyword-namespace-packages
+  __import__('pkg_resources').declare_namespace(__name__)
+/opt/venv/standard/lib/python3.11/site-packages/pkg_resources/__init__.py:2559: DeprecationWarning: Deprecated call to `pkg_resources.declare_namespace('lark_oapi.ws.pb')`.
+Implementing implicit namespace packages (as specified in PEP 420) is preferred to `pkg_resources.declare_namespace`. See https://setuptools.pypa.io/en/latest/references/keywords.html#keyword-namespace-packages
+  declare_namespace(parent)
+/opt/venv/standard/lib/python3.11/site-packages/pkg_resources/__init__.py:2559: DeprecationWarning: Deprecated call to `pkg_resources.declare_namespace('lark_oapi.ws')`.
+Implementing implicit namespace packages (as specified in PEP 420) is preferred to `pkg_resources.declare_namespace`. See https://setuptools.pypa.io/en/latest/references/keywords.html#keyword-namespace-packages
+  declare_namespace(parent)
+/opt/venv/standard/lib/python3.11/site-packages/pkg_resources/__init__.py:2559: DeprecationWarning: Deprecated call to `pkg_resources.declare_namespace('lark_oapi')`.
+Implementing implicit namespace packages (as specified in PEP 420) is preferred to `pkg_resources.declare_namespace`. See https://setuptools.pypa.io/en/latest/references/keywords.html#keyword-namespace-packages
+  declare_namespace(parent)
+/opt/venv/standard/lib/python3.11/site-packages/aibot/ws.py:28: DeprecationWarning: websockets.client.WebSocketClientProtocol is deprecated
+  from websockets.client import WebSocketClientProtocol
+/opt/venv/standard/lib/python3.11/site-packages/websockets/legacy/__init__.py:6: DeprecationWarning: websockets.legacy is deprecated; see https://websockets.readthedocs.io/en/stable/howto/upgrade.html for upgrade instructions
+  warnings.warn(  # deprecated in 14.0 - 2024-11-09
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-29 17:40:00 | Registered command: /stop → level=0
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-29 17:40:00 | Registered command: /daemon status → level=10
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-29 17:40:00 | Registered command: /daemon restart → level=10
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-29 17:40:00 | Registered command: /daemon reload-config → level=10
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-29 17:40:00 | Registered command: /daemon version → level=10
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-29 17:40:00 | Registered command: /daemon logs → level=10
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-29 17:40:00 | Registered command: /daemon approve → level=10
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-29 17:40:00 | Registered command: /status → level=10
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-29 17:40:00 | Registered command: /restart → level=10
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-29 17:40:00 | Registered command: /reload-config → level=10
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-29 17:40:00 | Registered command: /reload_config → level=10
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-29 17:40:00 | Registered command: /version → level=10
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-29 17:40:00 | Registered command: /logs → level=10
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-29 17:40:00 | Registered command: /approve → level=10
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:62 | 2026-08-29 17:40:00 | CommandRegistry initialized
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/manager.py:543 | 2026-08-29 17:40:00 | Injected workspace into 1 channels
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/unified_queue_manager.py:112 | 2026-08-29 17:40:00 | UnifiedQueueManager initialized: maxsize=1000, idle_timeout=600.0s, cleanup_interval=60.0s
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/unified_queue_manager.py:289 | 2026-08-29 17:40:00 | Cleanup loop started
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/unified_queue_manager.py:382 | 2026-08-29 17:40:00 | Cleanup loop running
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/crons/manager.py:104 | 2026-08-29 17:40:00 | Heartbeat job scheduled for agent default: every=10m
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/agent_config_watcher.py:81 | 2026-08-29 17:40:00 | AgentConfigWatcher started for agent default (poll=2.0s, path=/root/.copaw-worker/author/.copaw/workspaces/default/agent.json)
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/workspace/workspace.py:353 | 2026-08-29 17:40:00 | Workspace started successfully: default
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/multi_agent_manager.py:85 | 2026-08-29 17:40:00 | Workspace created and started: default
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/multi_agent_manager.py:401 | 2026-08-29 17:40:00 | Successfully preloaded agent: default
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/multi_agent_manager.py:441 | 2026-08-29 17:40:00 | Agent started successfully: default
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/multi_agent_manager.py:75 | 2026-08-29 17:40:00 | Creating new workspace: CoPaw_QA_Agent_0.1beta1
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/workspace/workspace.py:331 | 2026-08-29 17:40:00 | Starting workspace: CoPaw_QA_Agent_0.1beta1
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/agents/memory/reme_light_memory_manager.py:65 | 2026-08-29 17:40:00 | ReMeLightMemoryManager init: agent_id=CoPaw_QA_Agent_0.1beta1, working_dir=/root/.copaw-worker/author/.copaw/workspaces/CoPaw_QA_Agent_0.1beta1
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/agents/memory/reme_light_memory_manager.py:104 | 2026-08-29 17:40:00 | Embedding config: {'backend': 'openai', 'api_key': '', 'base_url': '', 'model_name': '', 'dimensions': 1024, 'enable_cache': True, 'use_dimensions': False, 'max_cache_size': 3000, 'max_input_length': 8192, 'max_batch_size': 10}, vector_enabled=False
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/runner/manager.py:38 | 2026-08-29 17:40:00 | ChatManager created with repo path: /root/.copaw-worker/author/.copaw/workspaces/CoPaw_QA_Agent_0.1beta1/chats.json
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/workspace/service_factories.py:57 | 2026-08-29 17:40:00 | ChatManager created: /root/.copaw-worker/author/.copaw/workspaces/CoPaw_QA_Agent_0.1beta1/chats.json
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-29 17:40:01 | Registered command: /stop → level=0
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-29 17:40:01 | Registered command: /daemon status → level=10
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-29 17:40:01 | Registered command: /daemon restart → level=10
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-29 17:40:01 | Registered command: /daemon reload-config → level=10
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-29 17:40:01 | Registered command: /daemon version → level=10
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-29 17:40:01 | Registered command: /daemon logs → level=10
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-29 17:40:01 | Registered command: /daemon approve → level=10
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-29 17:40:01 | Registered command: /status → level=10
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-29 17:40:01 | Registered command: /restart → level=10
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-29 17:40:01 | Registered command: /reload-config → level=10
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-29 17:40:01 | Registered command: /reload_config → level=10
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-29 17:40:01 | Registered command: /version → level=10
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-29 17:40:01 | Registered command: /logs → level=10
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-29 17:40:01 | Registered command: /approve → level=10
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:62 | 2026-08-29 17:40:01 | CommandRegistry initialized
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/manager.py:543 | 2026-08-29 17:40:01 | Injected workspace into 1 channels
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/unified_queue_manager.py:112 | 2026-08-29 17:40:01 | UnifiedQueueManager initialized: maxsize=1000, idle_timeout=600.0s, cleanup_interval=60.0s
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/unified_queue_manager.py:289 | 2026-08-29 17:40:01 | Cleanup loop started
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/console/channel.py:566 | 2026-08-29 17:40:01 | Console channel started
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/agent_config_watcher.py:81 | 2026-08-29 17:40:01 | AgentConfigWatcher started for agent CoPaw_QA_Agent_0.1beta1 (poll=2.0s, path=/root/.copaw-worker/author/.copaw/workspaces/CoPaw_QA_Agent_0.1beta1/agent.json)
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/workspace/workspace.py:353 | 2026-08-29 17:40:01 | Workspace started successfully: CoPaw_QA_Agent_0.1beta1
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/multi_agent_manager.py:85 | 2026-08-29 17:40:01 | Workspace created and started: CoPaw_QA_Agent_0.1beta1
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/multi_agent_manager.py:401 | 2026-08-29 17:40:01 | Successfully preloaded agent: CoPaw_QA_Agent_0.1beta1
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/multi_agent_manager.py:441 | 2026-08-29 17:40:01 | Agent started successfully: CoPaw_QA_Agent_0.1beta1
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/unified_queue_manager.py:382 | 2026-08-29 17:40:01 | Cleanup loop running
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/multi_agent_manager.py:459 | 2026-08-29 17:40:01 | Agent startup complete: 2/2 agents started successfully, 0 disabled
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/_app.py:233 | 2026-08-29 17:40:01 | Initializing plugin system...
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/_app.py:250 | 2026-08-29 17:40:01 | Loading plugins with 0 config(s)
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/_app.py:256 | 2026-08-29 17:40:01 | ✓ Loaded 0 plugin(s)
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/_app.py:281 | 2026-08-29 17:40:01 | Registering plugin control commands...
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-29 17:40:01 | Registered command: /stop → level=0
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-29 17:40:01 | Registered command: /daemon status → level=10
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-29 17:40:01 | Registered command: /daemon restart → level=10
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-29 17:40:01 | Registered command: /daemon reload-config → level=10
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-29 17:40:01 | Registered command: /daemon version → level=10
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-29 17:40:01 | Registered command: /daemon logs → level=10
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-29 17:40:01 | Registered command: /daemon approve → level=10
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-29 17:40:01 | Registered command: /status → level=10
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-29 17:40:01 | Registered command: /restart → level=10
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-29 17:40:01 | Registered command: /reload-config → level=10
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-29 17:40:01 | Registered command: /reload_config → level=10
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-29 17:40:01 | Registered command: /version → level=10
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-29 17:40:01 | Registered command: /logs → level=10
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-29 17:40:01 | Registered command: /approve → level=10
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:62 | 2026-08-29 17:40:01 | CommandRegistry initialized
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/_app.py:315 | 2026-08-29 17:40:01 | Executing plugin startup hooks...
+INFO:     Application startup complete.
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/providers/provider_manager.py:831 | 2026-08-29 17:40:01 | Background local model restore completed
+INFO:     Uvicorn running on http://0.0.0.0:8088 (Press CTRL+C to quit)
+Stopping worker...
+Worker stopped.
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/_app.py:362 | 2026-08-29 17:41:11 | Executing plugin shutdown hooks...
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/_app.py:395 | 2026-08-29 17:41:11 | Stopping local model server...
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/_app.py:409 | 2026-08-29 17:41:11 | Stopping MultiAgentManager...
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/multi_agent_manager.py:352 | 2026-08-29 17:41:11 | Stopping all agents (2 running)...
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/workspace/workspace.py:374 | 2026-08-29 17:41:11 | Stopping agent instance: default (final=True)
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/agent_config_watcher.py:95 | 2026-08-29 17:41:11 | AgentConfigWatcher stopped for agent default
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/unified_queue_manager.py:428 | 2026-08-29 17:41:11 | Cleanup loop stopped
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/unified_queue_manager.py:374 | 2026-08-29 17:41:11 | Stopped all queues: total=0
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/manager.py:525 | 2026-08-29 17:41:11 | ChannelManager stopped
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/agents/memory/reme_light_memory_manager.py:229 | 2026-08-29 17:41:11 | ReMeLightMemoryManager closing: agent_id=default
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/agents/memory/reme_light_memory_manager.py:235 | 2026-08-29 17:41:11 | ReMeLightMemoryManager closed: agent_id=default, result=False
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/workspace/workspace.py:382 | 2026-08-29 17:41:11 | Workspace stopped: default
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/workspace/workspace.py:374 | 2026-08-29 17:41:11 | Stopping agent instance: CoPaw_QA_Agent_0.1beta1 (final=True)
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/agent_config_watcher.py:95 | 2026-08-29 17:41:11 | AgentConfigWatcher stopped for agent CoPaw_QA_Agent_0.1beta1
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/unified_queue_manager.py:428 | 2026-08-29 17:41:11 | Cleanup loop stopped
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/unified_queue_manager.py:374 | 2026-08-29 17:41:11 | Stopped all queues: total=0
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/console/channel.py:571 | 2026-08-29 17:41:11 | console channel stopped
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/manager.py:525 | 2026-08-29 17:41:11 | ChannelManager stopped
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/agents/memory/reme_light_memory_manager.py:229 | 2026-08-29 17:41:11 | ReMeLightMemoryManager closing: agent_id=CoPaw_QA_Agent_0.1beta1
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/agents/memory/reme_light_memory_manager.py:235 | 2026-08-29 17:41:12 | ReMeLightMemoryManager closed: agent_id=CoPaw_QA_Agent_0.1beta1, result=False
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/workspace/workspace.py:382 | 2026-08-29 17:41:12 | Workspace stopped: CoPaw_QA_Agent_0.1beta1
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/multi_agent_manager.py:369 | 2026-08-29 17:41:12 | All agents stopped
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/_app.py:415 | 2026-08-29 17:41:12 | Application shutdown complete
+INFO:     Application shutdown complete.
+INFO:     Finished server process [1]
+Stopping worker...
+Worker stopped.
+Stopping worker...
+Worker stopped.
+[agentteams-copaw-worker 2026-08-30 12:32:13] Starting copaw-worker: author
+[agentteams-copaw-worker 2026-08-30 12:32:13]   FS endpoint: http://agentteams-controller:9000
+[agentteams-copaw-worker 2026-08-30 12:32:13]   Install dir: /root/.copaw-worker
+[agentteams-copaw-worker 2026-08-30 12:32:13]   Console port: 8088
+[agentteams-copaw-worker 2026-08-30 12:32:13]   CoPaw: standard (/opt/venv/standard)
+╭─── Starting ───╮
+│ CoPaw Worker   │
+│ Worker: author │
+╰────────────────╯
+Pulling all files from MinIO...
+2026-08-30 12:32:15,069 [INFO] copaw_worker.sync: mirror_all: preparing primary mirror runtime=none cloud_mode=False k8s_mode=False endpoint=http://agentteams-controller:9000 bucket=agentteams-storage worker_name=author access_key=<redacted> alias_set=False mc_host_set=False controller_url=http://agentteams-controller:8090
+2026-08-30 12:32:15,070 [INFO] copaw_worker.sync: _ensure_alias: runtime=none cloud_mode=False k8s_mode=False endpoint=http://agentteams-controller:9000 bucket=agentteams-storage worker_name=author access_key=<redacted> alias_set=False mc_host_set=False controller_url=http://agentteams-controller:8090
+2026-08-30 12:32:15,070 [INFO] copaw_worker.sync: _ensure_alias: credential path=static, setting alias url=http://agentteams-controller:9000 access_key=<redacted>
+2026-08-30 12:32:15,070 [INFO] copaw_worker.sync: mc cmd: /usr/local/bin/mc alias set agentteams http://agentteams-controller:9000 <redacted-access-key> <redacted-secret-key>
+2026-08-30 12:32:15,365 [INFO] copaw_worker.sync: mc stdout (33 chars): 'Added `agentteams` successfully.\n'
+2026-08-30 12:32:15,365 [INFO] copaw_worker.sync: _ensure_alias: static alias ready alias_set=True
+2026-08-30 12:32:15,365 [INFO] copaw_worker.sync: mirror_all: primary mirror remote=agentteams/agentteams-storage/agents/author/ local=/root/.copaw-worker/author/
+2026-08-30 12:32:15,365 [INFO] copaw_worker.sync: mc cmd: /usr/local/bin/mc mirror agentteams/agentteams-storage/agents/author/ /root/.copaw-worker/author/ --overwrite --exclude credentials/**
+2026-08-30 12:32:17,045 [INFO] copaw_worker.sync: mc stdout (1446 chars): '`agentteams/agentteams-storage/agents/author/.agentteams-keep` -> `/root/.copaw-worker/author/.agentteams-keep`\n`agentteams/agentteams-storage/agents/author/.copaw.secret/providers/custom/agentteams-g'
+2026-08-30 12:32:17,045 [INFO] copaw_worker.sync: mirror_all: full mirror completed from agentteams/agentteams-storage/agents/author/
+2026-08-30 12:32:17,294 [INFO] copaw_worker.sync: mirror_all: shared mirror remote=agentteams/agentteams-storage/teams/codenotary/shared/ local=/root/.copaw-worker/author/shared/
+2026-08-30 12:32:17,294 [INFO] copaw_worker.sync: mc cmd: /usr/local/bin/mc mirror agentteams/agentteams-storage/teams/codenotary/shared/ /root/.copaw-worker/author/shared/ --overwrite
+2026-08-30 12:32:18,318 [INFO] copaw_worker.sync: mc stdout (672 chars): '`agentteams/agentteams-storage/teams/codenotary/shared/.agentteams-keep` -> `/root/.copaw-worker/author/shared/.agentteams-keep`\n`agentteams/agentteams-storage/teams/codenotary/shared/knowledge/.keep`'
+2026-08-30 12:32:18,318 [INFO] copaw_worker.sync: mirror_all: shared/ mirror completed from agentteams/agentteams-storage/teams/codenotary/shared/
+2026-08-30 12:32:18,318 [INFO] copaw_worker.sync: _ensure_alias: runtime=none cloud_mode=False k8s_mode=False endpoint=http://agentteams-controller:9000 bucket=agentteams-storage worker_name=author access_key=<redacted> alias_set=True mc_host_set=False controller_url=http://agentteams-controller:8090
+2026-08-30 12:32:18,319 [INFO] copaw_worker.sync: _ensure_alias: credential path=static, alias already set
+2026-08-30 12:32:18,319 [INFO] copaw_worker.sync: mc cmd: /usr/local/bin/mc cat agentteams/agentteams-storage/agents/author/openclaw.json
+2026-08-30 12:32:18,433 [INFO] copaw_worker.sync: openclaw.json raw content (8889 chars): '{\n  "agents": {\n    "defaults": {\n      "maxConcurrent": 4,\n      "model": {\n        "primary": "agentteams-gateway/deepseek-v4-flash"\n      },\n      "models": {\n        "agentteams-gateway/MiniMax-M2.5": {\n          "alias": "MiniMax-M2.5"\n        },\n        "agentteams-gateway/MiniMax-M2.7": {\n          "alias": "MiniMax-M2.7"\n        },\n        "agentteams-gateway/MiniMax-M2.7-highspeed": {\n          "alias": "MiniMax-M2.7-highspeed"\n        },\n        "agentteams-gateway/claude-haiku-4-5": {'
+2026-08-30 12:32:18,434 [INFO] copaw_worker.sync: _ensure_alias: runtime=none cloud_mode=False k8s_mode=False endpoint=http://agentteams-controller:9000 bucket=agentteams-storage worker_name=author access_key=<redacted> alias_set=True mc_host_set=False controller_url=http://agentteams-controller:8090
+2026-08-30 12:32:18,434 [INFO] copaw_worker.sync: _ensure_alias: credential path=static, alias already set
+2026-08-30 12:32:18,435 [INFO] copaw_worker.sync: mc cmd: /usr/local/bin/mc cat agentteams/agentteams-storage/agents/author/credentials/matrix/password
+2026-08-30 12:32:18,522 [INFO] copaw_worker.sync: mc cat missing object for agents/author/credentials/matrix/password: mc.bin: <ERROR> Unable to read from `agentteams/agentteams-storage/agents/author/credentials/matrix/password`. Object does not exist.
+
+No Matrix password found in MinIO, skipping re-login (E2EE may not work after 
+restart)
+Bridging configuration to CoPaw...
+2026-08-30 12:32:18,940 [INFO] copaw_worker.sync: _ensure_alias: runtime=none cloud_mode=False k8s_mode=False endpoint=http://agentteams-controller:9000 bucket=agentteams-storage worker_name=author access_key=<redacted> alias_set=True mc_host_set=False controller_url=http://agentteams-controller:8090
+2026-08-30 12:32:18,940 [INFO] copaw_worker.sync: _ensure_alias: credential path=static, alias already set
+2026-08-30 12:32:18,940 [INFO] copaw_worker.sync: mc cmd: /usr/local/bin/mc ls --recursive agentteams/agentteams-storage/agents/author/skills/
+2026-08-30 12:32:19,040 [INFO] copaw_worker.sync: mc stdout (470 chars): '[2026-08-08 10:18:42 UTC] 1.9KiB STANDARD communication/SKILL.md\n[2026-08-08 10:18:42 UTC] 2.1KiB STANDARD file-sharing/SKILL.md\n[2026-08-08 10:18:42 UTC] 6.7KiB STANDARD find-skills/SKILL.md\n[2026-08'
+Worker initialized.
+Note: web console enabled on port 8088 (~500MB extra RAM). Remove --console-port
+to save memory.
+2026-08-30 12:32:19,084 [INFO] copaw_worker.hooks: AgentTeams CoPaw query-handler message filter hook is disabled
+CoPaw console available at http://127.0.0.1:8088/
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/runner/control_commands/__init__.py:62 | 2026-08-30 12:32:34 | Registered control command: /stop → StopCommandHandler
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/runner/control_commands/__init__.py:62 | 2026-08-30 12:32:34 | Registered control command: /model → ModelCommandHandler
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/runner/control_commands/__init__.py:62 | 2026-08-30 12:32:34 | Registered control command: /skills → SkillsCommandHandler
+2026-08-30 12:32:34,654 [WARNING] agentscope_runtime.engine.deployers.adapter.a2a.nacos_a2a_registry: [NacosRegistry] Nacos SDK (nacos-sdk-python) is not available. Install it with: pip install nacos-sdk-python
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/_app.py:480 | 2026-08-30 12:32:34 | STATIC_DIR: /opt/venv/standard/lib/python3.11/site-packages/copaw/console
+INFO:     Started server process [1]
+INFO:     Waiting for application startup.
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/_app.py:190 | 2026-08-30 12:32:35 | Checking for legacy config migration...
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/_app.py:197 | 2026-08-30 12:32:35 | Initializing MultiAgentManager...
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/multi_agent_manager.py:431 | 2026-08-30 12:32:35 | Starting 2 enabled agent(s) (0 disabled)
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/multi_agent_manager.py:439 | 2026-08-30 12:32:35 | Starting agent: default
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/multi_agent_manager.py:75 | 2026-08-30 12:32:35 | Creating new workspace: default
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/workspace/workspace.py:331 | 2026-08-30 12:32:35 | Starting workspace: default
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/multi_agent_manager.py:439 | 2026-08-30 12:32:35 | Starting agent: CoPaw_QA_Agent_0.1beta1
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/agents/memory/reme_light_memory_manager.py:65 | 2026-08-30 12:32:35 | ReMeLightMemoryManager init: agent_id=default, working_dir=/root/.copaw-worker/author/.copaw/workspaces/default
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/agents/memory/reme_light_memory_manager.py:104 | 2026-08-30 12:32:40 | Embedding config: {'backend': 'openai', 'api_key': '', 'base_url': '', 'model_name': '', 'dimensions': 1024, 'enable_cache': True, 'use_dimensions': False, 'max_cache_size': 3000, 'max_input_length': 8192, 'max_batch_size': 10}, vector_enabled=False
+2026-08-30 12:32:40.337 | INFO     | reme.core.service_context:__init__:85 - update with args: ['config=light'] kwargs: {'embedding_models': {'default': {'backend': 'openai', 'api_key': '', 'base_url': '', 'model_name': '', 'dimensions': 1024, 'enable_cache': True, 'use_dimensions': False, 'max_cache_size': 3000, 'max_input_length': 8192, 'max_batch_size': 10}}, 'file_stores': {'default': {'backend': 'chroma', 'store_name': 'copaw', 'vector_enabled': False, 'fts_enabled': True}}, 'file_watchers': {'default': {'rebuild_index_on_start': False, 'watch_paths': ['/root/.copaw-worker/author/.copaw/workspaces/default/MEMORY.md', '/root/.copaw-worker/author/.copaw/workspaces/default/memory.md', '/root/.copaw-worker/author/.copaw/workspaces/default/memory']}}, 'enable_logo': False, 'log_to_console': False, 'working_dir': '/root/.copaw-worker/author/.copaw/workspaces/default'}
+2026-08-30 12:32:40.338 | INFO     | reme.core.utils.pydantic_config_parser:_find_config_path:138 - load config=/opt/venv/standard/lib/python3.11/site-packages/reme/config/light.yaml
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/runner/manager.py:38 | 2026-08-30 12:32:48 | ChatManager created with repo path: /root/.copaw-worker/author/.copaw/workspaces/default/chats.json
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/workspace/service_factories.py:57 | 2026-08-30 12:32:48 | ChatManager created: /root/.copaw-worker/author/.copaw/workspaces/default/chats.json
+/opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/feishu/channel.py:88: DeprecationWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html
+  import pkg_resources as _pkg_resources_module  # type: ignore
+/opt/venv/standard/lib/python3.11/site-packages/lark_oapi/ws/pb/google/__init__.py:2: DeprecationWarning: Deprecated call to `pkg_resources.declare_namespace('lark_oapi.ws.pb.google')`.
+Implementing implicit namespace packages (as specified in PEP 420) is preferred to `pkg_resources.declare_namespace`. See https://setuptools.pypa.io/en/latest/references/keywords.html#keyword-namespace-packages
+  __import__('pkg_resources').declare_namespace(__name__)
+/opt/venv/standard/lib/python3.11/site-packages/pkg_resources/__init__.py:2559: DeprecationWarning: Deprecated call to `pkg_resources.declare_namespace('lark_oapi.ws.pb')`.
+Implementing implicit namespace packages (as specified in PEP 420) is preferred to `pkg_resources.declare_namespace`. See https://setuptools.pypa.io/en/latest/references/keywords.html#keyword-namespace-packages
+  declare_namespace(parent)
+/opt/venv/standard/lib/python3.11/site-packages/pkg_resources/__init__.py:2559: DeprecationWarning: Deprecated call to `pkg_resources.declare_namespace('lark_oapi.ws')`.
+Implementing implicit namespace packages (as specified in PEP 420) is preferred to `pkg_resources.declare_namespace`. See https://setuptools.pypa.io/en/latest/references/keywords.html#keyword-namespace-packages
+  declare_namespace(parent)
+/opt/venv/standard/lib/python3.11/site-packages/pkg_resources/__init__.py:2559: DeprecationWarning: Deprecated call to `pkg_resources.declare_namespace('lark_oapi')`.
+Implementing implicit namespace packages (as specified in PEP 420) is preferred to `pkg_resources.declare_namespace`. See https://setuptools.pypa.io/en/latest/references/keywords.html#keyword-namespace-packages
+  declare_namespace(parent)
+/opt/venv/standard/lib/python3.11/site-packages/aibot/ws.py:28: DeprecationWarning: websockets.client.WebSocketClientProtocol is deprecated
+  from websockets.client import WebSocketClientProtocol
+/opt/venv/standard/lib/python3.11/site-packages/websockets/legacy/__init__.py:6: DeprecationWarning: websockets.legacy is deprecated; see https://websockets.readthedocs.io/en/stable/howto/upgrade.html for upgrade instructions
+  warnings.warn(  # deprecated in 14.0 - 2024-11-09
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-30 12:33:08 | Registered command: /stop → level=0
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-30 12:33:08 | Registered command: /daemon status → level=10
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-30 12:33:08 | Registered command: /daemon restart → level=10
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-30 12:33:08 | Registered command: /daemon reload-config → level=10
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-30 12:33:08 | Registered command: /daemon version → level=10
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-30 12:33:08 | Registered command: /daemon logs → level=10
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-30 12:33:08 | Registered command: /daemon approve → level=10
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-30 12:33:08 | Registered command: /status → level=10
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-30 12:33:08 | Registered command: /restart → level=10
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-30 12:33:08 | Registered command: /reload-config → level=10
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-30 12:33:08 | Registered command: /reload_config → level=10
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-30 12:33:08 | Registered command: /version → level=10
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-30 12:33:08 | Registered command: /logs → level=10
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-30 12:33:08 | Registered command: /approve → level=10
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:62 | 2026-08-30 12:33:08 | CommandRegistry initialized
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/manager.py:543 | 2026-08-30 12:33:08 | Injected workspace into 1 channels
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/unified_queue_manager.py:112 | 2026-08-30 12:33:08 | UnifiedQueueManager initialized: maxsize=1000, idle_timeout=600.0s, cleanup_interval=60.0s
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/unified_queue_manager.py:289 | 2026-08-30 12:33:08 | Cleanup loop started
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/unified_queue_manager.py:382 | 2026-08-30 12:33:08 | Cleanup loop running
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/crons/manager.py:104 | 2026-08-30 12:33:08 | Heartbeat job scheduled for agent default: every=10m
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/agent_config_watcher.py:81 | 2026-08-30 12:33:08 | AgentConfigWatcher started for agent default (poll=2.0s, path=/root/.copaw-worker/author/.copaw/workspaces/default/agent.json)
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/workspace/workspace.py:353 | 2026-08-30 12:33:08 | Workspace started successfully: default
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/multi_agent_manager.py:85 | 2026-08-30 12:33:08 | Workspace created and started: default
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/multi_agent_manager.py:401 | 2026-08-30 12:33:08 | Successfully preloaded agent: default
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/multi_agent_manager.py:441 | 2026-08-30 12:33:08 | Agent started successfully: default
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/multi_agent_manager.py:75 | 2026-08-30 12:33:08 | Creating new workspace: CoPaw_QA_Agent_0.1beta1
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/workspace/workspace.py:331 | 2026-08-30 12:33:08 | Starting workspace: CoPaw_QA_Agent_0.1beta1
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/agents/memory/reme_light_memory_manager.py:65 | 2026-08-30 12:33:08 | ReMeLightMemoryManager init: agent_id=CoPaw_QA_Agent_0.1beta1, working_dir=/root/.copaw-worker/author/.copaw/workspaces/CoPaw_QA_Agent_0.1beta1
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/agents/memory/reme_light_memory_manager.py:104 | 2026-08-30 12:33:08 | Embedding config: {'backend': 'openai', 'api_key': '', 'base_url': '', 'model_name': '', 'dimensions': 1024, 'enable_cache': True, 'use_dimensions': False, 'max_cache_size': 3000, 'max_input_length': 8192, 'max_batch_size': 10}, vector_enabled=False
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/runner/manager.py:38 | 2026-08-30 12:33:08 | ChatManager created with repo path: /root/.copaw-worker/author/.copaw/workspaces/CoPaw_QA_Agent_0.1beta1/chats.json
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/workspace/service_factories.py:57 | 2026-08-30 12:33:08 | ChatManager created: /root/.copaw-worker/author/.copaw/workspaces/CoPaw_QA_Agent_0.1beta1/chats.json
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-30 12:33:08 | Registered command: /stop → level=0
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-30 12:33:08 | Registered command: /daemon status → level=10
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-30 12:33:08 | Registered command: /daemon restart → level=10
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-30 12:33:08 | Registered command: /daemon reload-config → level=10
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-30 12:33:08 | Registered command: /daemon version → level=10
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-30 12:33:08 | Registered command: /daemon logs → level=10
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-30 12:33:08 | Registered command: /daemon approve → level=10
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-30 12:33:08 | Registered command: /status → level=10
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-30 12:33:08 | Registered command: /restart → level=10
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-30 12:33:08 | Registered command: /reload-config → level=10
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-30 12:33:08 | Registered command: /reload_config → level=10
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-30 12:33:08 | Registered command: /version → level=10
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-30 12:33:08 | Registered command: /logs → level=10
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-30 12:33:08 | Registered command: /approve → level=10
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:62 | 2026-08-30 12:33:08 | CommandRegistry initialized
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/manager.py:543 | 2026-08-30 12:33:08 | Injected workspace into 1 channels
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/unified_queue_manager.py:112 | 2026-08-30 12:33:08 | UnifiedQueueManager initialized: maxsize=1000, idle_timeout=600.0s, cleanup_interval=60.0s
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/unified_queue_manager.py:289 | 2026-08-30 12:33:08 | Cleanup loop started
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/console/channel.py:566 | 2026-08-30 12:33:08 | Console channel started
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/agent_config_watcher.py:81 | 2026-08-30 12:33:08 | AgentConfigWatcher started for agent CoPaw_QA_Agent_0.1beta1 (poll=2.0s, path=/root/.copaw-worker/author/.copaw/workspaces/CoPaw_QA_Agent_0.1beta1/agent.json)
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/workspace/workspace.py:353 | 2026-08-30 12:33:08 | Workspace started successfully: CoPaw_QA_Agent_0.1beta1
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/multi_agent_manager.py:85 | 2026-08-30 12:33:08 | Workspace created and started: CoPaw_QA_Agent_0.1beta1
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/multi_agent_manager.py:401 | 2026-08-30 12:33:08 | Successfully preloaded agent: CoPaw_QA_Agent_0.1beta1
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/multi_agent_manager.py:441 | 2026-08-30 12:33:08 | Agent started successfully: CoPaw_QA_Agent_0.1beta1
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/unified_queue_manager.py:382 | 2026-08-30 12:33:08 | Cleanup loop running
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/multi_agent_manager.py:459 | 2026-08-30 12:33:08 | Agent startup complete: 2/2 agents started successfully, 0 disabled
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/_app.py:233 | 2026-08-30 12:33:08 | Initializing plugin system...
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/_app.py:250 | 2026-08-30 12:33:08 | Loading plugins with 0 config(s)
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/_app.py:256 | 2026-08-30 12:33:08 | ✓ Loaded 0 plugin(s)
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/_app.py:281 | 2026-08-30 12:33:08 | Registering plugin control commands...
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-30 12:33:08 | Registered command: /stop → level=0
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-30 12:33:08 | Registered command: /daemon status → level=10
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-30 12:33:08 | Registered command: /daemon restart → level=10
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-30 12:33:08 | Registered command: /daemon reload-config → level=10
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-30 12:33:08 | Registered command: /daemon version → level=10
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-30 12:33:08 | Registered command: /daemon logs → level=10
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-30 12:33:08 | Registered command: /daemon approve → level=10
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-30 12:33:08 | Registered command: /status → level=10
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-30 12:33:08 | Registered command: /restart → level=10
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-30 12:33:08 | Registered command: /reload-config → level=10
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-30 12:33:08 | Registered command: /reload_config → level=10
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-30 12:33:08 | Registered command: /version → level=10
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-30 12:33:08 | Registered command: /logs → level=10
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:132 | 2026-08-30 12:33:08 | Registered command: /approve → level=10
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/channels/command_registry.py:62 | 2026-08-30 12:33:08 | CommandRegistry initialized
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/app/_app.py:315 | 2026-08-30 12:33:08 | Executing plugin startup hooks...
+INFO:     Application startup complete.
+INFO /opt/venv/standard/lib/python3.11/site-packages/copaw/providers/provider_manager.py:831 | 2026-08-30 12:33:09 | Background local model restore completed
+INFO:     Uvicorn running on http://0.0.0.0:8088 (Press CTRL+C to quit)

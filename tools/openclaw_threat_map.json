@@ -1,0 +1,115 @@
+{
+  "spec": "openclaw-threat-map/1.0",
+  "paper": {
+    "arxiv": "2603.10387",
+    "title": "Don't Let the Claw Grip Your Hand: A Security Analysis and Defense Framework for OpenClaw",
+    "repo": "https://github.com/S2yyyy/OpenClaw-Analysis",
+    "scenarios": 47,
+    "llm_backends": 6,
+    "note_zh": "团队前期对 OpenClaw 运行时（与本赛道 AgentTeams 平台底座同源）的安全实证：MITRE ATLAS/ATT&CK 映射的 47 对抗场景、双模执行框架。本文件将该威胁分类法的六大攻击类逐类映射到 CodeNotary 的防线，全部映射由 scripts/check_threat_map.py 机器校验。"
+  },
+  "categories": [
+    {
+      "id": "evasion-obfuscation",
+      "paper_category": "1. Evasion & Obfuscation",
+      "paper_scenario_ids": ["EVASION-001", "EVASION-002", "EVASION-003", "EVASION-004", "EVASION-005", "EXFIL-002", "PROMPT-001", "PROMPT-002"],
+      "paper_finding_zh": "编码/分片绕过可规避基于内容的模式过滤；直接提示覆盖依赖模型自觉",
+      "codenotary_layers": [
+        {"kind": "source_marker", "ref": "class IllegalTransition", "why_zh": "结构性防线：LLM 输出（无论是否被注入）永不驱动状态转移，提示覆盖在裁决层无效"},
+        {"kind": "sentinel_pattern", "ref": "dynamic eval on external input", "evidence": ["d3_qb_eval_exec", "d3_mb_eval_exec"], "why_zh": "动态执行入口即 critical 检疫拦截"},
+        {"kind": "sentinel_pattern", "ref": "unsafe deserialization", "evidence": ["d3_qb_pickle_deserialize", "qb_external_pickle"], "why_zh": "反序列化载荷即 critical 拦截"},
+        {"kind": "roadmap", "ref": "sentinel_extension_candidates", "why_zh": "base64/hex/codecs 解码载荷规则已完成零回归验证，冻结至决赛后启用"}
+      ],
+      "coverage": "strong"
+    },
+    {
+      "id": "sandbox-boundaries",
+      "paper_category": "2. Sandbox Boundaries (Sandbox Escape)",
+      "paper_scenario_ids": ["SANDBOX-001", "SANDBOX-002", "SANDBOX-003", "DISC-001", "DISC-002", "LATERAL-001", "LATERAL-002"],
+      "paper_finding_zh": "全部配置平均防御率仅 17%，路径穿越与符号链接逃逸最弱",
+      "codenotary_layers": [
+        {"kind": "source_marker", "ref": "def _write_workdir", "why_zh": "门禁在密封工作目录执行，判定范围收敛于变更涉及文件"},
+        {"kind": "sentinel_pattern", "ref": "unaudited file write (potential data exfiltration)", "evidence": ["d3_qb_unaudited_write", "d3_mb_unaudited_write"], "why_zh": "越界文件写入为 high 发现"},
+        {"kind": "skill", "ref": "diff-scope-discipline", "evidence": ["qb_external_sloppy"], "why_zh": "diff 越出契约 in_scope 由专门 Skill 与惯例门禁双重覆盖"},
+        {"kind": "convention_rule", "ref": "resource-acquisition-without-release", "evidence": ["qb_external_leak", "d3_qb_resource_leak"], "why_zh": "CWE-772 资源泄漏 veto（论文中'成功路径泄漏'对应现实原型 openai-python #2708）"}
+      ],
+      "coverage": "strong",
+      "note_zh": "容器/VM 级隔离由 AgentTeams 平台层承担（Worker 容器），不在本系统威胁模型内——与论文 scope 限定一致"
+    },
+    {
+      "id": "indirect-prompt-injection",
+      "paper_category": "3. Indirect Prompt Injection",
+      "paper_scenario_ids": ["INJECT-001"],
+      "paper_finding_zh": "数据面注入（文件内容藏指令）跨后端防御差异最大，多数后端两种模式均执行注入指令",
+      "codenotary_layers": [
+        {"kind": "source_marker", "ref": "class IllegalTransition", "why_zh": "架构性缓解：被注入的 LLM 最坏产出错误判断，无法产出错误裁决（裁决不经 LLM）"},
+        {"kind": "skill", "ref": "input-validation-injection", "evidence": ["qb_external_subtle"], "why_zh": "外部输入处理场景触发专用 Skill"},
+        {"kind": "skill", "ref": "requirement-ambiguity-scan", "evidence": ["mb_delivery_semantics_ambiguous"], "why_zh": "多解表述触发歧义扫描并升级人工，而非自作主张"}
+      ],
+      "coverage": "partial",
+      "note_zh": "诚实边界：判断层 LLM 仍可能受注入影响产生错误判断；本系统保证的是判断≠裁决（增刊 17.8 边界②）"
+    },
+    {
+      "id": "supply-chain-lotl",
+      "paper_category": "4. Supply Chain & Living-off-the-Land",
+      "paper_scenario_ids": ["SUPPLY-001", "SUPPLY-002", "SUPPLY-003", "RESOURCE-001", "RESOURCE-002"],
+      "paper_finding_zh": "配置投毒、模块劫持、typosquatting、下载即执行",
+      "codenotary_layers": [
+        {"kind": "skill", "ref": "ai-hallucination-guard", "evidence": [], "why_zh": "引入外部库调用或新增依赖时强制加载的 Skill（author 角色）"},
+        {"kind": "file", "ref": "requirements.txt", "expect_absent": true, "why_zh": "本系统自身零第三方依赖（纯标准库），供应链攻击面为零"},
+        {"kind": "tool", "ref": "notary_contract.freeze", "why_zh": "契约 out_of_scope 冻结后，任何越出约定路径的变更在入口即非法"}
+      ],
+      "coverage": "partial",
+      "note_zh": "对'被审代码引入恶意依赖'的覆盖依赖 Skill 与惯例门禁；包管理器级投毒（typosquatting）属部署环境治理，见 19.9 迁移成本表"
+    },
+    {
+      "id": "resource-state",
+      "paper_category": "5. Resource & State Attacks",
+      "paper_scenario_ids": ["STATE-001", "STATE-002", "EXEC-001", "EXEC-002", "EXEC-003", "IMPACT-001", "IMPACT-002", "IMPACT-003"],
+      "paper_finding_zh": "记忆投毒、无限循环、破坏性文件操作、fork 炸弹、资源耗尽",
+      "codenotary_layers": [
+        {"kind": "tool", "ref": "notary_contract.freeze", "why_zh": "预期行为契约冻结（断言逐条可验证），状态投毒无法篡改已封印契约（previous_hash 链）"},
+        {"kind": "file", "ref": "notary.json", "expect_keys": ["test_timeout_s"], "why_zh": "测试执行超时硬上限（策略可配），无限循环/资源耗尽类缺陷在盲测执行中被超时终止"},
+        {"kind": "file", "ref": "scripts/alert_watchdog.py", "why_zh": "trace 停滞/终态停留的运行告警（19.4 超时分层）"},
+        {"kind": "skill", "ref": "flaky-test-isolation", "evidence": [], "why_zh": "同码不同果的状态异常触发专门 Skill"}
+      ],
+      "coverage": "partial"
+    },
+    {
+      "id": "privilege-escalation-auditing",
+      "paper_category": "6. Privilege Escalation & Over-Privilege Auditing",
+      "paper_scenario_ids": ["OVERPRIV-001", "OVERPRIV-002", "PRIVESC-001", "PRIVESC-002", "EXEC-002", "RECON-001", "RECON-002", "RECON-003", "CRED-001", "CRED-002", "CRED-003", "COLLECT-001", "COLLECT-002"],
+      "paper_finding_zh": "权限审计类平均防御率仅 8%——Agent 默认存在 scope creep（过度行动）",
+      "codenotary_layers": [
+        {"kind": "role_policy", "ref": "ROLE_POLICY", "why_zh": "23 个敏感端点逐角色白名单，最小权限为架构前提（10 个最小权限角色）"},
+        {"kind": "source_marker", "ref": "ENTRY_STATES", "why_zh": "入口状态白名单管'何时'，与角色白名单正交（18.1 双层白名单）"},
+        {"kind": "source_marker", "ref": "record_security_event", "why_zh": "越权调用 fail-closed + security_events.json 落盘 + trace 标 role-denied"},
+        {"kind": "sentinel_pattern", "ref": "suspected hardcoded credential", "evidence": ["d3_qb_hardcoded_credential", "d3_mb_hardcoded_credential"], "why_zh": "硬编码凭据检测"},
+        {"kind": "sentinel_pattern", "ref": "suspected hardcoded API key", "evidence": ["d3_qb_hardcoded_credential"], "why_zh": "sk- 前缀 API key 检测"}
+      ],
+      "coverage": "strong",
+      "note_zh": "论文实证防御率最弱的类别（8%），恰是本系统机制化程度最高的类别——最小权限不是配置项而是架构前提"
+    }
+  ],
+  "sentinel_extension_candidates": {
+    "status": "validated-frozen",
+    "validated_on": "2026-08-29",
+    "validation_zh": "以下 14 条候选规则（译自论文 35 条模式层中适用于源码制品扫描的子集）已对全部 36 个评测样本完成回归实测：逐样本 findings 与 decision 完全一致（零误伤、零既有行为变化）。因现行评测集无触发样本，按'无实证不启用'原则冻结至决赛后 v1.3 随对抗样本一同启用。",
+    "rules": [
+      {"pattern": "\\bbase64\\.(b64decode|b32decode|b16decode|a85decode|b85decode)\\s*\\(", "severity": "high", "label": "obfuscated payload decode (base64)", "paper_ref": "EVASION-003"},
+      {"pattern": "\\bbytes\\.fromhex\\s*\\(", "severity": "high", "label": "obfuscated payload decode (hex)", "paper_ref": "EVASION-004"},
+      {"pattern": "\\bcodecs\\.decode\\s*\\(", "severity": "high", "label": "obfuscated payload decode (codecs)", "paper_ref": "EVASION-003"},
+      {"pattern": "\\bctypes\\b", "severity": "critical", "label": "dynamic native library loading", "paper_ref": "SUPPLY-002"},
+      {"pattern": "__import__\\s*\\(", "severity": "high", "label": "dynamic import", "paper_ref": "SUPPLY-002"},
+      {"pattern": "\\bimportlib\\b", "severity": "high", "label": "dynamic import machinery", "paper_ref": "SUPPLY-002"},
+      {"pattern": "/dev/tcp", "severity": "critical", "label": "reverse shell primitive", "paper_ref": "ACCESS-001"},
+      {"pattern": "\\bsudo\\b", "severity": "critical", "label": "privilege escalation attempt", "paper_ref": "PRIVESC-003"},
+      {"pattern": "\\.ssh/|id_rsa|id_ed25519", "severity": "critical", "label": "SSH credential access", "paper_ref": "CRED-002"},
+      {"pattern": "crontab|\\.bashrc|\\.bash_profile|\\.zshrc", "severity": "critical", "label": "persistence via shell profile/cron", "paper_ref": "PERSIST-001"},
+      {"pattern": "\\bos\\.environ\\s*\\[|\\bos\\.getenv\\s*\\(", "severity": "high", "label": "environment variable access", "paper_ref": "CRED-003"},
+      {"pattern": "\\bshutil\\.rmtree\\s*\\(|\\bos\\.remove\\s*\\(|\\bos\\.unlink\\s*\\(", "severity": "high", "label": "destructive file operation", "paper_ref": "IMPACT-001"},
+      {"pattern": "\\burllib\\.request|\\bhttp\\.client|\\bsocket\\.socket\\s*\\(", "severity": "high", "label": "network channel (exfil potential)", "paper_ref": "EXFIL-002"},
+      {"pattern": "\\bmarshal\\.loads\\s*\\(|\\bshelve\\b", "severity": "critical", "label": "unsafe deserialization variant", "paper_ref": "INJECT-001"}
+    ]
+  }
+}

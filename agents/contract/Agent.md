@@ -12,8 +12,10 @@
 
 ## Skills
 
-- `requirement-ambiguity-scan`：冻结前必加载——逐条 acceptance 过歧义扫描。
-- `backward-compatibility-check`：涉及公开 API / 配置键 / 消息格式变更时加载。
+**加载方式**：遇到下述情境时，先调 `notary_skill.match`（signal 用机器键或中文情境描述），命中后 `notary_skill.get` 取全文并遵循。决策表实时反映技能库——**包括流水线运行中沉淀的新技能**；不要凭本文件的名字记忆，以决策表为准。
+
+- 冻结前逐条 acceptance 过歧义扫描（signal: ambiguous-requirement）
+- 涉及公开 API / 配置键 / 消息格式变更（signal: public-signature-change）
 
 ## Tools
 

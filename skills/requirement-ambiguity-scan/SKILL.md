@@ -1,6 +1,8 @@
 ---
 name: requirement-ambiguity-scan
 description: 需求歧义扫描 SOP——契约冻结前系统排查无量化词、未定义边界、隐含假设三类歧义；AI 对模糊需求不会追问而是自信地猜，源头含糊则盲测对抗全盘皆输。适用于 contract 角色冻结契约前。
+version: 1.0.0
+compat: gateway>=0.5
 ---
 
 # 需求歧义扫描 SOP

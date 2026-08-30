@@ -1,0 +1,139 @@
+{
+  "signals": [
+    {
+      "coverage": [
+        "d3-d3_qb_eval_exec",
+        "d3-d3_qb_hardcoded_credential",
+        "d1-qb_external_subtle"
+      ],
+      "declared_skill": "input-validation-injection",
+      "match_status": "matched",
+      "matched_skill": "input-validation-injection",
+      "serveable": true,
+      "signal": "external-input-handling"
+    },
+    {
+      "coverage": [
+        "d1-mb_delivery_semantics"
+      ],
+      "declared_skill": "ai-hallucination-guard",
+      "match_status": "matched",
+      "matched_skill": "ai-hallucination-guard",
+      "serveable": true,
+      "signal": "unverifiable-claims"
+    },
+    {
+      "coverage": [
+        "d1x-mb_delivery_semantics_ambiguous"
+      ],
+      "declared_skill": "requirement-ambiguity-scan",
+      "match_status": "matched",
+      "matched_skill": "requirement-ambiguity-scan",
+      "serveable": true,
+      "signal": "ambiguous-requirement"
+    },
+    {
+      "coverage": [
+        "d1r-mb_external_breaking"
+      ],
+      "declared_skill": "backward-compatibility-check",
+      "match_status": "matched",
+      "matched_skill": "backward-compatibility-check",
+      "serveable": true,
+      "signal": "public-signature-change"
+    },
+    {
+      "coverage": [
+        "d1-qb_external_sloppy"
+      ],
+      "declared_skill": "diff-scope-discipline",
+      "match_status": "matched",
+      "matched_skill": "diff-scope-discipline",
+      "serveable": true,
+      "signal": "diff-out-of-scope"
+    },
+    {
+      "coverage": [
+        "d3-d3_qb_bare_except"
+      ],
+      "declared_skill": "exception-handling-convention",
+      "match_status": "matched",
+      "matched_skill": "exception-handling-convention",
+      "serveable": true,
+      "signal": "exception-handling-present"
+    },
+    {
+      "coverage": [
+        "d1-qb_inhouse_fix"
+      ],
+      "declared_skill": "boundary-condition-check",
+      "match_status": "matched",
+      "matched_skill": "boundary-condition-check",
+      "serveable": true,
+      "signal": "enumerate-boundaries"
+    },
+    {
+      "coverage": [
+        "d1r-mb_external_reorder"
+      ],
+      "declared_skill": "flaky-test-isolation",
+      "match_status": "matched",
+      "matched_skill": "flaky-test-isolation",
+      "serveable": true,
+      "signal": "flaky-test-suspected"
+    },
+    {
+      "coverage": [
+        "d1-qb_inhouse_fix"
+      ],
+      "declared_skill": "always-true-guard-scan",
+      "match_status": "matched",
+      "matched_skill": "always-true-guard-scan",
+      "serveable": true,
+      "signal": "always-true-guard-suspected"
+    },
+    {
+      "coverage": [
+        "d1-mb_router_compound"
+      ],
+      "declared_skill": "compound-boundary-defect-scan",
+      "match_status": "matched",
+      "matched_skill": "compound-boundary-defect-scan",
+      "serveable": true,
+      "signal": "compound-boundary-defects"
+    },
+    {
+      "coverage": [
+        "d1-mb_delivery_semantics"
+      ],
+      "declared_skill": "delivery-semantics-review",
+      "match_status": "matched",
+      "matched_skill": "delivery-semantics-review",
+      "serveable": true,
+      "signal": "message-loss-symptom"
+    },
+    {
+      "coverage": [
+        "d1r-mb_external_dupe"
+      ],
+      "declared_skill": "idempotent-retry-design",
+      "match_status": "matched",
+      "matched_skill": "idempotent-retry-design",
+      "serveable": true,
+      "signal": "retry-duplicate-symptom"
+    }
+  ],
+  "summary": {
+    "audits_passed": true,
+    "gateway_version": "0.8.0",
+    "match_accuracy": "12/12",
+    "orphan_skills": [],
+    "registry_index_entries": 4,
+    "signals_total": 12,
+    "skills_loaded_registry": 4,
+    "skills_loaded_seeds": 8,
+    "skills_rejected": 0,
+    "skills_retired": [],
+    "skills_unversioned": []
+  }
+}

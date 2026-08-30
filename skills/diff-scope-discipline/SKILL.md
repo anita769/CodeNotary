@@ -1,6 +1,8 @@
 ---
 name: diff-scope-discipline
 description: diff 范围纪律 SOP——评审第一道工序：对照契约的 in_scope/out_of_scope 逐 hunk 分类，识别无关改动、格式化噪声与夹带改进；超范围直接打回拆分，不做实质评审。
+version: 1.0.0
+compat: gateway>=0.5
 ---
 
 # diff 范围纪律 SOP

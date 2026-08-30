@@ -2,7 +2,7 @@
 
 CodeNotary（代码公证处）是面向 AI 生成代码的可信交付流水线：10 个最小权限 Agent 组成质量门闭环，LLM 只做判断、确定性代码只做裁决，全程证据可封存、可回放。
 
-本目录是 CodeNotary 的 **AgentTeams 可执行代码包**（GOAI），包含运行入口、依赖说明、配置文件、样例输入输出和运行证据。
+本目录是 CodeNotary 的 **AgentTeams 可执行代码包**（GOAI 赛道一复赛提交物），包含运行入口、依赖说明、配置文件、样例输入输出和运行证据。
 
 ## 包结构
 
@@ -12,10 +12,10 @@ agentteams/
 ├── at/                            # AgentTeams 运行配置
 │   ├── AGENTTEAMS_RUNBOOK.md      #   部署运行手册（从网关启动到判通标准）
 │   ├── create_agents_messages.md  #   10 Worker + Team 的一段式创建消息
-│   ├── run_demo_task_message.md   #   两个公证任务消息
+│   ├── run_demo_task_message.md   #   两个公证任务消息（green / red 路径）
 │   ├── team_spec.json             #   Team 拓扑、工作流、风险策略（机器可读）
 │   ├── AgentTeam.md               #   Team 形态与核心不变式说明
-│   └── agentteams.env.example     #   配置清单样例
+│   └── agentteams.env.example     #   配置清单样例（不含任何真实密钥）
 ├── agents/<role>/Agent.md         # 10 个角色的完整身份规约（评审追溯用）
 ├── skills/                        # 8 个种子 Skill（SKILL.md）+ registry/ 沉淀产出
 ├── tools/
@@ -27,7 +27,9 @@ agentteams/
 │   └── qb_external_sloppy.json    #   red 路径：外部 AI 变更送审
 ├── scripts/
 │   └── local_dryrun.py            # 无 LLM 全流程自检（真实执行所有门禁）
-└── evidence/sample_run/           # 样例运行证据（local_dryrun 的真实产出）
+└── evidence/
+    ├── sample_run/                # 样例运行证据（local_dryrun 的真实产出）
+    └── live-8.29/                 # 真实平台运行证据（2026-08-29 录制现场，有 LLM；来源与视频对账见其 PROVENANCE.md）
 ```
 
 ## 依赖
@@ -61,4 +63,14 @@ python3 tools/notary_gateway.py --host 0.0.0.0 --port 18090
 - 输入：`scenarios/qb_inhouse_fix.json`（issue 报告）、`scenarios/qb_external_sloppy.json`（issue + 外部送审变更）。
 - 输出：`evidence/sample_run/<scenario_id>/` 下的真实运行产物——`contract.json`（含 frozen_hash）、`verdicts/*.json`（test_pass / mutation / convention）、`survivors.md`、`rebuttals.json`、`trace.jsonl`（网关全调用轨迹）、`manifest.json`（sha256 封印清单）等。
 
+## 核心不变式
 
+LLM 输出永不驱动状态转移。所有门禁分数、red/yellow/green 裁决与流水线状态转移由 `tools/notary_gateway.py` 中的确定性代码完成（移植自主仓库 `codenotary/state_machine.py`，14 状态、非法转移抛 `IllegalTransition`）。author/tester 盲测隔离在工具契约层强制执行：网关中不存在能向对方暴露产物的工具。
+
+## 开源与许可声明
+
+- **许可证**：Apache-2.0（见包根 `LICENSE`）；第三方依赖为零（纯 Python 标准库），vendored 真实源码样本（pypa/packaging）的出处与许可见 `tools/notary_target/VENDORED.md`。
+- **发行状态**：本包为 GOAI 复赛提交件（v1.5 终版），随赛交付；公开仓库发行计划在赛后启动（含 Issue/安全响应/贡献指南）。
+- **团队相关开源工作**：[OpenClaw-Analysis](https://github.com/S2yyyy/OpenClaw-Analysis)——代码智能体运行时安全分析框架（47 个 MITRE ATLAS/ATT&CK 映射对抗场景 + 双模执行引擎，arXiv:2603.10387），本系统的威胁模型与设计决策溯源于此（见技术文档增刊 §17.8）。
+- **证据口径**：包内全部评测与运行证据的分层声明见 `EVIDENCE_HONESTY.md`——哪些是无 LLM 的确定性回放、哪些是真实平台运行，逐类固化，引用数字前请先读它。
+- **复现入口**：`scripts/one_click_setup.sh` 一键起全套；评审复算命令清单见技术文档增刊附录 F。

@@ -12,9 +12,14 @@
 
 ## Skills
 
-- `ai-hallucination-guard`：引入外部库调用或新增依赖时必加载。
-- `boundary-condition-check`：实现含比较、边界取值、空集合、None 路径时加载。
-- `exception-handling-convention`：编写 try/except/raise 代码时加载。
+**加载方式**：遇到下述情境时，先调 `notary_skill.match`（signal 用机器键或中文情境描述），命中后 `notary_skill.get` 取全文并遵循。决策表实时反映技能库——**包括流水线运行中沉淀的新技能**；不要凭本文件的名字记忆，以决策表为准。
+
+- 引入外部库调用或新增依赖（signal: unverifiable-claims）
+- 实现含比较、边界取值、空集合、None 路径（signal: enumerate-boundaries）
+- 编写 try/except/raise 代码（signal: exception-handling-present）
+- 守卫条件疑似永真/恒假（signal: always-true-guard-suspected）
+- 消息丢失/未交付类症状（signal: message-loss-symptom）
+- 重试导致重复投递类症状（signal: retry-duplicate-symptom）
 
 ## Tools
 

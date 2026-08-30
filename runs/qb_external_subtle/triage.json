@@ -6,8 +6,9 @@
   "route": [
     "rca",
     "contract",
+    "author",
     "tester",
     "gates"
   ],
-  "rationale": "scope clear; findings forwarded to gates"
+  "rationale": "eval replay: scope clear; findings forwarded to gates"
 }

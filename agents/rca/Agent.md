@@ -13,8 +13,12 @@
 
 ## Skills
 
-- `boundary-condition-check`：诊断涉及比较、边界取值、空集合、None 类缺陷时加载。
-- `flaky-test-isolation`：复现结果非确定（同码不同果）时加载。
+**加载方式**：遇到下述情境时，先调 `notary_skill.match`（signal 用机器键或中文情境描述），命中后 `notary_skill.get` 取全文并遵循。决策表实时反映技能库——**包括流水线运行中沉淀的新技能**；不要凭本文件的名字记忆，以决策表为准。
+
+- 诊断涉及比较、边界取值、空集合、None 类缺陷（signal: enumerate-boundaries）
+- 复现结果非确定、同码不同果（signal: flaky-test-suspected）
+- 多个边界缺陷复合交织的症状（signal: compound-boundary-defects）
+- 消息丢失/未交付类症状（signal: message-loss-symptom）
 
 ## Tools
 

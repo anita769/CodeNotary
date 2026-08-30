@@ -10,5 +10,5 @@
     "tester",
     "gates"
   ],
-  "rationale": "delivery-semantics defect: message loss on failure, silent drop on unknown channel"
+  "rationale": "eval replay: scope clear; findings forwarded to gates"
 }

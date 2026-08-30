@@ -1,0 +1,6 @@
+runs/
+skills/registry/
+__pycache__/
+*.pyc
+.agentteams.env
+.env

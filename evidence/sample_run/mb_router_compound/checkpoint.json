@@ -1,0 +1,220 @@
+{
+  "scenario_id": "mb_router_compound",
+  "sm": {
+    "state": "RELEASED",
+    "visited_contracted": true,
+    "green_gates": [
+      "CONVENTION",
+      "MUTATION",
+      "TEST_PASS"
+    ],
+    "history": [
+      {
+        "state": "RECEIVED",
+        "verdict": null,
+        "ts": 1788096473.2007651
+      },
+      {
+        "state": "SCREENED",
+        "verdict": null,
+        "ts": 1788096473.2056355
+      },
+      {
+        "state": "TRIAGED",
+        "verdict": null,
+        "ts": 1788096473.2084267
+      },
+      {
+        "state": "DIAGNOSED",
+        "verdict": null,
+        "ts": 1788096473.2537057
+      },
+      {
+        "state": "CONTRACTED",
+        "verdict": null,
+        "ts": 1788096473.2566528
+      },
+      {
+        "state": "AUTHORING",
+        "verdict": null,
+        "ts": 1788096473.26284
+      },
+      {
+        "state": "TESTING",
+        "verdict": null,
+        "ts": 1788096473.269129
+      },
+      {
+        "state": "GATING",
+        "verdict": null,
+        "ts": 1788096473.271853
+      },
+      {
+        "state": "GATING",
+        "verdict": {
+          "gate": "TEST_PASS",
+          "decision": "green",
+          "summary": "baseline+blind tests: 11 run, all passed",
+          "issued_by": "notary-gateway (deterministic)",
+          "timestamp": 1788096473.3472297,
+          "test_output": "...........\n----------------------------------------------------------------------\nRan 11 tests in 0.000s\n\nOK"
+        },
+        "ts": 1788096473.347695
+      },
+      {
+        "state": "GATING",
+        "verdict": {
+          "gate": "MUTATION",
+          "decision": "green",
+          "summary": "mutation score after rebuttal 1.00 (4 killed, 0 survived, 2 exempted)",
+          "issued_by": "notary-gateway (deterministic)",
+          "timestamp": 1788096473.8218465,
+          "killed": 4,
+          "survived_after_rebuttal": 0,
+          "exempted": 2,
+          "score": 1.0,
+          "note": "",
+          "rebuttals": [
+            {
+              "mutant_id": "M02",
+              "kind": "equivalent_mutant",
+              "justification": "monotonic single-increment pushes mean len==cap is the only reachable trigger; == and >= are equivalent here"
+            },
+            {
+              "mutant_id": "M05",
+              "kind": "equivalent_mutant",
+              "justification": "len() is always >= 0, so != 0 and > 0 are equivalent guards"
+            }
+          ]
+        },
+        "ts": 1788096473.82285
+      },
+      {
+        "state": "NOTARIZED",
+        "verdict": {
+          "gate": "CONVENTION",
+          "decision": "green",
+          "summary": "0 findings (0 veto-class)",
+          "issued_by": "notary-gateway (deterministic)",
+          "timestamp": 1788096473.8270183,
+          "findings": []
+        },
+        "ts": 1788096473.8273966
+      },
+      {
+        "state": "RELEASED",
+        "verdict": null,
+        "ts": 1788096473.9094453
+      }
+    ]
+  },
+  "contract": {
+    "issue_id": "ISSUE-201",
+    "assertions": [
+      "route raises OverflowError exactly when the topic already holds capacity_per_topic messages",
+      "drain returns exactly min(max_n, available) oldest messages in FIFO order",
+      "drain returns collected messages without raising when the mailbox empties mid-drain",
+      "drain on an unknown topic returns []",
+      "only mailbox_router.py may be modified; baseline tests stay untouched"
+    ],
+    "in_scope": [
+      "mailbox_router.py"
+    ],
+    "out_of_scope": [
+      "queue_box.py",
+      "test_queue_box_baseline.py",
+      "test_router_baseline.py"
+    ],
+    "version": 1,
+    "blind_partitions": {
+      "author_sees": [
+        "contract",
+        "target source",
+        "diagnosis"
+      ],
+      "tester_sees": [
+        "contract",
+        "baseline public tests"
+      ]
+    },
+    "frozen_hash": "41804afd68d72722dcf2d7412b6df9f2d446e30d1c7927e0bf9cfb8f33b99d3b"
+  },
+  "diagnosis": {
+    "root_cause": "route capacity guard uses > instead of >= (admits cap+1); drain loops range(max_n+1) with an always-true >= 0 guard (drains one extra and panics on exhaustion)",
+    "evidence": [
+      "mailbox_router.py:route",
+      "mailbox_router.py:drain",
+      "repro stdout shows both defects"
+    ],
+    "fix_hypothesis": "guard to >= cap; drain loop to range(max_n) with > 0 guard",
+    "confidence": 0.95,
+    "repro": "BUG1: routed 4 messages into a cap=3 topic, no OverflowError\nBUG2: drain panicked mid-way: IndexError: pop from empty mailbox"
+  },
+  "implementation": {
+    "mailbox_router.py": "\"\"\"Per-topic message router built on the queue_box Mailbox.\"\"\"\n\nfrom queue_box import Mailbox\n\n\nclass MailboxRouter:\n    \"\"\"Route messages into per-topic FIFO mailboxes with a capacity cap.\"\"\"\n\n    def __init__(self, capacity_per_topic: int = 100) -> None:\n        self._cap = capacity_per_topic\n        self._topics: dict[str, Mailbox] = {}\n\n    def route(self, topic: str, msg: str) -> None:\n        \"\"\"Append msg to the topic mailbox; raise OverflowError when full.\"\"\"\n        box = self._topics.setdefault(topic, Mailbox())\n        if len(box) >= self._cap:\n            raise OverflowError(f\"topic '{topic}' mailbox full\")\n        box.push(msg)\n\n    def drain(self, topic: str, max_n: int) -> list[str]:\n        \"\"\"Pop up to max_n oldest messages; empty/unknown topics return [].\"\"\"\n        box = self._topics.get(topic)\n        if box is None:\n            return []\n        out: list[str] = []\n        for _ in range(max_n):\n            if len(box) > 0:\n                out.append(box.pop())\n        return out\n\n    def topics(self) -> list[str]:\n        return sorted(self._topics)\n"
+  },
+  "tests": {
+    "test_router_contract.py": "import unittest\n\nfrom mailbox_router import MailboxRouter\n\n\nclass TestRouterContract(unittest.TestCase):\n    def test_exactly_capacity_accepted_then_overflow(self):\n        router = MailboxRouter(capacity_per_topic=3)\n        for i in range(3):\n            router.route(\"t\", f\"m{i}\")\n        with self.assertRaises(OverflowError):\n            router.route(\"t\", \"one-too-many\")\n\n    def test_drain_returns_exactly_max_n(self):\n        router = MailboxRouter()\n        for i in range(5):\n            router.route(\"t\", f\"m{i}\")\n        got = router.drain(\"t\", 2)\n        self.assertEqual(len(got), 2)\n\n    def test_drain_fifo_order(self):\n        router = MailboxRouter()\n        for m in [\"a\", \"b\", \"c\"]:\n            router.route(\"t\", m)\n        self.assertEqual(router.drain(\"t\", 2), [\"a\", \"b\"])\n\n    def test_drain_more_than_available_returns_all_without_error(self):\n        router = MailboxRouter()\n        router.route(\"t\", \"only\")\n        got = router.drain(\"t\", 10)\n        self.assertEqual(got, [\"only\"])\n\n    def test_drain_empty_topic_returns_empty(self):\n        router = MailboxRouter()\n        router.route(\"t\", \"x\")\n        router.drain(\"t\", 1)\n        self.assertEqual(router.drain(\"t\", 3), [])\n\n    def test_drain_unknown_topic_returns_empty(self):\n        router = MailboxRouter()\n        self.assertEqual(router.drain(\"ghost\", 5), [])\n\n\nif __name__ == \"__main__\":\n    unittest.main()\n"
+  },
+  "mutation": {
+    "killed": [
+      {
+        "id": "M01",
+        "file": "mailbox_router.py",
+        "line": 16,
+        "mutation": ">= -> >"
+      },
+      {
+        "id": "M03",
+        "file": "mailbox_router.py",
+        "line": 27,
+        "mutation": "> -> >="
+      },
+      {
+        "id": "M04",
+        "file": "mailbox_router.py",
+        "line": 27,
+        "mutation": "> -> =="
+      },
+      {
+        "id": "M06",
+        "file": "mailbox_router.py",
+        "line": 27,
+        "mutation": "> -> <"
+      }
+    ],
+    "survived": [
+      {
+        "id": "M02",
+        "file": "mailbox_router.py",
+        "line": 16,
+        "mutation": ">= -> =="
+      },
+      {
+        "id": "M05",
+        "file": "mailbox_router.py",
+        "line": 27,
+        "mutation": "> -> !="
+      }
+    ],
+    "invalid": [],
+    "score": 0.6666666666666666,
+    "exempted": 0,
+    "awaiting_rebuttal": false
+  },
+  "rebuttals": [
+    {
+      "mutant_id": "M02",
+      "kind": "equivalent_mutant",
+      "justification": "monotonic single-increment pushes mean len==cap is the only reachable trigger; == and >= are equivalent here"
+    },
+    {
+      "mutant_id": "M05",
+      "kind": "equivalent_mutant",
+      "justification": "len() is always >= 0, so != 0 and > 0 are equivalent guards"
+    }
+  ],
+  "security_events": [],
+  "rework_round": 0,
+  "max_rework_rounds": 2
+}

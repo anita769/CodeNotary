@@ -1,0 +1,40 @@
+{
+  "entries": [
+    {
+      "action": "register",
+      "name": "always-true-guard-scan",
+      "version": "1.0.0",
+      "supersedes": null,
+      "content_sha256": "a83a68a4c5485ee1a686e3573ea0f8ea0a7676ba6a1724237f7bf9e09cae0d25",
+      "source_run": "qb_inhouse_fix",
+      "ts": 1787996791.624106
+    },
+    {
+      "action": "register",
+      "name": "compound-boundary-defect-scan",
+      "version": "1.0.0",
+      "supersedes": null,
+      "content_sha256": "9d2c0c30fad99486fc3bcbcb907482013a90331a46068d2732773d632b02d38c",
+      "source_run": "mb_router_compound",
+      "ts": 1787996795.1277814
+    },
+    {
+      "action": "register",
+      "name": "delivery-semantics-review",
+      "version": "1.0.0",
+      "supersedes": null,
+      "content_sha256": "91a982fbee254ea15a3ed5452bab4c792ae897cd69313d204dfc9120ba6e4299",
+      "source_run": "mb_delivery_semantics",
+      "ts": 1787996796.2571044
+    },
+    {
+      "action": "register",
+      "name": "idempotent-retry-design",
+      "version": "1.0.0",
+      "supersedes": null,
+      "content_sha256": "30ebe5c08758312d65ae34da347d8141297aab09acc60275c5a3ceea2160eb4d",
+      "source_run": "mb_external_dupe",
+      "ts": 1787996796.9685228
+    }
+  ]
+}

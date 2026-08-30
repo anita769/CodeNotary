@@ -12,6 +12,7 @@
   "out_of_scope": [
     "test_queue_box_baseline.py"
   ],
+  "version": 1,
   "blind_partitions": {
     "author_sees": [
       "contract",
@@ -23,5 +24,5 @@
       "baseline public tests"
     ]
   },
-  "frozen_hash": "19bb6fc35cb46c8a593e107dcf6c470a257d82707b8d5569ce3ac2e20e3d705d"
+  "frozen_hash": "13a08715c1f518ece7e30cfc6eeb91780a87975c01a95e22ad2fa947dbc1e84f"
 }

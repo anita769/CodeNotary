@@ -1,0 +1,263 @@
+{
+  "scenario_id": "mb_delivery_semantics",
+  "sm": {
+    "state": "RELEASED",
+    "visited_contracted": true,
+    "green_gates": [
+      "CONVENTION",
+      "MUTATION",
+      "TEST_PASS"
+    ],
+    "history": [
+      {
+        "state": "RECEIVED",
+        "verdict": null,
+        "ts": 1788096473.9414222
+      },
+      {
+        "state": "SCREENED",
+        "verdict": null,
+        "ts": 1788096473.9463274
+      },
+      {
+        "state": "TRIAGED",
+        "verdict": null,
+        "ts": 1788096473.9487352
+      },
+      {
+        "state": "DIAGNOSED",
+        "verdict": null,
+        "ts": 1788096473.994332
+      },
+      {
+        "state": "CONTRACTED",
+        "verdict": null,
+        "ts": 1788096473.997483
+      },
+      {
+        "state": "AUTHORING",
+        "verdict": null,
+        "ts": 1788096474.005369
+      },
+      {
+        "state": "TESTING",
+        "verdict": null,
+        "ts": 1788096474.011634
+      },
+      {
+        "state": "GATING",
+        "verdict": null,
+        "ts": 1788096474.0143883
+      },
+      {
+        "state": "GATING",
+        "verdict": {
+          "gate": "TEST_PASS",
+          "decision": "green",
+          "summary": "baseline+blind tests: 11 run, all passed",
+          "issued_by": "notary-gateway (deterministic)",
+          "timestamp": 1788096474.0913959,
+          "test_output": "...........\n----------------------------------------------------------------------\nRan 11 tests in 0.000s\n\nOK"
+        },
+        "ts": 1788096474.091867
+      },
+      {
+        "state": "GATING",
+        "verdict": {
+          "gate": "MUTATION",
+          "decision": "green",
+          "summary": "mutation score after rebuttal 1.00 (7 killed, 0 survived, 3 exempted)",
+          "issued_by": "notary-gateway (deterministic)",
+          "timestamp": 1788096474.828622,
+          "killed": 7,
+          "survived_after_rebuttal": 0,
+          "exempted": 3,
+          "score": 1.0,
+          "note": "",
+          "rebuttals": [
+            {
+              "mutant_id": "M03",
+              "kind": "equivalent_mutant",
+              "justification": "monotonic counter / non-negative length makes this operator swap semantically equivalent at every reachable state"
+            },
+            {
+              "mutant_id": "M06",
+              "kind": "equivalent_mutant",
+              "justification": "monotonic counter / non-negative length makes this operator swap semantically equivalent at every reachable state"
+            },
+            {
+              "mutant_id": "M09",
+              "kind": "equivalent_mutant",
+              "justification": "monotonic counter / non-negative length makes this operator swap semantically equivalent at every reachable state"
+            }
+          ]
+        },
+        "ts": 1788096474.8289115
+      },
+      {
+        "state": "NOTARIZED",
+        "verdict": {
+          "gate": "CONVENTION",
+          "decision": "green",
+          "summary": "1 findings (0 veto-class)",
+          "issued_by": "notary-gateway (deterministic)",
+          "timestamp": 1788096474.8323333,
+          "findings": [
+            {
+              "file": "dispatcher.py",
+              "line": 43,
+              "severity": "warning",
+              "rule": "exception-handling-convention",
+              "detail": "over-broad except Exception"
+            }
+          ]
+        },
+        "ts": 1788096474.832749
+      },
+      {
+        "state": "RELEASED",
+        "verdict": null,
+        "ts": 1788096474.916555
+      }
+    ]
+  },
+  "contract": {
+    "issue_id": "ISSUE-301",
+    "assertions": [
+      "a failed message keeps its head-of-line position and is retried on the next dispatch_all run",
+      "a message moves to dead_letters after exactly MAX_RETRIES failed attempts",
+      "a message on an unknown channel goes to dead_letters immediately and is never silently dropped",
+      "following messages never overtake a retrying message (strict FIFO)",
+      "dispatch_all returns the number of messages delivered in that run",
+      "only dispatcher.py may be modified; baseline tests stay untouched"
+    ],
+    "in_scope": [
+      "dispatcher.py"
+    ],
+    "out_of_scope": [
+      "queue_box.py",
+      "test_queue_box_baseline.py",
+      "test_dispatcher_baseline.py"
+    ],
+    "version": 1,
+    "blind_partitions": {
+      "author_sees": [
+        "contract",
+        "target source",
+        "diagnosis"
+      ],
+      "tester_sees": [
+        "contract",
+        "baseline public tests"
+      ]
+    },
+    "frozen_hash": "86f4a9b798610c533467a913b7b9d512b7aa4d7eb9b54532fd068839cd25859d"
+  },
+  "diagnosis": {
+    "root_cause": "dispatch_all pops a message BEFORE delivering it; a handler exception loses the message (no retry, no dead letter), and unknown-channel messages are silently dropped",
+    "evidence": [
+      "dispatcher.py:dispatch_all pop-before-deliver",
+      "dispatcher.py:continue on unknown channel",
+      "repro stdout"
+    ],
+    "fix_hypothesis": "retry with head-of-line restore, dead-letter after MAX_RETRIES, unknown channel to dead_letters",
+    "confidence": 0.95,
+    "repro": "dispatch crashed: consumer down\nreceived: ['a']\npending: 1\nBUG1: 'b' was popped before delivery and is now lost (no retry, no dead letter)\nBUG2: unknown-channel message silently dropped; dead_letters: <no such audit list>"
+  },
+  "implementation": {
+    "dispatcher.py": "\"\"\"Message dispatcher: pull from a Mailbox and deliver to subscribers.\"\"\"\n\nfrom queue_box import Mailbox\n\nMAX_RETRIES = 3\n\n\nclass Dispatcher:\n    \"\"\"Deliver mailbox messages to per-channel subscriber handlers.\"\"\"\n\n    def __init__(self) -> None:\n        self._box = Mailbox()\n        self._subscribers = {}\n        self._attempts: dict[str, int] = {}\n        self.dead_letters: list = []\n\n    def publish(self, channel: str, payload: str) -> None:\n        self._box.push((channel, payload))\n\n    def subscribe(self, channel: str, handler) -> None:\n        self._subscribers[channel] = handler\n\n    def pending(self) -> int:\n        return len(self._box)\n\n    def dispatch_all(self) -> int:\n        \"\"\"Deliver pending messages with retry, dead-letter and FIFO order.\n\n        A failed message keeps its head-of-line position and is retried on\n        the next run; after MAX_RETRIES attempts it moves to dead_letters.\n        Messages on unknown channels go straight to dead_letters.\n        \"\"\"\n        delivered = 0\n        while len(self._box) > 0:\n            msg = self._box.pop()\n            channel, payload = msg\n            handler = self._subscribers.get(channel)\n            if handler is None:\n                self.dead_letters.append(msg)\n                continue\n            try:\n                handler(payload)\n            except Exception:\n                n = self._attempts.get(payload, 0) + 1\n                self._attempts[payload] = n\n                if n >= MAX_RETRIES:\n                    self.dead_letters.append(msg)\n                    continue\n                # attempts remain: restore head-of-line and stop this run\n                rest = []\n                while len(self._box) > 0:\n                    rest.append(self._box.pop())\n                self._box.push(msg)\n                for m in rest:\n                    self._box.push(m)\n                break\n            delivered += 1\n        return delivered\n"
+  },
+  "tests": {
+    "test_dispatcher_contract.py": "import unittest\n\nfrom dispatcher import Dispatcher, MAX_RETRIES\n\n\nclass TestDispatcherContract(unittest.TestCase):\n    def test_successful_delivery_fifo_and_count(self):\n        d = Dispatcher()\n        received = []\n        d.subscribe(\"c\", received.append)\n        for p in [\"m1\", \"m2\", \"m3\"]:\n            d.publish(\"c\", p)\n        self.assertEqual(d.dispatch_all(), 3)\n        self.assertEqual(received, [\"m1\", \"m2\", \"m3\"])\n\n    def test_unknown_channel_goes_to_dead_letters(self):\n        d = Dispatcher()\n        d.publish(\"ghost\", \"x\")\n        self.assertEqual(d.dispatch_all(), 0)\n        self.assertEqual(d.dead_letters, [(\"ghost\", \"x\")])\n        self.assertEqual(d.pending(), 0)\n\n    def test_failed_message_retried_next_run(self):\n        d = Dispatcher()\n        calls = []\n        def flaky(p):\n            calls.append(p)\n            if len(calls) == 1:\n                raise RuntimeError(\"boom\")\n        d.subscribe(\"c\", flaky)\n        d.publish(\"c\", \"a\")\n        d.dispatch_all()\n        self.assertEqual(calls, [\"a\"])\n        self.assertEqual(d.pending(), 1)\n        d.dispatch_all()\n        self.assertEqual(calls, [\"a\", \"a\"])\n        self.assertEqual(d.pending(), 0)\n\n    def test_exactly_max_retries_then_dead_letter(self):\n        d = Dispatcher()\n        calls = []\n        def always_fail(p):\n            calls.append(p)\n            raise RuntimeError(\"down\")\n        d.subscribe(\"c\", always_fail)\n        d.publish(\"c\", \"a\")\n        for _ in range(MAX_RETRIES):\n            d.dispatch_all()\n        self.assertEqual(len(calls), MAX_RETRIES)\n        self.assertEqual(d.dead_letters, [(\"c\", \"a\")])\n        self.assertEqual(d.pending(), 0)\n\n    def test_failed_message_blocks_following_messages(self):\n        d = Dispatcher()\n        received = []\n        state = {\"fail\": True}\n        def controlled(p):\n            if p == \"a\" and state[\"fail\"]:\n                raise RuntimeError(\"boom\")\n            received.append(p)\n        d.subscribe(\"c\", controlled)\n        for p in [\"a\", \"b\", \"c\"]:\n            d.publish(\"c\", p)\n        d.dispatch_all()\n        self.assertEqual(received, [])\n        self.assertEqual(d.pending(), 3)\n        state[\"fail\"] = False\n        d.dispatch_all()\n        self.assertEqual(received, [\"a\", \"b\", \"c\"])\n\n    def test_no_message_is_lost(self):\n        d = Dispatcher()\n        ok = []\n        def partial(p):\n            if p == \"bad\":\n                raise RuntimeError(\"x\")\n            ok.append(p)\n        d.subscribe(\"c\", partial)\n        d.publish(\"c\", \"good1\")\n        d.publish(\"c\", \"bad\")\n        d.publish(\"c\", \"good2\")\n        for _ in range(MAX_RETRIES):\n            d.dispatch_all()\n        accounted = len(ok) + len(d.dead_letters) + d.pending()\n        self.assertEqual(accounted, 3)\n\n    def test_empty_dispatch_returns_zero(self):\n        d = Dispatcher()\n        self.assertEqual(d.dispatch_all(), 0)\n\n\nif __name__ == \"__main__\":\n    unittest.main()\n"
+  },
+  "mutation": {
+    "killed": [
+      {
+        "id": "M01",
+        "file": "dispatcher.py",
+        "line": 34,
+        "mutation": "> -> >="
+      },
+      {
+        "id": "M02",
+        "file": "dispatcher.py",
+        "line": 34,
+        "mutation": "> -> =="
+      },
+      {
+        "id": "M04",
+        "file": "dispatcher.py",
+        "line": 34,
+        "mutation": "> -> <"
+      },
+      {
+        "id": "M05",
+        "file": "dispatcher.py",
+        "line": 46,
+        "mutation": ">= -> >"
+      },
+      {
+        "id": "M07",
+        "file": "dispatcher.py",
+        "line": 51,
+        "mutation": "> -> >="
+      },
+      {
+        "id": "M08",
+        "file": "dispatcher.py",
+        "line": 51,
+        "mutation": "> -> =="
+      },
+      {
+        "id": "M10",
+        "file": "dispatcher.py",
+        "line": 51,
+        "mutation": "> -> <"
+      }
+    ],
+    "survived": [
+      {
+        "id": "M03",
+        "file": "dispatcher.py",
+        "line": 34,
+        "mutation": "> -> !="
+      },
+      {
+        "id": "M06",
+        "file": "dispatcher.py",
+        "line": 46,
+        "mutation": ">= -> =="
+      },
+      {
+        "id": "M09",
+        "file": "dispatcher.py",
+        "line": 51,
+        "mutation": "> -> !="
+      }
+    ],
+    "invalid": [],
+    "score": 0.7,
+    "exempted": 0,
+    "awaiting_rebuttal": false
+  },
+  "rebuttals": [
+    {
+      "mutant_id": "M03",
+      "kind": "equivalent_mutant",
+      "justification": "monotonic counter / non-negative length makes this operator swap semantically equivalent at every reachable state"
+    },
+    {
+      "mutant_id": "M06",
+      "kind": "equivalent_mutant",
+      "justification": "monotonic counter / non-negative length makes this operator swap semantically equivalent at every reachable state"
+    },
+    {
+      "mutant_id": "M09",
+      "kind": "equivalent_mutant",
+      "justification": "monotonic counter / non-negative length makes this operator swap semantically equivalent at every reachable state"
+    }
+  ],
+  "security_events": [],
+  "rework_round": 0,
+  "max_rework_rounds": 2
+}

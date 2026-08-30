@@ -1,0 +1,339 @@
+{
+  "cases": [
+    {
+      "category": "routing",
+      "detail": "\"unknown scenario 'no_such_scenario'; available: ['d3_mb_bare_except', 'd3_mb_eval_exec', ",
+      "expect": "explicit error, gateway alive",
+      "id": "A1-unknown-scenario",
+      "verdict": "fail-closed"
+    },
+    {
+      "category": "routing",
+      "detail": "\"unknown scenario 'no_such_scenario'; available: ['d3_mb_bare_except', 'd3_mb_eval_exec', ",
+      "expect": "explicit error, gateway alive",
+      "id": "A2-unknown-scenario-scan",
+      "verdict": "fail-closed"
+    },
+    {
+      "category": "routing",
+      "detail": "unknown tool call 'notary_bogus.tool', available: notary_author.get_context, notary_author",
+      "expect": "explicit error, gateway alive",
+      "id": "A3-unknown-tool",
+      "verdict": "fail-closed"
+    },
+    {
+      "category": "malformed-payload",
+      "detail": "Expecting value: line 1 column 7 (char 6)",
+      "expect": "explicit error, gateway alive",
+      "id": "B1-truncated-json",
+      "verdict": "fail-closed"
+    },
+    {
+      "category": "malformed-payload",
+      "detail": "verdict must be one of: accept / reject / escalate",
+      "expect": "explicit error, gateway alive",
+      "id": "B2-triage-invalid-verdict",
+      "verdict": "fail-closed"
+    },
+    {
+      "category": "malformed-payload",
+      "detail": "verdict must be one of: accept / reject / escalate",
+      "expect": "explicit error, gateway alive",
+      "id": "B3-triage-empty-verdict",
+      "verdict": "fail-closed"
+    },
+    {
+      "category": "malformed-payload",
+      "detail": "skill name must be safe and content non-empty",
+      "expect": "explicit error, gateway alive",
+      "id": "B4-skill-unsafe-name",
+      "verdict": "fail-closed"
+    },
+    {
+      "category": "malformed-payload",
+      "detail": "skill name must be safe and content non-empty",
+      "expect": "explicit error, gateway alive",
+      "id": "B5-skill-empty-content",
+      "verdict": "fail-closed"
+    },
+    {
+      "category": "illegal-transition",
+      "detail": "deploy refused: pipeline is RECEIVED, not NOTARIZED",
+      "expect": "explicit error, gateway alive",
+      "id": "C1-deploy-before-notarized",
+      "verdict": "fail-closed"
+    },
+    {
+      "category": "illegal-transition",
+      "detail": "no mutation survivors awaiting rebuttal",
+      "expect": "explicit error, gateway alive",
+      "id": "C2-rebuttal-before-mutation",
+      "verdict": "fail-closed"
+    },
+    {
+      "category": "illegal-transition",
+      "detail": "mutation gate has not run yet",
+      "expect": "explicit error, gateway alive",
+      "id": "C3-finalize-before-mutation",
+      "verdict": "fail-closed"
+    },
+    {
+      "category": "illegal-transition",
+      "detail": "resolve_human only valid in ESCALATED, not RECEIVED",
+      "expect": "explicit error, gateway alive",
+      "id": "C4-resolve-human-not-escalated",
+      "verdict": "fail-closed"
+    },
+    {
+      "category": "illegal-transition",
+      "detail": "scenario is inhouse mode; no external change",
+      "expect": "explicit error, gateway alive",
+      "id": "C5-external-change-on-inhouse",
+      "verdict": "fail-closed"
+    },
+    {
+      "category": "role-policy",
+      "detail": "role 'author' is not permitted to call notary_tester.get_context (allowed: ['tester'])",
+      "expect": "explicit refusal + persisted security event",
+      "id": "E1-author-reads-tester-partition",
+      "verdict": "fail-closed"
+    },
+    {
+      "category": "role-policy",
+      "detail": "role 'tester' is not permitted to call notary_author.submit_implementation (allowed: ['aut",
+      "expect": "explicit refusal",
+      "id": "E2-tester-submits-implementation",
+      "verdict": "fail-closed"
+    },
+    {
+      "category": "role-policy",
+      "detail": "role 'author' is not permitted to call notary_skill.register (allowed: ['postmortem'])",
+      "expect": "explicit refusal",
+      "id": "E3-author-registers-skill",
+      "verdict": "fail-closed"
+    },
+    {
+      "category": "role-policy",
+      "detail": "role 'ceo' is not permitted to call notary_contract.freeze (allowed: ['contract'])",
+      "expect": "explicit refusal",
+      "id": "E4-self-declared-role",
+      "verdict": "fail-closed"
+    },
+    {
+      "category": "role-policy",
+      "detail": "ok=True trace role='unknown'",
+      "expect": "allowed + trace marks role 'unknown'",
+      "id": "E5-roleless-call-traced-unknown",
+      "verdict": "fail-closed"
+    },
+    {
+      "category": "role-policy",
+      "detail": "ok=True",
+      "expect": "allowed",
+      "id": "E6-correct-role-passes",
+      "verdict": "fail-closed"
+    },
+    {
+      "category": "skill-security",
+      "detail": "load status='rejected' get error=skill 'fuzz-rogue-skill' was rejected at load (registry file",
+      "expect": "rejected at load + refused on get",
+      "id": "F1-incompatible-skill-refused",
+      "verdict": "fail-closed"
+    },
+    {
+      "category": "skill-security",
+      "detail": "unknown trigger signal 'make-it-up'; valid signals: ['always-true-guard-suspected', 'ambig",
+      "expect": "explicit error, gateway alive",
+      "id": "F2-match-unknown-signal",
+      "verdict": "fail-closed"
+    },
+    {
+      "category": "skill-security",
+      "detail": "unknown skill 'no-such-skill'; available: ['ai-hallucination-guard', 'always-true-guard-sc",
+      "expect": "explicit error, gateway alive",
+      "id": "F3-get-unknown-skill",
+      "verdict": "fail-closed"
+    },
+    {
+      "category": "skill-security",
+      "detail": "matched 'input-validation-injection' status 'matched'",
+      "expect": "signal resolves to declared skill",
+      "id": "F4-match-accuracy-spot",
+      "verdict": "fail-closed"
+    },
+    {
+      "category": "entry-guard",
+      "detail": "notary_author.submit_implementation not valid in state RECEIVED; entry requires one of: ['",
+      "expect": "explicit error, gateway alive",
+      "id": "G1-submit-impl-before-contract",
+      "verdict": "fail-closed"
+    },
+    {
+      "category": "entry-guard",
+      "detail": "notary_tester.submit_tests not valid in state RECEIVED; entry requires one of: ['AUTHORING",
+      "expect": "explicit error, gateway alive",
+      "id": "G2-submit-tests-before-contract",
+      "verdict": "fail-closed"
+    },
+    {
+      "category": "entry-guard",
+      "detail": "notary_gate.run_test_gate not valid in state RECEIVED; entry requires one of: ['AUTHORING'",
+      "expect": "explicit error, gateway alive",
+      "id": "G3-test-gate-before-authoring",
+      "verdict": "fail-closed"
+    },
+    {
+      "category": "illegal-transition",
+      "detail": "request_rework only valid in REJECTED, not RECEIVED",
+      "expect": "explicit error, gateway alive",
+      "id": "G4-rework-not-rejected",
+      "verdict": "fail-closed"
+    },
+    {
+      "category": "loop-guard",
+      "detail": "rework budget exhausted (2/2); the loop is bounded by design — escalate (contract revision",
+      "expect": "explicit refusal naming the budget",
+      "id": "G5-rework-budget-exhausted",
+      "verdict": "fail-closed"
+    },
+    {
+      "category": "illegal-transition",
+      "detail": "triage escalate not meaningful from REJECTED",
+      "expect": "explicit error, gateway alive",
+      "id": "G6-escalate-from-rejected",
+      "verdict": "fail-closed"
+    },
+    {
+      "category": "illegal-transition",
+      "detail": "advance_to(CONTRACTED) is not forward from CONTRACTED",
+      "expect": "explicit error, gateway alive",
+      "id": "G7-double-freeze",
+      "verdict": "fail-closed"
+    },
+    {
+      "category": "skill-lifecycle",
+      "detail": "status='rejected' reason='content hash mismatch with registry index'",
+      "expect": "rejected at load + refused on get",
+      "id": "H1-tampered-skill-refused",
+      "verdict": "fail-closed"
+    },
+    {
+      "category": "skill-lifecycle",
+      "detail": "before=boundary-condition-check-v2 after=boundary-condition-check",
+      "expect": "v2 served; retire v2 -> v1 serves",
+      "id": "H2-version-chain-rollback",
+      "verdict": "fail-closed"
+    },
+    {
+      "category": "skill-lifecycle",
+      "detail": "get_ok=False smuggled='rejected'",
+      "expect": "retired get refused; unindexed rejected",
+      "id": "H3-retired-and-unindexed-refused",
+      "verdict": "fail-closed"
+    },
+    {
+      "category": "intake",
+      "detail": "sid=intake_304079f7c5 retry_error=\"issue already intaken as scenario 'intak\"",
+      "expect": "mints scenario, idempotent, drivable",
+      "id": "I1-intake-mint-and-idempotent",
+      "verdict": "fail-closed"
+    },
+    {
+      "category": "intake",
+      "detail": "an auditable notarization request needs title (>=8 chars), report (>=20) and expected_beha",
+      "expect": "explicit error, gateway alive",
+      "id": "I2-intake-too-thin",
+      "verdict": "fail-closed"
+    },
+    {
+      "category": "intake",
+      "detail": "role 'author' is not permitted to call notary_intake.submit_issue (allowed: ['ci', 'leader",
+      "expect": "explicit error, gateway alive",
+      "id": "I3-intake-wrong-role",
+      "verdict": "fail-closed"
+    },
+    {
+      "category": "policy-config",
+      "detail": "notary.json: 'mutation.red_below' must be float",
+      "expect": "startup refused with typed error",
+      "id": "J1-invalid-config-refused",
+      "verdict": "fail-closed"
+    },
+    {
+      "category": "intake",
+      "detail": "sid=intake_dc05870834 mode='external'",
+      "expect": "external scenario minted + scanned",
+      "id": "J2-upload-intake-external",
+      "verdict": "fail-closed"
+    },
+    {
+      "category": "intake",
+      "detail": "sid=intake_3829d66475 mode='inhouse'",
+      "expect": "custom target minted + embedded source served",
+      "id": "J3-custom-upload-minted",
+      "verdict": "fail-closed"
+    },
+    {
+      "category": "intake",
+      "detail": "test_files required: we do not notarize code without tests — bring at least one, however s",
+      "expect": "explicit error, gateway alive",
+      "id": "J4-custom-no-tests-refused",
+      "verdict": "fail-closed"
+    },
+    {
+      "category": "intake",
+      "detail": "quarantine rejected the upload before any execution: [{\"file\": \"evil.py\", \"line\": 2, \"labe",
+      "expect": "explicit error, gateway alive",
+      "id": "J5-custom-quarantine-refused",
+      "verdict": "fail-closed"
+    },
+    {
+      "category": "intake",
+      "detail": "'files' (patch review) and 'source_files' (bring-your-own-code fix) are mutually exclusive",
+      "expect": "explicit error, gateway alive",
+      "id": "J6-custom-mixed-mode-refused",
+      "verdict": "fail-closed"
+    },
+    {
+      "category": "intake",
+      "detail": "sid=intake_3829d66475",
+      "expect": "advisory scenario minted (flag + empty baseline)",
+      "id": "J7-advisory-no-tests-minted",
+      "verdict": "fail-closed"
+    },
+    {
+      "category": "intake",
+      "detail": "should_issue_certificate predicate",
+      "expect": "seal skips certificate for advisory only",
+      "id": "J8-advisory-no-certificate",
+      "verdict": "fail-closed"
+    },
+    {
+      "category": "adversarial-artifact",
+      "detail": "test gate: red — baseline+blind tests: 2 run, failures present | final: REJECTED | empty module must never pass the test gate",
+      "expect": "test_red",
+      "id": "D1-empty-implementation",
+      "verdict": "fail-closed"
+    },
+    {
+      "category": "adversarial-artifact",
+      "detail": "test gate: red — baseline+blind tests: 2 run, failures present | final: REJECTED | unimportable code must never pass",
+      "expect": "test_red",
+      "id": "D2-syntax-error-implementation",
+      "verdict": "fail-closed"
+    },
+    {
+      "category": "adversarial-artifact",
+      "detail": "mutation gate: red — mutation score after rebuttal 0.50 (2 killed, 2 survived, 0 exempted) | final: REJECTED | always-true tests kill too few mutants -> red",
+      "expect": "mutation_red",
+      "id": "D3-vacuous-blind-tests",
+      "verdict": "fail-closed"
+    }
+  ],
+  "summary": {
+    "cases_total": 47,
+    "fail_closed": 47,
+    "fail_closed_rate": "47/47",
+    "silent_pass": 0
+  }
+}

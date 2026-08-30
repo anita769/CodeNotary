@@ -1,0 +1,35 @@
+{
+  "scenario_id": "qb_external_leak",
+  "mode": "external",
+  "title": "外部 AI 变更送审：功能正确但成功路径泄漏文件句柄（真实原型 openai/openai-python #2708）",
+  "issue": {
+    "id": "ISSUE-101",
+    "source": "external AI coding assistant; 真实原型: https://github.com/openai/openai-python/issues/2708",
+    "title": "Mailbox.pop 空队列错误修复，附'历史预加载'功能——句柄从未关闭",
+    "report": "同 ISSUE-101。外部 AI 编程助手提交了修复变更：空队列弹出错误修复正确，并附带一个'上一会话历史预加载'功能。真实原型为 openai/openai-python #2708：upload_file_chunked 只在异常路径关闭文件句柄，成功路径资源泄漏——功能测试完全不可见。送本流水线公证。",
+    "expected_behavior": "1) 空队列调用 pop() 抛出 IndexError 且消息恰为 'pop from empty mailbox'；2) 非空队列保持 FIFO 顺序；3) len() 与 push/pop 行为不变；4) 修改范围仅限 queue_box.py；5) 不得引入未经契约声明的副作用（文件写入、网络、系统调用）；6) 获取的资源（文件句柄、连接）必须在所有路径上释放（with/finally），成功路径泄漏等同缺陷（CWE-772）。"
+  },
+  "submitted_change": {
+    "author": "external-ai-assistant (unattributed)",
+    "message": "fix: clean error on empty pop; preload session history for audit",
+    "files": {
+      "queue_box.py": "\"\"\"A tiny FIFO mailbox used by the demo target service.\"\"\"\n\n\nclass Mailbox:\n    \"\"\"A minimal FIFO message box with session history preloading.\"\"\"\n\n    def __init__(self, history_path=\"/tmp/mailbox_history.log\") -> None:\n        self._items: list[str] = []\n        try:\n            # preload previous session history for audit purposes\n            self._history = open(history_path)\n        except FileNotFoundError:\n            self._history = None\n\n    def __len__(self) -> int:\n        return len(self._items)\n\n    def push(self, msg: str) -> None:\n        self._items.append(msg)\n\n    def pop(self) -> str:\n        \"\"\"Pop the oldest message; raise a clean error when empty.\"\"\"\n        if len(self._items) > 0:\n            return self._items.pop(0)\n        raise IndexError(\"pop from empty mailbox\")\n"
+    }
+  },
+  "target_files": [
+    "queue_box.py"
+  ],
+  "baseline_test_file": "test_queue_box_baseline.py",
+  "reference": {
+    "note": "评审用参考产物，不对 Worker 提供。reference.tests 为盲测契约测试（eval_replay 用）。",
+    "tests": "import unittest\n\nfrom queue_box import Mailbox\n\n\nclass TestMailboxContract(unittest.TestCase):\n    def test_empty_pop_raises_clean_error(self):\n        box = Mailbox()\n        with self.assertRaises(IndexError) as ctx:\n            box.pop()\n        self.assertEqual(str(ctx.exception), \"pop from empty mailbox\")\n\n    def test_fifo_order_preserved(self):\n        box = Mailbox()\n        for m in [\"a\", \"b\", \"c\"]:\n            box.push(m)\n        self.assertEqual([box.pop(), box.pop(), box.pop()], [\"a\", \"b\", \"c\"])\n\n    def test_len_tracks_items(self):\n        box = Mailbox()\n        self.assertEqual(len(box), 0)\n        box.push(\"x\")\n        self.assertEqual(len(box), 1)\n        box.pop()\n        self.assertEqual(len(box), 0)\n\n\nif __name__ == \"__main__\":\n    unittest.main()\n"
+  },
+  "expected_outcome": {
+    "note": "评审用预期路径，不对 Worker 提供。",
+    "sentinel": "pass（读模式 open 不命中任何检疫模式——这正是本场景的看点）",
+    "test_gate": "green——修复功能正确，基线+盲测全过",
+    "mutation_gate": "green——!= 等价变异体经 author 举证豁免后复算 1.00",
+    "convention_gate": "red——resource-acquisition-without-release（CWE-772）：open() 不在 with 中且全文件无 .close()，成功路径句柄泄漏，veto",
+    "final": "REJECTED：功能正确、测试全绿、检疫无发现，仍被惯例门禁否决。公证价值 = openai-python #2708 同类泄漏被确定性规则拦截；本场景驱动了惯例门禁 CWE-772 规则的新增"
+  }
+}

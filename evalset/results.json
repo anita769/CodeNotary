@@ -1,0 +1,876 @@
+{
+  "results": [
+    {
+      "actual": {
+        "convention_findings": 0,
+        "convention_gate": "green",
+        "convention_rules": [],
+        "convention_veto": 0,
+        "final": "RELEASED",
+        "mutation_gate": "green",
+        "mutation_score": 1.0,
+        "sentinel": "pass",
+        "sentinel_critical_rules": [],
+        "sentinel_findings": 0,
+        "skill_matches": {
+          "always-true-guard-suspected": "not_yet_registered:always-true-guard-scan",
+          "enumerate-boundaries": "matched:boundary-condition-check"
+        },
+        "test_gate": "green"
+      },
+      "id": "d1-qb_inhouse_fix",
+      "mismatches": [],
+      "ok": true,
+      "path": "inhouse_green",
+      "replayed": true,
+      "scenario": "qb_inhouse_fix",
+      "source": "D1"
+    },
+    {
+      "actual": {
+        "convention_findings": 0,
+        "convention_gate": "green",
+        "convention_rules": [],
+        "convention_veto": 0,
+        "escalated_to_gating": true,
+        "final": "RELEASED",
+        "first_mutation": "yellow",
+        "mutation_gate": "green",
+        "mutation_score": 1.0,
+        "sentinel": "pass",
+        "sentinel_critical_rules": [],
+        "sentinel_findings": 0,
+        "test_gate": "green"
+      },
+      "id": "d1w-qb_inhouse_fix_rework",
+      "mismatches": [],
+      "ok": true,
+      "path": "inhouse_rework",
+      "replayed": true,
+      "scenario": "qb_inhouse_fix",
+      "source": "D1W"
+    },
+    {
+      "actual": {
+        "convention_findings": 0,
+        "convention_gate": "green",
+        "convention_rules": [],
+        "convention_veto": 0,
+        "final": "ROLLED_BACK",
+        "first_final": "REJECTED",
+        "first_test_gate": "red",
+        "mutation_gate": "green",
+        "mutation_score": 1.0,
+        "prod_removed": true,
+        "rework_round": 1,
+        "rollback_restored": false,
+        "sentinel": "pass",
+        "sentinel_critical_rules": [],
+        "sentinel_findings": 0,
+        "test_gate": "green"
+      },
+      "id": "d1w-qb_inhouse_fix_red_rework",
+      "mismatches": [],
+      "ok": true,
+      "path": "inhouse_red_rework",
+      "replayed": true,
+      "scenario": "qb_inhouse_fix",
+      "source": "D1W"
+    },
+    {
+      "actual": {
+        "contract_chained": true,
+        "contract_versions": [
+          1,
+          2
+        ],
+        "convention_findings": 0,
+        "convention_gate": "green",
+        "convention_rules": [],
+        "convention_veto": 0,
+        "escalated": true,
+        "final": "RELEASED",
+        "mutation_gate": "green",
+        "mutation_score": 1.0,
+        "sentinel": "pass",
+        "sentinel_critical_rules": [],
+        "sentinel_findings": 0,
+        "test_gate": "green"
+      },
+      "id": "d1w-qb_contract_evolution",
+      "mismatches": [],
+      "ok": true,
+      "path": "contract_evolution",
+      "replayed": true,
+      "scenario": "qb_inhouse_fix",
+      "source": "D1W"
+    },
+    {
+      "actual": {
+        "convention_findings": 0,
+        "convention_gate": "green",
+        "convention_rules": [],
+        "convention_veto": 0,
+        "final": "RELEASED",
+        "mutation_gate": "green",
+        "mutation_score": 1.0,
+        "sentinel": "pass",
+        "sentinel_critical_rules": [],
+        "sentinel_findings": 0,
+        "skill_matches": {
+          "compound-boundary-defects": "not_yet_registered:compound-boundary-defect-scan"
+        },
+        "test_gate": "green"
+      },
+      "id": "d1-mb_router_compound",
+      "mismatches": [],
+      "ok": true,
+      "path": "inhouse_green",
+      "replayed": true,
+      "scenario": "mb_router_compound",
+      "source": "D1"
+    },
+    {
+      "actual": {
+        "convention_findings": 1,
+        "convention_gate": "green",
+        "convention_rules": [],
+        "convention_veto": 0,
+        "final": "RELEASED",
+        "mutation_gate": "green",
+        "mutation_score": 1.0,
+        "sentinel": "pass",
+        "sentinel_critical_rules": [],
+        "sentinel_findings": 0,
+        "skill_matches": {
+          "message-loss-symptom": "not_yet_registered:delivery-semantics-review",
+          "unverifiable-claims": "matched:ai-hallucination-guard"
+        },
+        "test_gate": "green"
+      },
+      "id": "d1-mb_delivery_semantics",
+      "mismatches": [],
+      "ok": true,
+      "path": "inhouse_green",
+      "replayed": true,
+      "scenario": "mb_delivery_semantics",
+      "source": "D1"
+    },
+    {
+      "actual": {
+        "convention_findings": 5,
+        "convention_gate": "red",
+        "convention_rules": [
+          "diff-scope-discipline",
+          "exception-handling-convention",
+          "input-validation-injection"
+        ],
+        "convention_veto": 5,
+        "final": "REJECTED",
+        "mutation_gate": "skipped",
+        "sentinel": "pass",
+        "sentinel_critical_rules": [],
+        "sentinel_findings": 3,
+        "skill_matches": {
+          "diff-out-of-scope": "matched:diff-scope-discipline"
+        },
+        "test_gate": "red"
+      },
+      "id": "d1-qb_external_sloppy",
+      "mismatches": [],
+      "ok": true,
+      "path": "external_test_red",
+      "replayed": true,
+      "scenario": "qb_external_sloppy",
+      "source": "D1"
+    },
+    {
+      "actual": {
+        "convention_findings": 1,
+        "convention_gate": "red",
+        "convention_rules": [
+          "input-validation-injection"
+        ],
+        "convention_veto": 1,
+        "final": "REJECTED",
+        "mutation_gate": "green",
+        "mutation_score": 1.0,
+        "sentinel": "pass",
+        "sentinel_critical_rules": [],
+        "sentinel_findings": 1,
+        "skill_matches": {
+          "external-input-handling": "matched:input-validation-injection"
+        },
+        "test_gate": "green"
+      },
+      "id": "d1-qb_external_subtle",
+      "mismatches": [],
+      "ok": true,
+      "path": "external_convention_red",
+      "replayed": true,
+      "scenario": "qb_external_subtle",
+      "source": "D1"
+    },
+    {
+      "actual": {
+        "convention_findings": 1,
+        "convention_gate": "green",
+        "convention_rules": [],
+        "convention_veto": 0,
+        "final": "REJECTED",
+        "mutation_gate": "skipped",
+        "sentinel": "pass",
+        "sentinel_critical_rules": [],
+        "sentinel_findings": 0,
+        "skill_matches": {
+          "retry-duplicate-symptom": "not_yet_registered:idempotent-retry-design"
+        },
+        "test_gate": "red"
+      },
+      "id": "d1r-mb_external_dupe",
+      "mismatches": [],
+      "ok": true,
+      "path": "external_test_red",
+      "replayed": true,
+      "scenario": "mb_external_dupe",
+      "source": "D1-R"
+    },
+    {
+      "actual": {
+        "convention_findings": 1,
+        "convention_gate": "green",
+        "convention_rules": [],
+        "convention_veto": 0,
+        "final": "REJECTED",
+        "mutation_gate": "skipped",
+        "sentinel": "pass",
+        "sentinel_critical_rules": [],
+        "sentinel_findings": 0,
+        "skill_matches": {
+          "flaky-test-suspected": "matched:flaky-test-isolation"
+        },
+        "test_gate": "red"
+      },
+      "id": "d1r-mb_external_reorder",
+      "mismatches": [],
+      "ok": true,
+      "path": "external_test_red",
+      "replayed": true,
+      "scenario": "mb_external_reorder",
+      "source": "D1-R"
+    },
+    {
+      "actual": {
+        "convention_findings": 1,
+        "convention_gate": "green",
+        "convention_rules": [],
+        "convention_veto": 0,
+        "final": "REJECTED",
+        "mutation_gate": "skipped",
+        "sentinel": "pass",
+        "sentinel_critical_rules": [],
+        "sentinel_findings": 0,
+        "skill_matches": {
+          "public-signature-change": "matched:backward-compatibility-check"
+        },
+        "test_gate": "red"
+      },
+      "id": "d1r-mb_external_breaking",
+      "mismatches": [],
+      "ok": true,
+      "path": "external_test_red",
+      "replayed": true,
+      "scenario": "mb_external_breaking",
+      "source": "D1-R"
+    },
+    {
+      "actual": {
+        "convention_findings": 1,
+        "convention_gate": "red",
+        "convention_rules": [
+          "resource-acquisition-without-release"
+        ],
+        "convention_veto": 1,
+        "final": "REJECTED",
+        "mutation_gate": "green",
+        "mutation_score": 1.0,
+        "sentinel": "pass",
+        "sentinel_critical_rules": [],
+        "sentinel_findings": 0,
+        "test_gate": "green"
+      },
+      "id": "d1r-qb_external_leak",
+      "mismatches": [],
+      "ok": true,
+      "path": "external_convention_red",
+      "replayed": true,
+      "scenario": "qb_external_leak",
+      "source": "D1-R"
+    },
+    {
+      "actual": {
+        "convention_gate": "skipped",
+        "final": "REJECTED",
+        "mutation_gate": "skipped",
+        "sentinel": "quarantine",
+        "sentinel_critical_rules": [
+          "unsafe deserialization"
+        ],
+        "sentinel_findings": 1,
+        "test_gate": "skipped"
+      },
+      "id": "d1r-qb_external_pickle",
+      "mismatches": [],
+      "ok": true,
+      "path": "external_quarantine",
+      "replayed": true,
+      "scenario": "qb_external_pickle",
+      "source": "D1-R"
+    },
+    {
+      "id": "d1x-mb_delivery_semantics_ambiguous",
+      "mismatches": [],
+      "note": "live-only sample (ESCALATED demo)",
+      "ok": true,
+      "path": "live_only",
+      "replayed": false,
+      "scenario": "mb_delivery_semantics_ambiguous",
+      "source": "D1X"
+    },
+    {
+      "actual": {
+        "convention_findings": 2,
+        "convention_gate": "red",
+        "convention_rules": [
+          "input-validation-injection"
+        ],
+        "convention_veto": 2,
+        "final": "REJECTED",
+        "mutation_gate": "green",
+        "mutation_score": 1.0,
+        "sentinel": "pass",
+        "sentinel_critical_rules": [],
+        "sentinel_findings": 2,
+        "skill_matches": {
+          "external-input-handling": "matched:input-validation-injection"
+        },
+        "test_gate": "green"
+      },
+      "id": "d3-d3_qb_hardcoded_credential",
+      "mismatches": [],
+      "ok": true,
+      "path": "external_convention_red",
+      "replayed": true,
+      "scenario": "d3_qb_hardcoded_credential",
+      "source": "D3"
+    },
+    {
+      "actual": {
+        "convention_findings": 1,
+        "convention_gate": "red",
+        "convention_rules": [
+          "input-validation-injection"
+        ],
+        "convention_veto": 1,
+        "final": "REJECTED",
+        "mutation_gate": "green",
+        "mutation_score": 1.0,
+        "sentinel": "pass",
+        "sentinel_critical_rules": [],
+        "sentinel_findings": 1,
+        "test_gate": "green"
+      },
+      "id": "d3-d3_qb_os_system",
+      "mismatches": [],
+      "ok": true,
+      "path": "external_convention_red",
+      "replayed": true,
+      "scenario": "d3_qb_os_system",
+      "source": "D3"
+    },
+    {
+      "actual": {
+        "convention_findings": 1,
+        "convention_gate": "red",
+        "convention_rules": [
+          "input-validation-injection"
+        ],
+        "convention_veto": 1,
+        "final": "REJECTED",
+        "mutation_gate": "green",
+        "mutation_score": 1.0,
+        "sentinel": "pass",
+        "sentinel_critical_rules": [],
+        "sentinel_findings": 1,
+        "test_gate": "green"
+      },
+      "id": "d3-d3_qb_subprocess_shell",
+      "mismatches": [],
+      "ok": true,
+      "path": "external_convention_red",
+      "replayed": true,
+      "scenario": "d3_qb_subprocess_shell",
+      "source": "D3"
+    },
+    {
+      "actual": {
+        "convention_gate": "skipped",
+        "final": "REJECTED",
+        "mutation_gate": "skipped",
+        "sentinel": "quarantine",
+        "sentinel_critical_rules": [
+          "unsafe deserialization"
+        ],
+        "sentinel_findings": 1,
+        "test_gate": "skipped"
+      },
+      "id": "d3-d3_qb_pickle_deserialize",
+      "mismatches": [],
+      "ok": true,
+      "path": "external_quarantine",
+      "replayed": true,
+      "scenario": "d3_qb_pickle_deserialize",
+      "source": "D3"
+    },
+    {
+      "actual": {
+        "convention_gate": "skipped",
+        "final": "REJECTED",
+        "mutation_gate": "skipped",
+        "sentinel": "quarantine",
+        "sentinel_critical_rules": [
+          "dynamic eval on external input"
+        ],
+        "sentinel_findings": 1,
+        "skill_matches": {
+          "external-input-handling": "matched:input-validation-injection"
+        },
+        "test_gate": "skipped"
+      },
+      "id": "d3-d3_qb_eval_exec",
+      "mismatches": [],
+      "ok": true,
+      "path": "external_quarantine",
+      "replayed": true,
+      "scenario": "d3_qb_eval_exec",
+      "source": "D3"
+    },
+    {
+      "actual": {
+        "convention_findings": 1,
+        "convention_gate": "red",
+        "convention_rules": [
+          "exception-handling-convention"
+        ],
+        "convention_veto": 1,
+        "final": "REJECTED",
+        "mutation_gate": "green",
+        "mutation_score": 1.0,
+        "sentinel": "pass",
+        "sentinel_critical_rules": [],
+        "sentinel_findings": 0,
+        "skill_matches": {
+          "exception-handling-present": "matched:exception-handling-convention"
+        },
+        "test_gate": "green"
+      },
+      "id": "d3-d3_qb_bare_except",
+      "mismatches": [],
+      "ok": true,
+      "path": "external_convention_red",
+      "replayed": true,
+      "scenario": "d3_qb_bare_except",
+      "source": "D3"
+    },
+    {
+      "actual": {
+        "convention_findings": 1,
+        "convention_gate": "red",
+        "convention_rules": [
+          "input-validation-injection"
+        ],
+        "convention_veto": 1,
+        "final": "REJECTED",
+        "mutation_gate": "green",
+        "mutation_score": 1.0,
+        "sentinel": "pass",
+        "sentinel_critical_rules": [],
+        "sentinel_findings": 1,
+        "test_gate": "green"
+      },
+      "id": "d3-d3_qb_unaudited_write",
+      "mismatches": [],
+      "ok": true,
+      "path": "external_convention_red",
+      "replayed": true,
+      "scenario": "d3_qb_unaudited_write",
+      "source": "D3"
+    },
+    {
+      "actual": {
+        "convention_findings": 1,
+        "convention_gate": "red",
+        "convention_rules": [
+          "resource-acquisition-without-release"
+        ],
+        "convention_veto": 1,
+        "final": "REJECTED",
+        "mutation_gate": "green",
+        "mutation_score": 1.0,
+        "sentinel": "pass",
+        "sentinel_critical_rules": [],
+        "sentinel_findings": 0,
+        "test_gate": "green"
+      },
+      "id": "d3-d3_qb_resource_leak",
+      "mismatches": [],
+      "ok": true,
+      "path": "external_convention_red",
+      "replayed": true,
+      "scenario": "d3_qb_resource_leak",
+      "source": "D3"
+    },
+    {
+      "actual": {
+        "convention_findings": 3,
+        "convention_gate": "red",
+        "convention_rules": [
+          "input-validation-injection"
+        ],
+        "convention_veto": 2,
+        "final": "REJECTED",
+        "mutation_gate": "green",
+        "mutation_score": 1.0,
+        "sentinel": "pass",
+        "sentinel_critical_rules": [],
+        "sentinel_findings": 2,
+        "test_gate": "green"
+      },
+      "id": "d3-d3_mb_hardcoded_credential",
+      "mismatches": [],
+      "ok": true,
+      "path": "external_convention_red",
+      "replayed": true,
+      "scenario": "d3_mb_hardcoded_credential",
+      "source": "D3"
+    },
+    {
+      "actual": {
+        "convention_findings": 2,
+        "convention_gate": "red",
+        "convention_rules": [
+          "input-validation-injection"
+        ],
+        "convention_veto": 1,
+        "final": "REJECTED",
+        "mutation_gate": "green",
+        "mutation_score": 1.0,
+        "sentinel": "pass",
+        "sentinel_critical_rules": [],
+        "sentinel_findings": 1,
+        "test_gate": "green"
+      },
+      "id": "d3-d3_mb_os_system",
+      "mismatches": [],
+      "ok": true,
+      "path": "external_convention_red",
+      "replayed": true,
+      "scenario": "d3_mb_os_system",
+      "source": "D3"
+    },
+    {
+      "actual": {
+        "convention_findings": 2,
+        "convention_gate": "red",
+        "convention_rules": [
+          "input-validation-injection"
+        ],
+        "convention_veto": 1,
+        "final": "REJECTED",
+        "mutation_gate": "green",
+        "mutation_score": 1.0,
+        "sentinel": "pass",
+        "sentinel_critical_rules": [],
+        "sentinel_findings": 1,
+        "test_gate": "green"
+      },
+      "id": "d3-d3_mb_subprocess_shell",
+      "mismatches": [],
+      "ok": true,
+      "path": "external_convention_red",
+      "replayed": true,
+      "scenario": "d3_mb_subprocess_shell",
+      "source": "D3"
+    },
+    {
+      "actual": {
+        "convention_gate": "skipped",
+        "final": "REJECTED",
+        "mutation_gate": "skipped",
+        "sentinel": "quarantine",
+        "sentinel_critical_rules": [
+          "unsafe deserialization"
+        ],
+        "sentinel_findings": 1,
+        "test_gate": "skipped"
+      },
+      "id": "d3-d3_mb_pickle_deserialize",
+      "mismatches": [],
+      "ok": true,
+      "path": "external_quarantine",
+      "replayed": true,
+      "scenario": "d3_mb_pickle_deserialize",
+      "source": "D3"
+    },
+    {
+      "actual": {
+        "convention_gate": "skipped",
+        "final": "REJECTED",
+        "mutation_gate": "skipped",
+        "sentinel": "quarantine",
+        "sentinel_critical_rules": [
+          "dynamic eval on external input"
+        ],
+        "sentinel_findings": 1,
+        "test_gate": "skipped"
+      },
+      "id": "d3-d3_mb_eval_exec",
+      "mismatches": [],
+      "ok": true,
+      "path": "external_quarantine",
+      "replayed": true,
+      "scenario": "d3_mb_eval_exec",
+      "source": "D3"
+    },
+    {
+      "actual": {
+        "convention_findings": 2,
+        "convention_gate": "red",
+        "convention_rules": [
+          "exception-handling-convention"
+        ],
+        "convention_veto": 1,
+        "final": "REJECTED",
+        "mutation_gate": "green",
+        "mutation_score": 1.0,
+        "sentinel": "pass",
+        "sentinel_critical_rules": [],
+        "sentinel_findings": 0,
+        "test_gate": "green"
+      },
+      "id": "d3-d3_mb_bare_except",
+      "mismatches": [],
+      "ok": true,
+      "path": "external_convention_red",
+      "replayed": true,
+      "scenario": "d3_mb_bare_except",
+      "source": "D3"
+    },
+    {
+      "actual": {
+        "convention_findings": 2,
+        "convention_gate": "red",
+        "convention_rules": [
+          "input-validation-injection"
+        ],
+        "convention_veto": 1,
+        "final": "REJECTED",
+        "mutation_gate": "green",
+        "mutation_score": 1.0,
+        "sentinel": "pass",
+        "sentinel_critical_rules": [],
+        "sentinel_findings": 1,
+        "test_gate": "green"
+      },
+      "id": "d3-d3_mb_unaudited_write",
+      "mismatches": [],
+      "ok": true,
+      "path": "external_convention_red",
+      "replayed": true,
+      "scenario": "d3_mb_unaudited_write",
+      "source": "D3"
+    },
+    {
+      "actual": {
+        "convention_findings": 2,
+        "convention_gate": "red",
+        "convention_rules": [
+          "resource-acquisition-without-release"
+        ],
+        "convention_veto": 1,
+        "final": "REJECTED",
+        "mutation_gate": "green",
+        "mutation_score": 1.0,
+        "sentinel": "pass",
+        "sentinel_critical_rules": [],
+        "sentinel_findings": 0,
+        "test_gate": "green"
+      },
+      "id": "d3-d3_mb_resource_leak",
+      "mismatches": [],
+      "ok": true,
+      "path": "external_convention_red",
+      "replayed": true,
+      "scenario": "d3_mb_resource_leak",
+      "source": "D3"
+    },
+    {
+      "actual": {
+        "convention_findings": 0,
+        "convention_gate": "green",
+        "convention_rules": [],
+        "convention_veto": 0,
+        "final": "RELEASED",
+        "mutation_gate": "green",
+        "mutation_score": 1.0,
+        "sentinel": "pass",
+        "sentinel_critical_rules": [],
+        "sentinel_findings": 0,
+        "test_gate": "green"
+      },
+      "id": "d5-pkg_leq_local",
+      "mismatches": [],
+      "ok": true,
+      "path": "inhouse_green",
+      "replayed": true,
+      "scenario": "d5_pkg_leq_local",
+      "source": "D5"
+    },
+    {
+      "actual": {
+        "convention_findings": 0,
+        "convention_gate": "green",
+        "convention_rules": [],
+        "convention_veto": 0,
+        "final": "REJECTED",
+        "mutation_gate": "skipped",
+        "sentinel": "pass",
+        "sentinel_critical_rules": [],
+        "sentinel_findings": 0,
+        "test_gate": "red"
+      },
+      "id": "d5-pkg_leq_local_red",
+      "mismatches": [],
+      "ok": true,
+      "path": "external_test_red",
+      "replayed": true,
+      "scenario": "d5_pkg_leq_local_red",
+      "source": "D5"
+    },
+    {
+      "actual": {
+        "convention_findings": 0,
+        "convention_gate": "green",
+        "convention_rules": [],
+        "convention_veto": 0,
+        "final": "RELEASED",
+        "mutation_gate": "green",
+        "mutation_score": 1.0,
+        "sentinel": "pass",
+        "sentinel_critical_rules": [],
+        "sentinel_findings": 0,
+        "test_gate": "green"
+      },
+      "id": "d5-pkg_epoch_prefix",
+      "mismatches": [],
+      "ok": true,
+      "path": "inhouse_green",
+      "replayed": true,
+      "scenario": "d5_pkg_epoch_prefix",
+      "source": "D5"
+    },
+    {
+      "actual": {
+        "convention_findings": 0,
+        "convention_gate": "green",
+        "convention_rules": [],
+        "convention_veto": 0,
+        "final": "REJECTED",
+        "mutation_gate": "skipped",
+        "sentinel": "pass",
+        "sentinel_critical_rules": [],
+        "sentinel_findings": 0,
+        "test_gate": "red"
+      },
+      "id": "d5-pkg_epoch_prefix_red",
+      "mismatches": [],
+      "ok": true,
+      "path": "external_test_red",
+      "replayed": true,
+      "scenario": "d5_pkg_epoch_prefix_red",
+      "source": "D5"
+    },
+    {
+      "actual": {
+        "convention_findings": 0,
+        "convention_gate": "green",
+        "convention_rules": [],
+        "convention_veto": 0,
+        "final": "RELEASED",
+        "mutation_gate": "green",
+        "mutation_score": 1.0,
+        "sentinel": "pass",
+        "sentinel_critical_rules": [],
+        "sentinel_findings": 0,
+        "test_gate": "green"
+      },
+      "id": "d5-pkg_compat_prerelease",
+      "mismatches": [],
+      "ok": true,
+      "path": "inhouse_green",
+      "replayed": true,
+      "scenario": "d5_pkg_compat_prerelease",
+      "source": "D5"
+    },
+    {
+      "actual": {
+        "convention_findings": 0,
+        "convention_gate": "green",
+        "convention_rules": [],
+        "convention_veto": 0,
+        "final": "REJECTED",
+        "mutation_gate": "skipped",
+        "sentinel": "pass",
+        "sentinel_critical_rules": [],
+        "sentinel_findings": 0,
+        "test_gate": "red"
+      },
+      "id": "d5-pkg_compat_prerelease_red",
+      "mismatches": [],
+      "ok": true,
+      "path": "external_test_red",
+      "replayed": true,
+      "scenario": "d5_pkg_compat_prerelease_red",
+      "source": "D5"
+    }
+  ],
+  "summary": {
+    "by_source": {
+      "D1": {
+        "passed": 5,
+        "total": 5
+      },
+      "D1-R": {
+        "passed": 5,
+        "total": 5
+      },
+      "D1W": {
+        "passed": 3,
+        "total": 3
+      },
+      "D3": {
+        "passed": 16,
+        "total": 16
+      },
+      "D5": {
+        "passed": 6,
+        "total": 6
+      }
+    },
+    "evalset_version": "1.2.0",
+    "samples_passed": 35,
+    "samples_replayed": 35,
+    "samples_total": 36,
+    "terminal_verdict_accuracy": "35/35"
+  }
+}

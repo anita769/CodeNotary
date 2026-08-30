@@ -1,6 +1,8 @@
 ---
 name: ai-hallucination-guard
 description: AI 幻觉防卫 SOP——核验代码中外部 API 符号的真实性与依赖声明中包名/版本的真实性，拦截模型编造的「不存在之物」；覆盖幻觉 API 调用与幻觉依赖包（slopsquatting 投毒风险）两类 AI 特有缺陷。
+version: 1.0.0
+compat: gateway>=0.5
 ---
 
 # AI 幻觉防卫 SOP

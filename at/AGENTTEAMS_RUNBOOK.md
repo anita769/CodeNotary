@@ -139,6 +139,22 @@ Worker 初始化会拉起运行时并写入依赖，低规格机器上并发创�
 请通过已配置的 HTTP 公证工具网关主动获取，不要让我人工收集证据。
 ```
 
+## 评测工具链（v1.1 新增）
+
+评审可用以下命令复算本包全部评测数字（纯标准库，无 LLM，无网络依赖）：
+
+```bash
+python3 scripts/eval_replay.py        # 场景回放评测：26 样本逐门禁期望比对
+python3 scripts/eval_fuzz.py          # fail-closed 套件：16 用例
+python3 scripts/eval_report.py        # 重新生成 EVALUATION.md（应与包内版本逐位一致）
+python3 scripts/inject_violation.py   # D3 注入器：8 个 CWE 模式 x 2 基底，可改参数生成新样本
+python3 scripts/trace_metrics.py      # 运行 trace 聚合为 metrics.json
+```
+
+- 评测集与标注：`evalset/manifest.json`（27 样本：D1 手工场景 / D1-R 真实 issue 溯源 / D3 违规注入 / D1X live-only）
+- 确定性实测：连跑两次 `eval_replay.py`，`evalset/results.json` 的 sha256 逐位一致
+- 汇总结论见包内 `EVALUATION.md`
+
 ## 后续替换点
 
 | 当前内容 | 后续替换方向 |

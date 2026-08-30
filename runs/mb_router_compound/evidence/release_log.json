@@ -1,10 +1,10 @@
 {
   "version": "v0.2.0",
-  "deployed_to": "/add03/users/shanzy/codenotary/agentteams/runs/mb_router_compound/prod",
+  "deployed_to": "/tmp/codenotary-work/agentteams/runs/mb_router_compound/prod",
   "smoke": {
     "tests_ran": 11,
     "ok": true
   },
   "pipeline_state": "RELEASED",
-  "ts": 1786372008.6208282
+  "ts": 1788096479.4595637
 }

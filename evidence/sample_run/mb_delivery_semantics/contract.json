@@ -16,6 +16,7 @@
     "test_queue_box_baseline.py",
     "test_dispatcher_baseline.py"
   ],
+  "version": 1,
   "blind_partitions": {
     "author_sees": [
       "contract",
@@ -27,5 +28,5 @@
       "baseline public tests"
     ]
   },
-  "frozen_hash": "5444bf3c599f831c5c882629cf4f4687477b6f67102d316d908f712e784a77e2"
+  "frozen_hash": "86f4a9b798610c533467a913b7b9d512b7aa4d7eb9b54532fd068839cd25859d"
 }

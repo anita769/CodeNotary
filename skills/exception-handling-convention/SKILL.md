@@ -1,6 +1,8 @@
 ---
 name: exception-handling-convention
 description: 异常处理规范 SOP——禁止 bare except、强制 raise from 异常链、按具体异常类型捕获，保证错误可诊断可追溯。
+version: 1.0.0
+compat: gateway>=0.5
 ---
 
 # 异常处理规范 SOP

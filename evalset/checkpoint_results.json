@@ -1,0 +1,17 @@
+{
+  "detail": {
+    "contract_hash_intact": true,
+    "final_state": "RELEASED",
+    "green_gates": [],
+    "history_len_after": 5,
+    "history_len_before": 5,
+    "resume_ok": true,
+    "state_restored": true
+  },
+  "summary": {
+    "final_state": "RELEASED",
+    "kill_signal": "SIGKILL (unclean)",
+    "resume_ok": true,
+    "resumed_state": "CONTRACTED"
+  }
+}

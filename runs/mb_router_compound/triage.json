@@ -10,5 +10,5 @@
     "tester",
     "gates"
   ],
-  "rationale": "two interacting boundary defects in one module, deterministic repro available"
+  "rationale": "eval replay: scope clear; findings forwarded to gates"
 }

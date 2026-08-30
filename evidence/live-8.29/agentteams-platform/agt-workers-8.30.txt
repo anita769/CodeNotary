@@ -1,0 +1,11 @@
+agentteams-worker-codenotary-leader	Up 2 minutes
+agentteams-worker-postmortem	Up 2 minutes
+agentteams-worker-release	Up 2 minutes
+agentteams-worker-gatekeeper	Up 2 minutes
+agentteams-worker-convention	Up 2 minutes
+agentteams-worker-tester	Up About a minute
+agentteams-worker-author	Up 3 minutes
+agentteams-worker-contract	Up 3 minutes
+agentteams-worker-rca	Up 2 minutes
+agentteams-worker-triage	Up About a minute
+agentteams-worker-sentinel	Up 2 minutes

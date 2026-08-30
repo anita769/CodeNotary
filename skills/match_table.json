@@ -1,0 +1,90 @@
+{
+  "version": "1.0.0",
+  "description": "Skill 触发信号决策表：Agent 面对具体情境时按信号匹配唯一 Skill。信号互斥且可操作（与技术文档增刊第 16.1 节决策表一一对应）。coverage 列出在 evalset 中语义触发该信号的样本 id，供 scripts/eval_skill_coverage.py 审计。",
+  "signals": [
+    {
+      "signal": "external-input-handling",
+      "trigger": "变更涉及外部输入处理 / 新入口",
+      "skill": "input-validation-injection",
+      "roles": ["sentinel", "convention", "author"],
+      "coverage": ["d3-d3_qb_eval_exec", "d3-d3_qb_hardcoded_credential", "d1-qb_external_subtle"]
+    },
+    {
+      "signal": "unverifiable-claims",
+      "trigger": "Agent 产出引用无法验证的事实",
+      "skill": "ai-hallucination-guard",
+      "roles": ["rca", "author"],
+      "coverage": ["d1-mb_delivery_semantics"]
+    },
+    {
+      "signal": "ambiguous-requirement",
+      "trigger": "issue 文本存在多解表述（契约冻结前）",
+      "skill": "requirement-ambiguity-scan",
+      "roles": ["contract", "triage"],
+      "coverage": ["d1x-mb_delivery_semantics_ambiguous"]
+    },
+    {
+      "signal": "public-signature-change",
+      "trigger": "变更触碰公开签名 / 返回类型",
+      "skill": "backward-compatibility-check",
+      "roles": ["convention", "gatekeeper"],
+      "coverage": ["d1r-mb_external_breaking"]
+    },
+    {
+      "signal": "diff-out-of-scope",
+      "trigger": "diff 中文件越出契约 in_scope",
+      "skill": "diff-scope-discipline",
+      "roles": ["convention"],
+      "coverage": ["d1-qb_external_sloppy"]
+    },
+    {
+      "signal": "exception-handling-present",
+      "trigger": "代码含 try/except/raise",
+      "skill": "exception-handling-convention",
+      "roles": ["convention", "author"],
+      "coverage": ["d3-d3_qb_bare_except"]
+    },
+    {
+      "signal": "enumerate-boundaries",
+      "trigger": "写测试前：枚举边界输入（空/单元素/端点/None）",
+      "skill": "boundary-condition-check",
+      "roles": ["tester"],
+      "coverage": ["d1-qb_inhouse_fix"]
+    },
+    {
+      "signal": "flaky-test-suspected",
+      "trigger": "测试时好时坏（间歇性失败）",
+      "skill": "flaky-test-isolation",
+      "roles": ["tester", "gatekeeper"],
+      "coverage": ["d1r-mb_external_reorder"]
+    },
+    {
+      "signal": "always-true-guard-suspected",
+      "trigger": "修复边界缺陷，守卫疑似恒真（len(x) >= 0 类）",
+      "skill": "always-true-guard-scan",
+      "roles": ["author", "gatekeeper"],
+      "coverage": ["d1-qb_inhouse_fix"]
+    },
+    {
+      "signal": "compound-boundary-defects",
+      "trigger": "同模块多个边界缺陷相互作用",
+      "skill": "compound-boundary-defect-scan",
+      "roles": ["rca", "tester"],
+      "coverage": ["d1-mb_router_compound"]
+    },
+    {
+      "signal": "message-loss-symptom",
+      "trigger": "队列/分发代码，症状 = 消息丢失",
+      "skill": "delivery-semantics-review",
+      "roles": ["rca", "author"],
+      "coverage": ["d1-mb_delivery_semantics"]
+    },
+    {
+      "signal": "retry-duplicate-symptom",
+      "trigger": "变更涉及重试逻辑，症状 = 重复处理",
+      "skill": "idempotent-retry-design",
+      "roles": ["author", "convention"],
+      "coverage": ["d1r-mb_external_dupe"]
+    }
+  ]
+}

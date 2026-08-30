@@ -1,0 +1,27 @@
+{
+  "note": "operational measurement, non-deterministic; re-run to re-measure. Not part of the deterministic evaluation.",
+  "environment": {
+    "python": "3.12.7",
+    "platform": "Linux-6.8.0-59-generic-x86_64-with-glibc2.35",
+    "processor": "x86_64"
+  },
+  "runs_aggregated": 32,
+  "wall_time_s": {
+    "median": 0.39,
+    "max": 1.42
+  },
+  "gate_duration_ms_median": {
+    "convention": 1.8,
+    "mutation": 638.3,
+    "sentinel": 1.2,
+    "test": 76.4
+  },
+  "heaviest_run": {
+    "scenario": "d5_pkg_epoch_prefix",
+    "wall_s": 1.21,
+    "gateway_rss_baseline_mb": 27.0,
+    "gateway_rss_peak_mb": 27.0,
+    "mutants_evaluated": 12,
+    "run_dir_kb": 1672
+  }
+}

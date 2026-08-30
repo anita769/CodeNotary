@@ -1,0 +1,194 @@
+{
+  "scenario_id": "qb_inhouse_fix",
+  "sm": {
+    "state": "RELEASED",
+    "visited_contracted": true,
+    "green_gates": [
+      "CONVENTION",
+      "MUTATION",
+      "TEST_PASS"
+    ],
+    "history": [
+      {
+        "state": "RECEIVED",
+        "verdict": null,
+        "ts": 1788096472.692637
+      },
+      {
+        "state": "SCREENED",
+        "verdict": null,
+        "ts": 1788096472.699008
+      },
+      {
+        "state": "TRIAGED",
+        "verdict": null,
+        "ts": 1788096472.7018511
+      },
+      {
+        "state": "DIAGNOSED",
+        "verdict": null,
+        "ts": 1788096472.7453413
+      },
+      {
+        "state": "CONTRACTED",
+        "verdict": null,
+        "ts": 1788096472.7486007
+      },
+      {
+        "state": "AUTHORING",
+        "verdict": null,
+        "ts": 1788096472.7544851
+      },
+      {
+        "state": "TESTING",
+        "verdict": null,
+        "ts": 1788096472.7604709
+      },
+      {
+        "state": "GATING",
+        "verdict": null,
+        "ts": 1788096472.7631273
+      },
+      {
+        "state": "GATING",
+        "verdict": {
+          "gate": "TEST_PASS",
+          "decision": "green",
+          "summary": "baseline+blind tests: 6 run, all passed",
+          "issued_by": "notary-gateway (deterministic)",
+          "timestamp": 1788096472.8388407,
+          "test_output": "......\n----------------------------------------------------------------------\nRan 6 tests in 0.000s\n\nOK"
+        },
+        "ts": 1788096472.839307
+      },
+      {
+        "state": "GATING",
+        "verdict": {
+          "gate": "MUTATION",
+          "decision": "green",
+          "summary": "mutation score after rebuttal 1.00 (3 killed, 0 survived, 1 exempted)",
+          "issued_by": "notary-gateway (deterministic)",
+          "timestamp": 1788096473.107355,
+          "killed": 3,
+          "survived_after_rebuttal": 0,
+          "exempted": 1,
+          "score": 1.0,
+          "note": "",
+          "rebuttals": [
+            {
+              "mutant_id": "M03",
+              "kind": "equivalent_mutant",
+              "justification": "len() is always >= 0, so '!= 0' and '> 0' are equivalent guards for this state"
+            }
+          ]
+        },
+        "ts": 1788096473.107901
+      },
+      {
+        "state": "NOTARIZED",
+        "verdict": {
+          "gate": "CONVENTION",
+          "decision": "green",
+          "summary": "0 findings (0 veto-class)",
+          "issued_by": "notary-gateway (deterministic)",
+          "timestamp": 1788096473.111888,
+          "findings": []
+        },
+        "ts": 1788096473.1122992
+      },
+      {
+        "state": "RELEASED",
+        "verdict": null,
+        "ts": 1788096473.1739476
+      }
+    ]
+  },
+  "contract": {
+    "issue_id": "ISSUE-101",
+    "assertions": [
+      "pop() on an empty Mailbox raises IndexError with message exactly 'pop from empty mailbox'",
+      "pop() on a non-empty Mailbox returns messages in FIFO order",
+      "len() reflects the number of buffered messages after push/pop",
+      "only queue_box.py may be modified; baseline tests stay untouched"
+    ],
+    "in_scope": [
+      "queue_box.py"
+    ],
+    "out_of_scope": [
+      "test_queue_box_baseline.py"
+    ],
+    "version": 1,
+    "blind_partitions": {
+      "author_sees": [
+        "contract",
+        "target source",
+        "diagnosis"
+      ],
+      "tester_sees": [
+        "contract",
+        "baseline public tests"
+      ]
+    },
+    "frozen_hash": "07168613ed2231755211a3061969a57b01b9df81e9489243e8e5028152e800e6"
+  },
+  "diagnosis": {
+    "root_cause": "pop() guard uses >= 0 which is always true; empty mailbox falls through to list.pop(0)",
+    "evidence": [
+      "queue_box.py:25",
+      "repro stdout shows raw IndexError"
+    ],
+    "fix_hypothesis": "change guard to > 0 so empty mailbox raises the contract-specified clean error",
+    "confidence": 0.95,
+    "repro": "IndexError: pop from empty list"
+  },
+  "implementation": {
+    "queue_box.py": "class Mailbox:\n    \"\"\"A minimal FIFO message box.\"\"\"\n\n    def __init__(self) -> None:\n        self._items: list[str] = []\n\n    def __len__(self) -> int:\n        return len(self._items)\n\n    def push(self, msg: str) -> None:\n        self._items.append(msg)\n\n    def pop(self) -> str:\n        \"\"\"Pop the oldest message; raise a clean error when empty.\"\"\"\n        if len(self._items) > 0:\n            return self._items.pop(0)\n        raise IndexError(\"pop from empty mailbox\")\n"
+  },
+  "tests": {
+    "test_blind_contract.py": "import unittest\n\nfrom queue_box import Mailbox\n\n\nclass TestMailboxContract(unittest.TestCase):\n    def test_empty_pop_raises_clean_error(self):\n        box = Mailbox()\n        with self.assertRaises(IndexError) as ctx:\n            box.pop()\n        self.assertEqual(str(ctx.exception), \"pop from empty mailbox\")\n\n    def test_fifo_order_preserved(self):\n        box = Mailbox()\n        box.push(\"first\")\n        box.push(\"second\")\n        self.assertEqual(box.pop(), \"first\")\n        self.assertEqual(box.pop(), \"second\")\n\n    def test_single_element_then_empty(self):\n        box = Mailbox()\n        box.push(\"only\")\n        self.assertEqual(box.pop(), \"only\")\n        with self.assertRaises(IndexError):\n            box.pop()\n\n    def test_len_after_pop(self):\n        box = Mailbox()\n        box.push(\"a\")\n        box.pop()\n        self.assertEqual(len(box), 0)\n\n\nif __name__ == \"__main__\":\n    unittest.main()\n"
+  },
+  "mutation": {
+    "killed": [
+      {
+        "id": "M01",
+        "file": "queue_box.py",
+        "line": 15,
+        "mutation": "> -> >="
+      },
+      {
+        "id": "M02",
+        "file": "queue_box.py",
+        "line": 15,
+        "mutation": "> -> =="
+      },
+      {
+        "id": "M04",
+        "file": "queue_box.py",
+        "line": 15,
+        "mutation": "> -> <"
+      }
+    ],
+    "survived": [
+      {
+        "id": "M03",
+        "file": "queue_box.py",
+        "line": 15,
+        "mutation": "> -> !="
+      }
+    ],
+    "invalid": [],
+    "score": 0.75,
+    "exempted": 0,
+    "awaiting_rebuttal": false
+  },
+  "rebuttals": [
+    {
+      "mutant_id": "M03",
+      "kind": "equivalent_mutant",
+      "justification": "len() is always >= 0, so '!= 0' and '> 0' are equivalent guards for this state"
+    }
+  ],
+  "security_events": [],
+  "rework_round": 0,
+  "max_rework_rounds": 2
+}

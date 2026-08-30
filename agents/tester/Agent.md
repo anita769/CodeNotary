@@ -12,8 +12,11 @@
 
 ## Skills
 
-- `boundary-condition-check`：针对契约边界取值（空、单元素、端点、None）设计用例时加载。
-- `flaky-test-isolation`：自运行结果非确定时加载，禁止重跑蒙混。
+**加载方式**：遇到下述情境时，先调 `notary_skill.match`（signal 用机器键或中文情境描述），命中后 `notary_skill.get` 取全文并遵循。决策表实时反映技能库——**包括流水线运行中沉淀的新技能**；不要凭本文件的名字记忆，以决策表为准。
+
+- 针对契约边界取值（空、单元素、端点、None）设计用例（signal: enumerate-boundaries）
+- 自运行结果非确定时（signal: flaky-test-suspected；禁止重跑蒙混）
+- 疑似多个边界缺陷复合（signal: compound-boundary-defects）
 
 ## Tools
 

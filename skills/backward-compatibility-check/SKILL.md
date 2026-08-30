@@ -1,6 +1,8 @@
 ---
 name: backward-compatibility-check
 description: 向后兼容核查 SOP——diff 触及公开 API 签名、DB schema、消息格式、配置键时，系统排查对存量调用方的破坏面；存量仓库场景下 AI 改坏接口是「改坏存量代码」的主路径。
+version: 1.0.0
+compat: gateway>=0.5
 ---
 
 # 向后兼容核查 SOP

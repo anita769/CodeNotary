@@ -3,7 +3,7 @@
   "decision": "red",
   "summary": "5 findings (5 veto-class)",
   "issued_by": "notary-gateway (deterministic)",
-  "timestamp": 1786372009.7334142,
+  "timestamp": 1788096480.6536872,
   "findings": [
     {
       "file": "notes.md",

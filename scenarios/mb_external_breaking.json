@@ -1,0 +1,41 @@
+{
+  "scenario_id": "mb_external_breaking",
+  "mode": "external",
+  "title": "外部 AI 变更送审：功能正确但破坏公开返回类型（真实原型 pypa/setuptools #4919）",
+  "issue": {
+    "id": "ISSUE-304",
+    "source": "external AI coding assistant; 真实原型: https://github.com/pypa/setuptools/issues/4919",
+    "title": "dispatcher 修复补丁把 dispatch_all 返回值从 int 改为 dict，破坏向后兼容",
+    "report": "真实原型为 pypa/setuptools #4919：一次'改进'（PR #4870）引入 breaking change，瞬间瘫痪整个 Python 生态构建，遭社区反弹后紧急回滚。外部 AI 编程助手提交了 dispatcher 修复补丁，重试/死信/FIFO 语义均正确，但'顺手改进'了 dispatch_all 的返回值结构，送本流水线公证。",
+    "expected_behavior": "1) handler 交付失败的消息不得丢失：保持 FIFO 队首位置，下一次 dispatch_all 重试，单条最多 MAX_RETRIES(3) 次后进入 dead_letters（元素为 (channel, payload) 元组）；2) 无订阅者 channel 的消息立即进入 dead_letters；3) dispatch_all 返回当次成功交付条数，返回类型必须保持 int——既有公开签名与返回类型不得变更（向后兼容）；4) 修改范围仅限 dispatcher.py，基线测试不得改动。"
+  },
+  "submitted_change": {
+    "author": "external-ai-assistant (unattributed)",
+    "message": "fix: retry/dead-letter/FIFO semantics; return richer delivery stats",
+    "files": {
+      "dispatcher.py": "\"\"\"Message dispatcher: pull from a Mailbox and deliver to subscribers.\"\"\"\n\nfrom queue_box import Mailbox\n\nMAX_RETRIES = 3\n\n\nclass Dispatcher:\n    \"\"\"Deliver mailbox messages to per-channel subscriber handlers.\"\"\"\n\n    def __init__(self) -> None:\n        self._box = Mailbox()\n        self._subscribers = {}\n        self._attempts: dict[str, int] = {}\n        self.dead_letters: list = []\n\n    def publish(self, channel: str, payload: str) -> None:\n        self._box.push((channel, payload))\n\n    def subscribe(self, channel: str, handler) -> None:\n        self._subscribers[channel] = handler\n\n    def pending(self) -> int:\n        return len(self._box)\n\n    def dispatch_all(self) -> dict:\n        \"\"\"Deliver pending messages with retry, dead-letter and FIFO order.\n\n        A failed message keeps its head-of-line position and is retried on\n        the next run; after MAX_RETRIES attempts it moves to dead_letters.\n        Messages on unknown channels go straight to dead_letters.\n        \"\"\"\n        delivered = 0\n        while len(self._box) > 0:\n            msg = self._box.pop()\n            channel, payload = msg\n            handler = self._subscribers.get(channel)\n            if handler is None:\n                self.dead_letters.append(msg)\n                continue\n            try:\n                handler(payload)\n            except Exception:\n                n = self._attempts.get(payload, 0) + 1\n                self._attempts[payload] = n\n                if n >= MAX_RETRIES:\n                    self.dead_letters.append(msg)\n                    continue\n                rest = []\n                while len(self._box) > 0:\n                    rest.append(self._box.pop())\n                self._box.push(msg)\n                for m in rest:\n                    self._box.push(m)\n                break\n            delivered += 1\n        return {\"delivered\": delivered, \"dead_letters\": len(self.dead_letters)}\n"
+    }
+  },
+  "target_files": [
+    "queue_box.py",
+    "dispatcher.py"
+  ],
+  "baseline_test_files": [
+    "test_queue_box_baseline.py",
+    "test_dispatcher_baseline.py"
+  ],
+  "source_overrides": {
+    "queue_box.py": "\"\"\"A tiny FIFO mailbox used by the demo target service.\"\"\"\n\n\nclass Mailbox:\n    \"\"\"A minimal FIFO message box.\"\"\"\n\n    def __init__(self) -> None:\n        self._items: list[str] = []\n\n    def __len__(self) -> int:\n        return len(self._items)\n\n    def push(self, msg: str) -> None:\n        self._items.append(msg)\n\n    def pop(self) -> str:\n        \"\"\"Pop the oldest message; raise a clean error when empty.\"\"\"\n        if len(self._items) > 0:\n            return self._items.pop(0)\n        raise IndexError(\"pop from empty mailbox\")\n"
+  },
+  "reference": {
+    "note": "评审用参考产物，不对 Worker 提供。reference.tests 为盲测契约测试（eval_replay 用）。",
+    "tests": "import unittest\n\nfrom dispatcher import Dispatcher\n\n\nclass TestBackwardCompatibilityContract(unittest.TestCase):\n    def test_dispatch_all_returns_int_count(self):\n        \"\"\"dispatch_all must keep its public return type: int count of\n        messages delivered this run (backward compatibility).\"\"\"\n        d = Dispatcher()\n        d.subscribe(\"c\", lambda p: None)\n        d.publish(\"c\", \"x\")\n        n = d.dispatch_all()\n        self.assertIsInstance(n, int)\n        self.assertEqual(n, 1)\n\n    def test_dispatch_all_empty_returns_zero_int(self):\n        d = Dispatcher()\n        n = d.dispatch_all()\n        self.assertIsInstance(n, int)\n        self.assertEqual(n, 0)\n\n\nif __name__ == \"__main__\":\n    unittest.main()\n"
+  },
+  "expected_outcome": {
+    "note": "评审用预期路径，不对 Worker 提供。",
+    "sentinel": "pass",
+    "test_gate": "red——基线测试 test_delivers_to_subscriber_in_order 失败（n==2 断言遇到 dict）：功能正确但公开返回类型 int→dict，破坏全部下游调用方",
+    "convention_gate": "green",
+    "final": "REJECTED：向后兼容性破坏。公证价值 = setuptools #4919 式'顺手改进'被基线测试 + 契约盲测双重拦截"
+  }
+}

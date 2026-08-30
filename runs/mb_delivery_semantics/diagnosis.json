@@ -1,9 +1,7 @@
 {
-  "root_cause": "dispatch_all pops a message BEFORE delivering it; a handler exception loses the message (no retry, no dead letter), and unknown-channel messages are silently dropped",
+  "root_cause": "dispatch_all pops a message BEFORE delivering it; a handler exception loses the message, and unknown-channel messages are silently dropped",
   "evidence": [
-    "dispatcher.py:dispatch_all pop-before-deliver",
-    "dispatcher.py:continue on unknown channel",
-    "repro stdout"
+    "eval replay"
   ],
   "fix_hypothesis": "retry with head-of-line restore, dead-letter after MAX_RETRIES, unknown channel to dead_letters",
   "confidence": 0.95,
