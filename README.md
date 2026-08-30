@@ -74,7 +74,6 @@ LLM 输出永不驱动状态转移。所有门禁分数、red/yellow/green 裁�
 ## 开源与许可声明
 
 - **许可证**：Apache-2.0（见包根 `LICENSE`）；第三方依赖为零（纯 Python 标准库），vendored 真实源码样本（pypa/packaging）的出处与许可见 `tools/notary_target/VENDORED.md`。
-- **发行状态**：本包为 GOAI 复赛提交件（v1.5 终版），随赛交付；公开仓库发行计划在赛后启动（含 Issue/安全响应/贡献指南）。
-- **团队相关开源工作**：[OpenClaw-Analysis](https://github.com/S2yyyy/OpenClaw-Analysis)——代码智能体运行时安全分析框架（47 个 MITRE ATLAS/ATT&CK 映射对抗场景 + 双模执行引擎，arXiv:2603.10387），本系统的威胁模型与设计决策溯源于此（见技术文档增刊 §17.8）。
+- **发行状态**：本包为 GOAI 复赛提交件（v1.5 终版），随赛交付。
 - **证据口径**：包内全部评测与运行证据的分层声明见 `EVIDENCE_HONESTY.md`——哪些是无 LLM 的确定性回放、哪些是真实平台运行，逐类固化，引用数字前请先读它。
 - **复现入口**：`scripts/one_click_setup.sh` 一键起全套；评审复算命令清单见技术文档增刊附录 F。
