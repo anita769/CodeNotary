@@ -26,14 +26,14 @@ agentteams/
 ├── skills/                        # 8 个种子 Skill（SKILL.md）+ 决策表 + registry/ 沉淀产出
 ├── tools/
 │   ├── notary_gateway.py          # 公证工具网关：确定性核心，纯标准库（2169 行，34 端点）
-│   ├── notary_console.py          # 前台双页面服务：Console 四视图 + 办事大厅 /desk（内嵌 HTML，纯标准库）
+│   ├── notary_console.py          # 前台双页面服务：Console 四视图 + 办事大厅 /desk
 │   ├── notary_target/             # 演示目标服务（含预置边界缺陷 + D5 真实仓库 vendored 源码）
 │   ├── tool_catalog.json          # 工具清单与 MCP 迁移映射
 │   └── openclaw_threat_map.json   # 威胁映射（38 锚点，scripts/check_threat_map.py 校验）
 ├── scenarios/                     # 样例输入
 │   ├── qb_inhouse_fix.json        #   green 路径：流水线自研修复
 │   ├── qb_external_sloppy.json    #   red 路径：外部 AI 变更送审
-│   ├── 结算缺陷演示包.zip          #   办事大厅"自带代码送修"演示输入（埋了边界缺陷的微型订单系统）
+│   ├── 结算缺陷演示包.zip           #   办事大厅演示可直接上传
 │   └── …                          #   全部评测场景 JSON（D1/D1-R/D1W/D3/D5 各源）
 ├── evalset/                       # 评测数据集：manifest v1.2.0（36 样本 + 期望标注，公开可审阅）
 │                                  #   + results/fuzz_results/skill_coverage/checkpoint_results（机器结果）
@@ -52,7 +52,7 @@ agentteams/
 │   ├── demo-分镜介绍.md            # 视频分镜内容介绍
 └── evidence/
     ├── sample_run/                # 样例运行证据（local_dryrun 的真实产出）
-    └── live-8.29/                 # 真实平台运行证据（2026-08-29 录制现场，有 LLM；来源与视频对账见其 PROVENANCE.md）
+    └── live-8.29/                 # 真实平台运行证据链路（2026-08-29 示例)
 ```
 
 ## 依赖
