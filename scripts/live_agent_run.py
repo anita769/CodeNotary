@@ -119,12 +119,59 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("scenario")
     ap.add_argument("--gateway", default="http://127.0.0.1:18090")
+    ap.add_argument("--rework", action="store_true",
+                    help="REJECTED run 的重修闭环：退回→作者带失败反馈重写→重过门禁")
     args = ap.parse_args()
     global GATEWAY
     GATEWAY = args.gateway
     sid = args.scenario
     t_start = time.time()
     print(f"=== live run: {sid} (model={LLM_MODEL}) ===", flush=True)
+
+    if args.rework:
+        # L4 重修闭环：REJECTED → AUTHORING → 作者带失败反馈重写 → 重过门禁
+        prev_verdicts = {}
+        rg = step("重修退回（leader）", lambda: call(
+            sid, "notary_flow.request_rework",
+            {"reason": "门禁未通过，作者按失败反馈重写（重修预算内）"},
+            role="leader"))
+        print(f"  重修轮次 {rg.get('rework_round')}/{rg.get('budget')}",
+              flush=True)
+        verdicts = call(sid, "notary_verdicts.list", role="author")
+        author_ctx = step("作者取上下文", lambda: call(
+            sid, "notary_author.get_context", role="author"))
+        impl = step("作者重修（LLM，带失败反馈）", lambda: llm_json(
+            SYS.format(role="修复"), retries=6, max_tokens=32000,
+            user="上一次修复未通过门禁。按失败反馈重写源码。输出 JSON："
+                 "{\"files\": {\"文件名.py\": \"完整源码\"}}。"
+                 "只改契约范围内文件，保留对外接口。\n\n"
+                 f"【契约】{json.dumps(author_ctx.get('contract', {}), ensure_ascii=False)[:2000]}\n"
+                 f"【源码】{json.dumps(author_ctx.get('source', {}), ensure_ascii=False)[:3000]}\n"
+                 f"【失败反馈】{json.dumps(verdicts, ensure_ascii=False)[:2500]}"))
+        step("作者提交", lambda: call(
+            sid, "notary_author.submit_implementation", impl, role="author"))
+        tg = step("测试门禁（重跑）", lambda: call(
+            sid, "notary_gate.run_test_gate", role="gatekeeper"))
+        print(f"  测试门禁：{tg.get('decision')}", flush=True)
+        if tg.get("decision") == "green":
+            mg = step("变异门禁（重跑）", lambda: call(
+                sid, "notary_gate.run_mutation_gate", role="gatekeeper"))
+            print(f"  变异门禁：{(mg.get('verdict') or mg).get('decision')}",
+                  flush=True)
+        cg = step("规范门禁（重跑）", lambda: call(
+            sid, "notary_gate.run_convention_gate", role="gatekeeper"))
+        print(f"  规范门禁：{cg.get('decision')}", flush=True)
+        state = call(sid, "notary_state.get")["state"]
+        if state == "NOTARIZED":
+            step("发布", lambda: call(sid, "notary_release.deploy",
+                                      {"version": "1.0.1-live"},
+                                      role="release"))
+            state = call(sid, "notary_state.get")["state"]
+        step("重封印", lambda: call(sid, "notary_evidence.seal",
+                                    role="release", allow_fail=True))
+        print(f"=== {state} 用时 {time.time() - t_start:.0f}s ===",
+              flush=True)
+        return 0
 
     call(sid, "reset", allow_fail=True)
     issue = step("intake: get_issue",
