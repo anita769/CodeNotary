@@ -218,6 +218,22 @@ def board_data(runs_dir: Path) -> dict:
                                                                   r["run_id"]),
         }
         cards.append(card)
+    # 同工单多版本标注：卡面直读"第几版/共几版、最新版到哪了"，
+    # 评委不会在准考证 v1/v2 双卡时误读成重复任务。
+    by_title: dict[str, list] = {}
+    for c in cards:
+        by_title.setdefault(c["title"], []).append(c)
+    for group in by_title.values():
+        if len(group) < 2:
+            continue
+        group.sort(key=lambda c: c["last_ts"])
+        latest = group[-1]
+        for i, c in enumerate(group, 1):
+            c["version_index"] = i
+            c["version_count"] = len(group)
+            c["is_latest"] = c is latest
+            c["latest_state_label"] = latest["state_label"]
+            c["latest_run_id"] = latest["run_id"]
     columns = {
         "inflight": [c for c in cards if c["state"] in (
             "RECEIVED", "SCREENED", "TRIAGED", "DIAGNOSED", "CONTRACTED",
@@ -2516,6 +2532,10 @@ function render(){
         const cv = c.contract_version ?
           `<span class="badge">契约 v${c.contract_version}</span>` : "";
         const clickable = `onclick="location.href='/run?sid=${esc(c.run_id)}'"`;
+        const ver = c.version_count>1 ?
+          `<div class="m">同一工单第 ${c.version_index}/${c.version_count} 版` +
+          (c.is_latest ? "（最新）" :
+            ` · 最新版 ${esc(c.latest_state_label||"")} →`) + `</div>` : "";
         const quick = key==="escalated" ?
           `<button class="ghost" style="margin-top:6px;padding:3px 10px;font-size:12px"
             onclick="event.stopPropagation();openCard('${esc(c.run_id)}','escalated')">⚖️ 裁决</button>`
@@ -2525,7 +2545,7 @@ function render(){
         return `<div class="card" ${clickable}>
           <div class="t">${esc(c.title)}</div>
           <div class="m">${esc(c.state_label||"")}${c.gates_progress?
-            " · "+c.gates_progress:""}</div>${wait}${focus}
+            " · "+c.gates_progress:""}</div>${wait}${focus}${ver}
           <div class="m">${esc(c.run_id)} ${cv}</div>${quick}</div>`;
       }).join("") + `</div>`;
   }).join("");
@@ -2912,7 +2932,9 @@ async function loadTasks(){
     `<div class="task" onclick="openTask('${esc(c.run_id)}')">
       <b>${esc(c.title)}</b>
       <div class="mut">${esc(c.state_label||"")}${c.gates_progress?
-        " · "+c.gates_progress:""}</div></div>`).join("") ||
+        " · "+c.gates_progress:""}${c.version_count>1?
+        " · 第 "+c.version_index+"/"+c.version_count+" 版"+(c.is_latest?
+        "（最新）":""):""}</div></div>`).join("") ||
       '<div class="mut">还没有任务</div>';
 }
 async function openTask(sid){
