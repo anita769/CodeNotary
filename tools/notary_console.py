@@ -2484,6 +2484,8 @@ border-radius:6px}
 .card{background:var(--card);border:1px solid var(--line);border-radius:8px;
 padding:10px;margin-bottom:8px;cursor:pointer}
 .card:hover{box-shadow:0 2px 8px rgba(26,35,50,.12)}
+.card.old{opacity:.68;border-style:dashed;background:#fafbfc}
+.card.latest{border-left:3px solid var(--blue)}
 .card .t{font-weight:600;font-size:13px;margin-bottom:4px}
 .card .m{font-size:12px;color:var(--sub)}
 .card .dot{display:inline-block;width:8px;height:8px;border-radius:50%;
@@ -2561,6 +2563,7 @@ function render(){
         const cv = c.contract_version ?
           `<span class="badge">契约 v${c.contract_version}</span>` : "";
         const clickable = `onclick="location.href='/run?sid=${esc(c.run_id)}'"`;
+        const vcls = c.version_count>1 ? (c.is_latest?" latest":" old") : "";
         const ver = c.version_count>1 ?
           `<div class="m">同一工单第 ${c.version_index}/${c.version_count} 版` +
           (c.is_latest ? "（最新）" :
@@ -2571,7 +2574,7 @@ function render(){
         : key==="notarized" ?
           `<button class="ghost" style="margin-top:6px;padding:3px 10px;font-size:12px"
             onclick="event.stopPropagation();openCard('${esc(c.run_id)}','notarized')">合并就绪</button>` : "";
-        return `<div class="card" ${clickable}>
+        return `<div class="card${vcls}" ${clickable}>
           <div class="t">${esc(c.title)}</div>
           <div class="m">${esc(c.state_label||"")}${c.gates_progress?
             " · "+c.gates_progress:""}</div>${wait}${focus}${ver}
@@ -2857,6 +2860,10 @@ min-height:120px;max-height:260px;overflow:auto;background:#fbfcfe;
 font-size:13px;white-space:pre-wrap}
 .chatlog .u{color:var(--blue)}
 .mut{color:var(--sub);font-size:12px}
+#taskPanel{position:sticky;top:12px;align-self:start;display:flex;
+flex-direction:column;max-height:calc(100vh - 24px)}
+#taskPanel #envs{flex:1;overflow:auto;min-height:0}
+#taskPanel #chatArea{flex:none}
 .row{display:flex;gap:8px;margin-top:8px;align-items:center}
 .draft{border:1px dashed var(--amber);border-radius:8px;padding:10px;
 margin-top:10px;font-size:13px}
@@ -2882,7 +2889,7 @@ margin-top:10px;font-size:13px}
     <h2 style="margin-top:18px">我的任务</h2>
     <div id="tasks"></div>
   </div>
-  <div class="panel">
+  <div class="panel" id="taskPanel">
     <h2 id="taskTitle">选择一个任务查看进展</h2>
     <div id="envs"></div>
     <div id="chatArea" style="display:none">
@@ -2972,7 +2979,7 @@ async function openTask(sid){
   const r = await (await fetch("/api/hall/"+sid)).json();
   document.getElementById("taskTitle").textContent =
     r.title + " · " + (r.state_label||"");
-  document.getElementById("envs").innerHTML = r.envelopes.map(e=>{
+  document.getElementById("envs").innerHTML = r.envelopes.slice().reverse().map(e=>{
     const [tag, cls] = KIND[e.kind]||["", "progress"];
     return `<div class="env ${cls}">
       <span class="tag">${tag}</span><span class="t">${esc(e.title)}</span>
@@ -3151,7 +3158,7 @@ function renderHead(){
       const lab=esc(c.run_id)+(c.contract_version?` · 契约 v${esc(c.contract_version)}`:"");
       const st=esc(c.state_label||"");
       return c.current?`<span class="v cur"><b>${lab}</b>（${st}·当前）</span>`
-        :`<a class="v" href="/run?sid=${esc(c.run_id)}" style="text-decoration:none;color:inherit">${lab}（${st}）</a>`;
+        :`<a class="v old" href="/run?sid=${esc(c.run_id)}" style="text-decoration:none;color:inherit">${lab}（${st}）</a>`;
     }).join(" → "):"";
   const st=R.stages;
   const cell=(lab,obj)=>{
@@ -3316,6 +3323,7 @@ font-size:12px;color:var(--sub)}
 .sig b{color:var(--ink)}
 .chain{margin-top:6px;font-size:12px}
 .chain .v{padding:1px 6px;border:1px solid var(--line);border-radius:4px}
+.chain .v.old{opacity:.6;background:#f4f6f8}
 .chain .v.ret{opacity:.5;text-decoration:line-through}
 .chain .v.cur{background:#e8f0fe;border-color:var(--blue)}
 </style>
@@ -3596,10 +3604,6 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_POST(self):  # noqa: N802
         path = urlparse(self.path).path
-        claims = self._check_token()
-        if claims is None:
-            self._send(403, json.dumps({"ok": False, "error": "bad token"}))
-            return
         length = int(self.headers.get("Content-Length", "0"))
         try:
             payload = json.loads(self.rfile.read(length).decode("utf-8")
@@ -3607,6 +3611,14 @@ class Handler(BaseHTTPRequestHandler):
         except Exception:
             self._send(400, json.dumps({"ok": False, "error": "bad json"}))
             return
+        # 大厅公共面（只读会话/起草/取号）免令牌；受审写通道必须 JWT
+        if path not in ("/api/intake", "/api/assist", "/api/skill_match",
+                        "/api/hall_chat"):
+            claims = self._check_token()
+            if claims is None:
+                self._send(403, json.dumps({"ok": False,
+                                            "error": "bad token"}))
+                return
         if path == "/api/intake":
             payload["role"] = "ci"
             code, body = gateway_post("_intake", "notary_intake.submit_issue",
