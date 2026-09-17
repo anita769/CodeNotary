@@ -63,7 +63,8 @@ def call(sid: str, tool: str, payload: dict | None = None,
     return out.get("result", out)
 
 
-def llm_json(system: str, user: str, retries: int = 3) -> dict:
+def llm_json(system: str, user: str, retries: int = 3,
+             max_tokens: int = 14000) -> dict:
     """Ask the LLM for a JSON object; feed validation/parse errors back."""
     if not LLM_KEY:
         raise StepFailure("CODENOTARY_LLM_KEY not set")
@@ -74,7 +75,7 @@ def llm_json(system: str, user: str, retries: int = 3) -> dict:
         req = urllib.request.Request(
             f"{LLM_BASE}/chat/completions",
             data=json.dumps({
-                "model": LLM_MODEL, "temperature": 0.2, "max_tokens": 14000,
+                "model": LLM_MODEL, "temperature": 0.2, "max_tokens": max_tokens,
                 "messages": [{"role": "system", "content": system},
                              {"role": "user", "content": prompt}],
             }).encode(),
@@ -157,6 +158,9 @@ def main() -> int:
 
     change_text = json.dumps(change.get("submitted_change", {}),
                              ensure_ascii=False)[:4000]
+    change_section = (f"【送审变更】{change_text}\n" if fixture_mode == "external"
+                      else "【送审变更】（内部工单：无外部补丁，修复由流水线"
+                           "作者角色按契约编写，属正常受理范围）\n")
     triage = step("分诊（LLM）", lambda: llm_json(
         SYS.format(role="分诊"),
         "你是公证处的受理窗口，职责只有一项：判断这份送审材料是否可受理"
@@ -167,7 +171,7 @@ def main() -> int:
         "\"scope\": [文件名...], \"route\": [\"rca\",\"contract\",\"author\","
         "\"tester\",\"gates\"], \"rationale\": \"一句话受理理由\"}\n\n"
         f"【工单】{json.dumps(issue.get('issue', {}), ensure_ascii=False)[:2000]}\n"
-        f"【送审变更】{change_text}\n"
+        f"{change_section}"
         f"【哨兵发现】{json.dumps(findings, ensure_ascii=False)[:1500]}"))
     if triage.get("verdict") not in ("accept", "reject"):
         triage["verdict"] = "accept"
@@ -226,7 +230,8 @@ def main() -> int:
             "只改契约范围内的文件，保留模块对外接口。\n\n"
             f"【契约】{json.dumps(author_ctx.get('contract', {}), ensure_ascii=False)[:2000]}\n"
             f"【源码】{json.dumps(author_ctx.get('source', {}), ensure_ascii=False)[:3000]}\n"
-            f"【根因】{json.dumps(author_ctx.get('diagnosis', {}), ensure_ascii=False)[:1500]}"))
+            f"【根因】{json.dumps(author_ctx.get('diagnosis', {}), ensure_ascii=False)[:1500]}",
+            max_tokens=32000, retries=6))
         step("作者提交", lambda: call(
             sid, "notary_author.submit_implementation", impl, role="author"))
 
