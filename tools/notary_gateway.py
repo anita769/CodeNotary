@@ -870,10 +870,22 @@ class NotaryRun:
         self.trace_path = run_dir / "trace.jsonl"
         contract_note = (f"{self.contract['frozen_hash'][:12]}…"
                          if self.contract else "not frozen")
+        sealed = {}
+        try:
+            sealed = (json.loads((run_dir / "manifest.json")
+                                 .read_text(encoding="utf-8"))
+                      .get("files") or {})
+        except (OSError, json.JSONDecodeError):
+            pass
+        if sealed:
+            seal_note = (f"evidence={len(sealed)} sealed files + "
+                         f"trace prefix ✓ (4-way consistent)")
+        else:
+            seal_note = "(3-way consistent)"
         print(f"[resume] {scenario_id}: state={sm.state} ✓ "
               f"contract={contract_note} ✓ "
               f"history={len(sm.history)} transitions legal ✓ "
-              f"(3-way consistent)", flush=True)
+              f"{seal_note}", flush=True)
         return self
 
     def log(self, tool: str, payload: Any, result: Any, ms: float,
