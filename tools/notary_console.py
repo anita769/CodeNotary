@@ -3216,7 +3216,7 @@ function renderHead(){
     (rs.failures&&rs.failures.length?
       `<span class="chip red" style="cursor:pointer" onclick="goAudit()">⚠️ 恢复校验未通过</span>`
       :`<span class="chip green" style="cursor:pointer" title="查看恢复校验明细"
-        onclick="goAudit()">♻️ 恢复校验通过 · 第 ${R.resume_count} 次</span>`) : "";
+        onclick="goAudit()">♻️ 恢复校验 ✓ 累计 ${R.resume_count} 次</span>`) : "";
   const b=R.binding;
   document.getElementById("meta").innerHTML=[
     b?`PR <b>#${b.pr}</b>`:null,
