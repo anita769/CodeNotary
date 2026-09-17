@@ -2048,7 +2048,12 @@ def t_seal(run: NotaryRun, _p: dict) -> dict:
         if path.is_file() and "__pycache__" not in path.parts \
                 and "work" not in path.parts \
                 and path.name not in ("manifest.json", "trace.jsonl",
-                                      "checkpoint.json", "checkpoint.json.tmp"):
+                                      "checkpoint.json", "checkpoint.json.tmp") \
+                and not path.name.startswith("manifest.sig"):
+            # signature artifacts are excluded: re-sealing after a contract
+            # revision rewrites them, and a seal that binds its own
+            # signature is self-defeating (double-seal false positive,
+            # found in live rework run d5_pkg_leq_local)
             manifest["files"][str(path.relative_to(run.run_dir))] = \
                 sha256_text(path.read_bytes().decode("utf-8", errors="replace"))
     manifest["trace_prefix"] = {
