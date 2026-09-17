@@ -17,9 +17,12 @@ from __future__ import annotations
 import argparse
 import base64
 import hashlib
+import hmac
 import io
 import json
 import os
+import subprocess
+import time
 import urllib.request
 import urllib.error
 import zipfile
@@ -116,6 +119,9 @@ def run_summary(run_dir: Path) -> dict:
         metrics = {
             "tool_calls": len(events),
             "wall_time_s": round(events[-1]["ts"] - events[0]["ts"], 3),
+            "exec_time_s": round(
+                sum(float(e.get("duration_ms") or 0) for e in events)
+                / 1000, 1),
             "adversarial_loop_iterations": sum(
                 1 for a, b in zip(states, states[1:])
                 if {a, b} == {"AUTHORING", "TESTING"} and a != b),
@@ -163,6 +169,597 @@ def list_runs(runs_dir: Path) -> list[dict]:
                             "advisory": s["advisory"],
                             "last_ts": s["last_ts"]})
     return out
+
+
+# 双层词表：内部状态枚举（机器用）→ 窗口人话（界面用）。UI 永不直出枚举。
+STATE_LABELS = {
+    "RECEIVED": "已受理，排队分诊",
+    "SCREENED": "检疫通过",
+    "TRIAGED": "已分诊",
+    "DIAGNOSED": "根因已定位",
+    "CONTRACTED": "验收规则已冻结",
+    "AUTHORING": "修复编写中",
+    "TESTING": "盲测编写中",
+    "GATING": "门禁检验中",
+    "NOTARIZED": "已公证（验收通过）",
+    "RELEASED": "已发布",
+    "QUARANTINED": "检疫隔离中",
+    "ESCALATED": "等待人工裁决",
+    "REJECTED": "未放行（待修复或异议）",
+    "ROLLED_BACK": "已回滚",
+}
+
+
+def board_data(runs_dir: Path) -> dict:
+    """任务看板：run 按状态分列。ESCALATED 卡带争议焦点与等待时长
+    （红点不是报错，是设计好的暂停）。文案一律窗口人话。"""
+    now = time.time()
+    cards = []
+    for r in list_runs(runs_dir):
+        run_dir = runs_dir / r["run_id"]
+        dispute = read_json(run_dir / "dispute.json")
+        contract = read_json(run_dir / "contract.json")
+        adj = read_json(run_dir / "adjudication.json")
+        cp = read_json(run_dir / "checkpoint.json") or {}
+        green = (cp.get("sm") or {}).get("green_gates") or []
+        card = {
+            **r,
+            "state_label": STATE_LABELS.get(r["state"], r["state"]),
+            "gates_progress": (f"门禁已过 {len(green)}/3 项"
+                               if r["state"] in ("GATING", "NOTARIZED")
+                               else None),
+            "contract_version": (contract or {}).get("version"),
+            "dispute_focus": (dispute[-1]["focus"] if dispute else None),
+            "adjudications": len(adj) if adj else 0,
+            "waiting_s": (round(now - r["last_ts"]) if r["state"] == "ESCALATED"
+                          else None),
+            "title": (read_json(run_dir / "issue.json") or {}).get("title",
+                                                                  r["run_id"]),
+        }
+        cards.append(card)
+    columns = {
+        "inflight": [c for c in cards if c["state"] in (
+            "RECEIVED", "SCREENED", "TRIAGED", "DIAGNOSED", "CONTRACTED",
+            "AUTHORING", "TESTING", "GATING", "QUARANTINED")],
+        "escalated": [c for c in cards if c["state"] == "ESCALATED"],
+        "rejected": [c for c in cards if c["state"] == "REJECTED"],
+        "notarized": [c for c in cards if c["state"] == "NOTARIZED"],
+        "released": [c for c in cards if c["state"] in ("RELEASED",
+                                                       "ROLLED_BACK")],
+    }
+    return {"columns": columns, "total": len(cards)}
+
+
+def adjudication_context(run_dir: Path) -> dict:
+    """裁决卡的数据底座：争议双方立场 + 客观证据，全部来自落盘事实。"""
+    dispute = read_json(run_dir / "dispute.json") or []
+    contract = read_json(run_dir / "contract.json") or {}
+    verdicts = {}
+    vdir = run_dir / "verdicts"
+    if vdir.is_dir():
+        for vf in sorted(vdir.glob("*.json")):
+            v = read_json(vf) or {}
+            verdicts[vf.stem] = {"gate": GATE_LABELS.get(vf.stem, vf.stem),
+                                 "decision": v.get("decision"),
+                                 "summary": humanize_summary(
+                                     v.get("summary") or "")}
+    candidates = [str(p.relative_to(run_dir))
+                  for p in sorted(run_dir.rglob("*.json"))
+                  if "work" not in p.parts and p.name != "checkpoint.json"]
+    return {
+        "dispute": dispute[-1] if dispute else None,
+        "contract": {"version": contract.get("version"),
+                     "frozen_hash": contract.get("frozen_hash"),
+                     "assertions": contract.get("assertions", []),
+                     "assumptions": contract.get("assumptions", [])},
+        "verdicts": verdicts,
+        "evidence_candidates": candidates,
+        "options": [
+            {"key": "uphold", "label": "维持契约",
+             "hint": "规则不变，原判成立；作者按返工工单修复后重审"},
+            {"key": "revise", "label": "修订契约",
+             "hint": "澄清或修订规则措辞，发契约新版本；代码按新规则重验"},
+            {"key": "request_evidence", "label": "要求补充证据",
+             "hint": "现有材料不足以裁决，列明所缺材料，流水线继续等待"},
+            {"key": "override", "label": "特批放行",
+             "hint": "签字画押的例外：必填充分理由，记录标黄"},
+        ],
+    }
+
+
+# ---------------------------------------------------------------------------
+# 办事大厅（团队版）：四类消息信封 + 会话追问。
+# 信封由落盘事实确定性生成（不是 LLM 编的）；追问聊天只读证据、不下结论、
+# 永不驱动状态机——聊天起草、卡片生效。
+# ---------------------------------------------------------------------------
+
+_HALL_CHAT_SYSTEM = (
+    "你是 CodeNotary 代码公证处窗口的工作人员。用户会就某个任务的落盘记录提问。"
+    "规则：\n"
+    "1. 只使用随消息附带的【落盘事实】回答；事实没有的内容，明确说"
+    "“记录里没有，我帮您查了，目前确实没有”，不许编造。\n"
+    "2. 你只负责把事实用人话摆好，绝不替人下结论、不做裁决建议。\n"
+    "3. 每次回答结尾给出“您可以怎么做”的指引（看证据/等通知/去裁决卡）。\n"
+    "4. 口气像窗口工作人员：讲来龙去脉、体谅处境；不是系统日志。")
+
+
+def hall_facts(run_dir: Path) -> dict:
+    """追问聊天的事实底座：只从落盘文件取，取不到就是“没有”。"""
+    cp = read_json(run_dir / "checkpoint.json") or {}
+    sm = cp.get("sm", {})
+    return {
+        "run_id": run_dir.name,
+        "issue": read_json(run_dir / "issue.json") or {},
+        "state": sm.get("state"),
+        "history_len": len(sm.get("history") or []),
+        "contract": read_json(run_dir / "contract.json"),
+        "verdicts": {p.stem: (read_json(p) or {})
+                     for p in sorted((run_dir / "verdicts").glob("*.json"))}
+                    if (run_dir / "verdicts").is_dir() else {},
+        "disputes": read_json(run_dir / "dispute.json") or [],
+        "adjudications": read_json(run_dir / "adjudication.json") or [],
+        "certificate": (run_dir / "certificate.md").exists(),
+        "security_events": read_json(run_dir / "evidence"
+                                     / "security_events.json") or [],
+    }
+
+
+def hall_timeline(run_dir: Path) -> list[dict]:
+    """四类消息信封：🔴待办 / 🔵进展 / 🟢回执 / 📎证据。
+    每条含五要素：发生了什么/意味着什么/你能做什么/证据在哪/下一步。"""
+    f = hall_facts(run_dir)
+    envs: list[dict] = []
+    sid = f["run_id"]
+    title = f["issue"].get("title", sid)
+
+    envs.append({"kind": "progress", "ts": None,
+                 "title": "已受理，取号成功",
+                 "what": f"收到送审「{title}」，登记为 {sid}",
+                 "meaning": "您的请求已进入公证流水线，按序办理",
+                 "action": "无需操作，进展会主动通知您",
+                 "evidence": "issue.json",
+                 "next": "分诊与检验自动进行"})
+
+    for gate, v in f["verdicts"].items():
+        decision = v.get("decision")
+        if decision == "red":
+            envs.append({
+                "kind": "todo", "ts": v.get("timestamp"),
+                "title": "需要您处理：检验未通过",
+                "what": f"{GATE_LABELS.get(gate, gate)}判定不通过：{humanize_summary(v.get('summary', ''))}",
+                "meaning": "按当前验收规则，这次改动暂不可放行",
+                "action": "您可以：①按修复指引改完重新送审；②若认为规则本身"
+                          "缺乏依据，提出异议（/notary dispute）",
+                "evidence": f"verdicts/{gate.lower()}.json",
+                "next": "等您修复或异议；不处理任务就停在这里"})
+        elif decision:
+            envs.append({
+                "kind": "progress", "ts": v.get("timestamp"),
+                "title": f"门禁 {GATE_LABELS.get(gate, gate)}：{decision}",
+                "what": humanize_summary(v.get("summary", "")),
+                "meaning": "检验在逐项推进",
+                "action": "无需操作",
+                "evidence": f"verdicts/{gate.lower()}.json",
+                "next": "其余门禁继续"})
+
+    for d in f["disputes"]:
+        envs.append({
+            "kind": "receipt", "ts": d.get("ts"),
+            "title": "异议已受理（这通道就是为这件事存在的）",
+            "what": f"您提出的异议：{d.get('focus', '')}",
+            "meaning": "争议对象是契约条款的立项依据，系统不会自问自答；"
+                       "已升级人工裁决，任务保持阻塞，无人可以绕过",
+            "action": "您不需要做任何等待操作，结果会通知您"
+                      "（含结论、理由、对您的要求）",
+            "evidence": "dispute.json",
+            "next": "裁决人将在裁决工作区处理"})
+
+    for a in f["adjudications"]:
+        LABEL = {"uphold": "维持契约", "revise": "修订契约",
+                 "request_evidence": "要求补充证据", "override": "特批放行"}
+        envs.append({
+            "kind": "receipt", "ts": a.get("ts"),
+            "title": f"裁决已生效：{LABEL.get(a['decision'], a['decision'])}",
+            "what": f"裁决人 {a.get('actor')} 经 {a.get('channel')} 通道裁定："
+                    f"{a.get('rationale', '')}",
+            "meaning": "裁决对象是规则不是代码；代码由系统按规则重新验证",
+            "action": "查看裁决记录与引用材料",
+            "evidence": f"adjudication.json（#{a.get('id')}，"
+                        f"引用证据 {len(a.get('evidence_reviewed', []))} 项，"
+                        f"补证附件 {len(a.get('references', []))} 条）",
+            "next": "按裁决结果继续流水线"})
+
+    if f["certificate"] and f["state"] in ("NOTARIZED", "RELEASED",
+                                           "ROLLED_BACK"):
+        envs.append({
+            "kind": "evidence", "ts": None,
+            "title": "公证书已出具",
+            "what": "三道确定性门禁全部通过，证书绑定代码与契约双版本",
+            "meaning": "这是验收结论，不是发布动作——合并归负责人、"
+                       "发布归原有流程",
+            "action": "可下载证据包，用 make verify 自行复算",
+            "evidence": "certificate.md / manifest.json（逐文件 SHA-256）",
+            "next": "负责人在合并确认卡查看就绪意见"})
+
+    if f["state"] == "ESCALATED":
+        envs.append({
+            "kind": "progress", "ts": None,
+            "title": "等待人工裁决中",
+            "what": "任务已升级，系统按设计暂停",
+            "meaning": "这不是报错，是公证处把只能人答的问题交给人",
+            "action": "您可以在下方追问任何证据细节",
+            "evidence": "—",
+            "next": "裁决落地后自动继续"})
+
+    order = {"todo": 0, "receipt": 1, "progress": 2, "evidence": 3}
+    envs.sort(key=lambda e: order.get(e["kind"], 9))
+    return envs
+
+
+def hall_chat_reply(run_dir: Path, history: list, message: str) -> dict:
+    """会话追问：LLM 只把落盘事实摆成人话；无 LLM 时用确定性模板兜底。
+    两种路径都不产生任何状态变更。"""
+    facts = hall_facts(run_dir)
+    facts_text = json.dumps(facts, ensure_ascii=False, default=str)[:6000]
+    if LLM_KEY:
+        msgs = [{"role": "system", "content": _HALL_CHAT_SYSTEM},
+                {"role": "user", "content":
+                 f"【落盘事实】\n{facts_text}"}]
+        msgs.extend(history[-6:])
+        msgs.append({"role": "user", "content": message})
+        req = urllib.request.Request(
+            f"{LLM_BASE}/chat/completions",
+            data=json.dumps({"model": LLM_MODEL, "messages": msgs,
+                             "max_tokens": 800, "temperature": 0.2}
+                            ).encode("utf-8"),
+            headers={"Content-Type": "application/json",
+                     "Authorization": f"Bearer {LLM_KEY}"},
+            method="POST")
+        try:
+            with urllib.request.urlopen(req, timeout=30) as resp:
+                data = json.loads(resp.read().decode("utf-8"))
+            return {"ok": True, "llm": True,
+                    "reply": data["choices"][0]["message"]["content"]}
+        except Exception:
+            pass  # fall through to the deterministic window answer
+    v = facts["verdicts"]
+    lines = [f"我帮您查了落盘记录（{facts['run_id']}）："]
+    lines.append(f"· 当前环节：{facts['state']}")
+    if facts["contract"]:
+        lines.append(f"· 验收规则：v{facts['contract'].get('version')} 版契约，"
+                     f"哈希 {facts['contract'].get('frozen_hash', '')[:16]}…")
+    for gate, verdict in v.items():
+        lines.append(f"· 门禁 {gate}：{verdict.get('decision')} — "
+                     f"{verdict.get('summary', '')}")
+    if facts["adjudications"]:
+        a = facts["adjudications"][-1]
+        lines.append(f"· 最近裁决：{a.get('decision')}，裁决人 {a.get('actor')}，"
+                     f"理由「{a.get('rationale', '')[:60]}」")
+    lines.append("您可以：点上面的信封看证据原文，或继续问我具体某一条。")
+    return {"ok": True, "llm": False, "reply": "\n".join(lines)}
+
+
+
+GATE_LABELS = {"TEST_PASS": "测试门禁", "MUTATION": "变异测试",
+               "CONVENTION": "规范检查", "test_pass": "测试门禁",
+               "mutation": "变异测试", "convention": "规范检查"}
+
+
+def humanize_summary(text: str) -> str:
+    """Verdict summaries from the gateway are English machine strings;
+    the UI speaks 窗口人话. Data stays English on disk, tone stays human
+    on screen (双层词表的第二层)."""
+    import re as _re
+    m = _re.match(r"baseline\+blind tests: (\d+) run, (.+)", text or "")
+    if m:
+        n, outcome = m.groups()
+        return (f"共执行 {n} 个检验用例，"
+                + ("全部通过" if "all passed" in outcome else "存在未通过项"))
+    m = _re.match(r"mutation score ([\d.]+) \((\d+) killed, (\d+) survived\)",
+                  text or "")
+    if m:
+        score, killed, survived = m.groups()
+        return (f"变异测试得分 {score}：{killed} 个变异体被杀死，"
+                f"{survived} 个幸存")
+    m = _re.match(r"(\d+) findings? \((\d+) veto-class\)", text or "")
+    if m:
+        n, veto = m.groups()
+        return ("未发现不规范" if n == "0"
+                else f"发现 {n} 处不规范（其中 {veto} 处为否决级）")
+    return text or ""
+
+
+_TRIAGE_LABELS = {"accept": "受理", "reject": "不受理",
+                     "escalate": "升级人工"}
+
+
+ROLE_LABELS = {"sentinel": "检疫", "triage": "分诊", "rca": "根因分析",
+               "contract": "契约", "author": "修复", "tester": "盲测",
+               "gatekeeper": "门禁", "convention": "规范", "release": "发布",
+               "postmortem": "复盘", "leader": "负责人", "human": "人工",
+               "adjudicator": "裁决人"}
+
+
+def runview_data(run_dir: Path, runs_root: Path) -> dict:
+    """Run 时间线：角色泳道卡 + 三段状态条 + 版本链。
+    主层业务摘要；技术细节进各卡 detail 字段（二级展开）。"""
+    facts = hall_facts(run_dir)
+    cp = read_json(run_dir / "checkpoint.json") or {}
+    sm = cp.get("sm", {})
+    sid = run_dir.name
+    triage = read_json(run_dir / "triage.json") or {}
+    diagnosis = read_json(run_dir / "diagnosis.json") or {}
+    contract = facts["contract"] or {}
+    dispute = facts["disputes"]
+    adjudications = facts["adjudications"]
+    verdicts = facts["verdicts"]
+    tests = (cp.get("tests") or {})
+    resume_log = read_json(run_dir / "resume_log.json") or []
+
+    cards = []
+    if triage:
+        cards.append({
+            "role": "分诊", "title": "任务拆解与路由",
+            "lines": ["受理结论：" + _TRIAGE_LABELS.get(
+                      triage.get("verdict"), "—"),
+                      f"检验范围：{'、'.join(triage.get('scope', [])) or '—'}",
+                      f"处理路由：{' → '.join(triage.get('route', [])) or '—'}",
+                      f"分诊理由：{triage.get('rationale', '—')}"],
+            "detail": triage,
+            "status": "完成", "next": "根因分析"})
+    if diagnosis:
+        cards.append({
+            "role": "根因分析", "title": "根因定位",
+            "lines": [f"根因：{diagnosis.get('root_cause', '—')}",
+                      f"修复假设：{diagnosis.get('fix_hypothesis', '—')}",
+                      f"置信度：{diagnosis.get('confidence', '—')}"],
+            "detail": diagnosis,
+            "status": "完成", "next": "冻结验收规则"})
+    if contract:
+        assump = [f"歧义：{a['point']} → 默认：{a['assumption']}（依据：{a['basis']}）"
+                  for a in contract.get("assumptions", [])]
+        cards.append({
+            "role": "契约", "title": f"验收规则 v{contract.get('version', '—')}",
+            "lines": [f"断言 {i+1}：{a}"
+                      for i, a in enumerate(contract.get("assertions", []))]
+                     + (["—— 已标注假设 ——"] + assump if assump else []),
+            "detail": {"frozen_hash": contract.get("frozen_hash"),
+                       "previous_hash": contract.get("previous_hash"),
+                       "references": contract.get("references"),
+                       "in_scope": contract.get("in_scope"),
+                       "out_of_scope": contract.get("out_of_scope")},
+            "status": "已冻结", "next": "盲测独立验证"})
+    if tests:
+        cards.append({
+            "role": "盲测", "title": "独立测试设计（未见实现代码）",
+            "lines": [f"生成测试文件：{'、'.join(tests)}",
+                      "验证目标：仅依据冻结契约编写用例，覆盖规则要求的边界场景"],
+            "detail": {name: content for name, content in tests.items()},
+            "status": "完成", "next": "确定性门禁检验"})
+    for gate, v in verdicts.items():
+        cards.append({
+            "role": "门禁", "title": GATE_LABELS.get(gate, gate),
+            "lines": [humanize_summary(v.get("summary", ""))],
+            "detail": v,
+            "status": {"green": "通过", "red": "未通过",
+                       "yellow": "待复核"}.get(v.get("decision"),
+                                              v.get("decision", "—")),
+            "tone": v.get("decision"),
+            "next": "下一项检验" if v.get("decision") == "green"
+                    else "送审方修复或提出异议"})
+    for d in dispute:
+        cards.append({
+            "role": "争议", "title": "送审方异议（正式通道）", "tone": "hitl",
+            "lines": [f"争议焦点：{d.get('focus', '—')}",
+                      f"涉及条款：{d.get('clause') or '—'}",
+                      "争议对象：契约条款的立项依据（非检验过程）"],
+            "detail": d,
+            "status": "已升级", "next": "等待人工裁决"})
+    for a in adjudications:
+        LABEL = {"uphold": "维持契约", "revise": "修订契约",
+                 "request_evidence": "要求补充证据", "override": "特批放行"}
+        cards.append({
+            "role": "人工裁决", "title": f"#{a.get('id')} "
+                    f"{LABEL.get(a['decision'], a['decision'])}", "tone": "hitl",
+            "lines": [f"裁决理由：{a.get('rationale', '—')}",
+                      f"签署：{a.get('actor')}（{a.get('channel')}）",
+                      f"引用证据 {len(a.get('evidence_reviewed', []))} 项 ｜ "
+                      f"补证附件 {len(a.get('references', []))} 条"]
+                     + [f"补证：{r}" for r in a.get("references", [])],
+            "detail": a,
+            "status": "已签署留痕",
+            "next": "按裁决结果继续流水线"})
+    state = facts["state"]
+    if facts["certificate"] and state in ("NOTARIZED", "RELEASED",
+                                          "ROLLED_BACK"):
+        cards.append({
+            "role": "验收", "title": "公证证书",
+            "lines": ["三道确定性门禁全部通过，证书绑定代码与契约双版本",
+                      "复算：make verify EVIDENCE=<证据包>"],
+            "detail": {"certificate": "certificate.md",
+                       "manifest": "manifest.json",
+                       "signature": "evidence/manifest.sig.json"},
+            "status": "已签发" if state in ("NOTARIZED", "RELEASED") else "已封存",
+            "next": "负责人合并评估"})
+
+    # 三段状态条：验收 → 合并 → 发布
+    stages = {
+        "accept": {"done": state in ("NOTARIZED", "RELEASED", "ROLLED_BACK"),
+                   "label": "验收",
+                   "state": ("通过" if state in ("NOTARIZED", "RELEASED",
+                                                 "ROLLED_BACK")
+                             else "未通过" if state == "REJECTED"
+                             else "待人工裁决" if state == "ESCALATED"
+                             else "进行中")},
+        "merge": {"done": False, "label": "合并",
+                  "state": "未开始" if state not in ("RELEASED", "ROLLED_BACK")
+                          else "已执行"},
+        "release": {"done": state == "RELEASED", "label": "发布",
+                    "state": "已发布" if state == "RELEASED"
+                            else "已回滚" if state == "ROLLED_BACK"
+                            else "未开始（由 CD 流程执行）"},
+    }
+
+    # 版本链：同 issue 的多个 run
+    issue_title = (facts["issue"] or {}).get("title")
+    chain = []
+    if issue_title and runs_root.is_dir():
+        siblings = []
+        for d in runs_root.iterdir():
+            if not d.is_dir():
+                continue
+            iss = read_json(d / "issue.json") or {}
+            if iss.get("title") == issue_title:
+                c = read_json(d / "contract.json") or {}
+                adj = read_json(d / "adjudication.json") or []
+                siblings.append({
+                    "run_id": d.name, "current": d.name == sid,
+                    "state": (read_json(d / "checkpoint.json") or {})
+                             .get("sm", {}).get("state"),
+                    "contract_version": c.get("version"),
+                    "adjudications": len(adj),
+                    "ts": (read_json(d / "checkpoint.json") or {})
+                          .get("sm", {}).get("history", [{}])[0].get("ts", 0)})
+        chain = sorted(siblings, key=lambda x: x["ts"])
+
+    binding = read_json(run_dir / "evidence" / "pr_binding.json")
+
+    # ---- stepper（横屏流程条）：节拍 + 条件步（对抗环/人工裁决）+ 验收/合并
+    summary = run_summary(run_dir)
+    beats = summary["beats"]
+    red_gates = {g for g, v in verdicts.items()
+                 if v.get("decision") == "red"}
+    has_hitl = bool(dispute or adjudications or state == "ESCALATED")
+    fixture = read_json(PKG_ROOT / "scenarios" / f"{sid}.json") or {}
+    external = fixture.get("mode") == "external"
+    steps = []
+    for key, name, _tools in BEATS:
+        if key in ("release", "postmortem"):
+            continue  # 发布/CD 在顶部三段条呈现；复盘非流水线步骤
+        if key == "rebuttal" and not beats.get(key, {}).get("done"):
+            continue
+        done = bool(beats.get(key, {}).get("done"))
+        if key == "author" and external:
+            name, done = "送审补丁", True  # 外部 PR 即实现，无作者环节
+        blocked = key == "gates" and bool(red_gates)
+        steps.append({"key": key, "name": name, "done": done,
+                      "blocked": blocked,
+                      "calls": beats.get(key, {}).get("calls", 0)})
+    if has_hitl:
+        steps.append({"key": "hitl", "name": "人工裁决", "hitl": True,
+                      "done": bool(adjudications),
+                      "blocked": state == "ESCALATED"
+                      and not adjudications, "calls": len(adjudications)})
+    steps.append({"key": "accept", "name": "最终验收",
+                  "done": state in ("NOTARIZED", "RELEASED", "ROLLED_BACK"),
+                  "blocked": state == "REJECTED", "calls": 0})
+    steps.append({"key": "merge", "name": "合并",
+                  "done": state in ("RELEASED", "ROLLED_BACK"),
+                  "blocked": False, "calls": 0})
+    for st in steps:
+        if not st["done"]:
+            if not st.get("blocked"):
+                st["current"] = True
+            break
+
+    # ---- 14 状态条
+    visited = {h.get("state") for h in sm.get("history", [])}
+    sm_strip = [{"state": st2, "done": st2 in visited,
+                 "current": st2 == state}
+                for st2 in ("RECEIVED", "SCREENED", "TRIAGED", "DIAGNOSED",
+                            "CONTRACTED", "AUTHORING", "TESTING", "GATING",
+                            "NOTARIZED", "RELEASED", "QUARANTINED",
+                            "ESCALATED", "REJECTED", "ROLLED_BACK")
+                if st2 in visited or st2 in (
+                    "RECEIVED", "SCREENED", "TRIAGED", "DIAGNOSED",
+                    "CONTRACTED", "AUTHORING", "TESTING", "GATING",
+                    "NOTARIZED", "RELEASED")]
+
+    # ---- Agent 运行（含 skill 调用）
+    skill_calls = read_json(run_dir / "evidence" / "skill_matches.json") or []
+    agents = []
+    artifact_map = {
+        "triage": ["triage.json"], "rca": ["diagnosis.json"],
+        "contract": ["contract.json"], "tester": ["evidence/blind_test_files.json"],
+        "gatekeeper": ["verdicts/"], "adjudicator": ["adjudication.json"],
+        "author": ["evidence/implementation_files.json"],
+        "release": ["certificate.md", "manifest.json"],
+    }
+    for role, n in sorted(summary["calls_by_role"].items(),
+                          key=lambda kv: -kv[1]):
+        if role in ("unknown",):
+            continue
+        agents.append({
+            "role": ROLE_LABELS.get(role, role), "role_key": role,
+            "calls": n,
+            "artifacts": artifact_map.get(role, []),
+            "skill_calls": [m for m in skill_calls
+                            if m.get("role") == role]})
+
+    # ---- 验证结果 tab
+    verification = []
+    for gate, v in verdicts.items():
+        out = v.get("test_output", "")
+        import re as _re2
+        failed_tests = sorted(set(_re2.findall(r"(?:FAIL|ERROR): (\w+)", out)))
+        verification.append({
+            "gate": GATE_LABELS.get(gate, gate),
+            "decision": v.get("decision"),
+            "summary": humanize_summary(v.get("summary", "")),
+            "failed_tests": failed_tests,
+            "detail": v})
+
+    metrics = summary.get("metrics") or {}
+    overview = {
+        "issue": facts["issue"],
+        "metrics": {**metrics,
+                    "security_events": len(facts["security_events"]),
+                    "skill_match_calls": len(skill_calls)},
+        "first_ts": summary.get("first_ts"),
+        "last_ts": summary.get("last_ts"),
+        "rework": f"{summary.get('rework_round', 0)}/{summary.get('max_rework_rounds', 2)}",
+    }
+
+    return {"run_id": sid, "title": facts["issue"].get("title", sid),
+            "state": state, "state_label": STATE_LABELS.get(state, state),
+            "cards": cards, "stages": stages, "chain": chain,
+            "binding": binding, "steps": steps, "sm_strip": sm_strip,
+            "agents": agents, "skill_calls": skill_calls,
+            "verification": verification, "overview": overview,
+            "trace_tail": summary.get("trace_tail", []),
+            "security_events": facts["security_events"],
+            "resume": resume_log[-1] if resume_log else None}
+
+
+def skillboard_data() -> dict:
+    """Skill 看板：版本链 + 触发信号 + 状态，人话优先。"""
+    base = skills_data()
+    mt = read_json(PKG_ROOT / "skills" / "match_table.json") or {}
+    by_skill: dict[str, list] = {}
+    for sig in mt.get("signals", []):
+        by_skill.setdefault(sig["skill"], []).append(sig)
+    confirmed = {e["name"] for e in base.get("ledger", [])
+                 if e.get("action") == "confirm"}
+    cards = []
+    for sk in base.get("skills", []):
+        if "status" not in sk:
+            if sk.get("retired"):
+                sk["status"] = "retired"
+            elif sk.get("source") == "registry"                     and sk["name"] not in confirmed:
+                sk["status"] = "probation"
+            else:
+                sk["status"] = "loaded"
+        sigs = by_skill.get(sk["name"], [])
+        cards.append({**sk, "signals": [
+            {"signal": s["signal"], "trigger": s["trigger"],
+             "roles": s.get("roles", []),
+             "coverage_n": len(s.get("coverage", []))} for s in sigs]})
+    return {"cards": cards, "registry": base.get("registry", []),
+            "probation_queue": [c for c in cards
+                                if c["status"] == "probation"],
+            "ledger": base.get("ledger", []),
+            "match_stats": {"note":
+                            "逐次命中明细见各 run 的 evidence/skill_matches.json"}}
 
 
 def gallery_data() -> list[dict]:
@@ -248,7 +845,7 @@ def audit_data(runs_dir: Path) -> dict:
             continue
         trace = d / "trace.jsonl"
         if trace.exists():
-            for line in trace.read_text().splitlines():
+            for line in trace.read_text(encoding="utf-8").splitlines():
                 if not line.strip():
                     continue
                 try:
@@ -264,7 +861,7 @@ def audit_data(runs_dir: Path) -> dict:
     alerts = []
     alog = PKG_ROOT / "alerts.log"
     if alog.exists():
-        for line in alog.read_text().splitlines()[-50:]:
+        for line in alog.read_text(encoding="utf-8").splitlines()[-50:]:
             try:
                 alerts.append(json.loads(line))
             except Exception:
@@ -278,6 +875,8 @@ def audit_data(runs_dir: Path) -> dict:
 
 GATEWAY = "http://127.0.0.1:18090"
 TOKEN: str | None = None
+TOKEN_SECRET: str | None = None
+DEMO_REPO: str | None = None  # demo checkout for the merge-readiness card
 
 
 def gateway_post(sid: str, tool: str, payload: dict) -> tuple[int, dict]:
@@ -1812,6 +2411,922 @@ boot();
 </html>
 """
 
+# ---------------------------------------------------------------------------
+# 任务工作台（幕 1/幕 3 载体）：看板 + 裁决卡 + merge 确认卡，同一界面内嵌。
+# 文案基调 = 公证处窗口工作人员；事实/结论分层；LLM 只在别处起草措辞，
+# 这页上的每个字都来自落盘证据。
+# ---------------------------------------------------------------------------
+WORKBENCH_PAGE = r"""<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8"><title>任务工作台 · CodeNotary</title>
+<style>
+:root{--ink:#1a2332;--sub:#5b6b7f;--line:#d9e0e8;--bg:#f5f7fa;--card:#fff;
+--red:#c0392b;--green:#1e8449;--amber:#b9770e;--blue:#2166ac}
+*{box-sizing:border-box;margin:0}
+body{font:14px/1.6 system-ui,"PingFang SC","Microsoft YaHei",sans-serif;
+background:var(--bg);color:var(--ink);padding:16px}
+header{display:flex;align-items:center;gap:16px;margin-bottom:14px}
+h1{font-size:18px}
+.token{margin-left:auto;font-size:12px;color:var(--sub)}
+.token input{width:260px;padding:4px 8px;border:1px solid var(--line);
+border-radius:6px}
+.board{display:grid;grid-template-columns:repeat(5,1fr);gap:12px}
+.col{background:#eef1f5;border-radius:10px;padding:10px;min-height:200px}
+.col h2{font-size:13px;color:var(--sub);margin-bottom:8px;font-weight:600}
+.card{background:var(--card);border:1px solid var(--line);border-radius:8px;
+padding:10px;margin-bottom:8px;cursor:pointer}
+.card:hover{box-shadow:0 2px 8px rgba(26,35,50,.12)}
+.card .t{font-weight:600;font-size:13px;margin-bottom:4px}
+.card .m{font-size:12px;color:var(--sub)}
+.card .dot{display:inline-block;width:8px;height:8px;border-radius:50%;
+background:var(--red);margin-right:4px}
+.card .wait{color:var(--red);font-size:12px}
+.badge{display:inline-block;font-size:11px;padding:1px 6px;border-radius:4px;
+background:#eef1f5;color:var(--sub)}
+.overlay{position:fixed;inset:0;background:rgba(26,35,50,.45);
+display:flex;align-items:center;justify-content:center;z-index:10}
+.sheet{background:var(--card);border-radius:12px;width:min(720px,94vw);
+max-height:88vh;overflow:auto;padding:22px}
+.sheet h3{font-size:16px;margin-bottom:4px}
+.sheet .principle{background:#fdf6e3;border-left:3px solid var(--amber);
+padding:8px 12px;border-radius:0 6px 6px 0;margin:10px 0;font-size:13px}
+.layer{border:1px solid var(--line);border-radius:8px;padding:10px 12px;
+margin:8px 0;font-size:13px}
+.layer>b{display:block;color:var(--sub);font-size:12px;margin-bottom:2px}
+.opt{display:flex;gap:8px;align-items:flex-start;border:1px solid var(--line);
+border-radius:8px;padding:8px 10px;margin:6px 0;cursor:pointer}
+.opt:hover{border-color:var(--blue)}
+.opt input{margin-top:4px}
+.opt .hint{color:var(--sub);font-size:12px}
+.evi{font-size:13px;max-height:130px;overflow:auto;border:1px solid
+var(--line);border-radius:8px;padding:8px 10px}
+.evi label{display:block}
+textarea{width:100%;border:1px solid var(--line);border-radius:8px;
+padding:8px;font:inherit;font-size:13px}
+button{padding:8px 18px;border:0;border-radius:8px;background:var(--blue);
+color:#fff;font-size:14px;cursor:pointer}
+button:disabled{background:#aab4c0;cursor:not-allowed}
+.row{display:flex;gap:10px;align-items:center;margin-top:12px}
+.mut{color:var(--sub);font-size:12px}
+pre{background:#0d1420;color:#d5e3f0;padding:12px;border-radius:8px;
+font-size:12px;overflow:auto}
+.flash{padding:8px 12px;border-radius:8px;margin-top:10px;font-size:13px}
+.flash.ok{background:#e8f6ee;color:var(--green)}
+.flash.err{background:#fdecea;color:var(--red)}
+.chatlog{border:1px solid var(--line);border-radius:8px;padding:8px;
+max-height:120px;overflow:auto;background:#fbfcfe;font-size:13px;
+white-space:pre-wrap}
+.chatlog .u{color:var(--blue)}
+</style>
+</head>
+<body>
+<nav style="display:flex;gap:6px;margin-bottom:14px;font-size:13px"><a href="/workbench" style="padding:5px 14px;border:1px solid #d9e0e8;border-radius:8px;text-decoration:none;color:#1a2332">任务看板</a><a href="/hall" style="padding:5px 14px;border:1px solid #d9e0e8;border-radius:8px;text-decoration:none;color:#1a2332">办事大厅</a><a href="/skillboard" style="padding:5px 14px;border:1px solid #d9e0e8;border-radius:8px;text-decoration:none;color:#1a2332">Skill 看板</a><a href="/" style="padding:5px 14px;border:1px solid #d9e0e8;border-radius:8px;text-decoration:none;color:#5b6b7f">流水线视图</a></nav>
+<header>
+  <h1>任务工作台</h1><span class="mut">CodeNotary 公证处 · 内勤台</span>
+  <span class="token">签署令牌 <input id="tok" type="password"
+    placeholder="裁决人令牌（只存于本页内存，不落盘）"></span>
+</header>
+<div class="board" id="board"></div>
+<div id="overlay"></div>
+
+<script>
+let BOARD = null;
+const COLS = [["inflight","进行中"],["escalated","⏸ 待人工裁决"],
+  ["rejected","未放行"],["notarized","已公证"],["released","已发布"]];
+const esc = s => String(s??"").replace(/[&<>"]/g,
+  c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+async function load(){
+  const r = await fetch("/api/board"); BOARD = await r.json(); render();
+}
+function render(){
+  const el = document.getElementById("board");
+  el.innerHTML = COLS.map(([key,label])=>{
+    const cards = BOARD.columns[key]||[];
+    return `<div class="col"><h2>${label}（${cards.length}）</h2>` +
+      cards.map(c=>{
+        const wait = c.waiting_s!=null ?
+          `<div class="wait"><span class="dot"></span>等待人工裁决 · ` +
+          `${Math.floor(c.waiting_s/60)} 分钟</div>` : "";
+        const focus = c.dispute_focus ?
+          `<div class="m">争议：${esc(c.dispute_focus.slice(0,40))}…</div>`:"";
+        const cv = c.contract_version ?
+          `<span class="badge">契约 v${c.contract_version}</span>` : "";
+        const clickable = `onclick="location.href='/run?sid=${esc(c.run_id)}'"`;
+        const quick = key==="escalated" ?
+          `<button class="ghost" style="margin-top:6px;padding:3px 10px;font-size:12px"
+            onclick="event.stopPropagation();openCard('${esc(c.run_id)}','escalated')">⚖️ 裁决</button>`
+        : key==="notarized" ?
+          `<button class="ghost" style="margin-top:6px;padding:3px 10px;font-size:12px"
+            onclick="event.stopPropagation();openCard('${esc(c.run_id)}','notarized')">合并就绪</button>` : "";
+        return `<div class="card" ${clickable}>
+          <div class="t">${esc(c.title)}</div>
+          <div class="m">${esc(c.state_label||"")}${c.gates_progress?
+            " · "+c.gates_progress:""}</div>${wait}${focus}
+          <div class="m">${esc(c.run_id)} ${cv}</div>${quick}</div>`;
+      }).join("") + `</div>`;
+  }).join("");
+}
+
+async function openCard(sid, kind){
+  const ov = document.getElementById("overlay");
+  if(kind==="escalated"){
+    const ctx = await (await fetch("/api/adjudication_context/"+sid)).json();
+    ov.innerHTML = adjudCard(sid, ctx);
+  }else{
+    const mc = await (await fetch("/api/merge_card/"+sid)).json();
+    ov.innerHTML = mergeCard(sid, mc);
+  }
+}
+function closeOverlay(){ document.getElementById("overlay").innerHTML=""; }
+
+function adjudCard(sid, ctx){
+  const d = ctx.dispute || {};
+  const c = ctx.contract || {};
+  const v = ctx.verdicts || {};
+  const failed = Object.entries(v).filter(([,x])=>x.decision==="red")
+    .map(([g,x])=>`<div>· <b>${esc(x.gate||g)}</b>：${esc(x.summary||"")}</div>`)
+    .join("") || "<div>· 无红色门禁（争议由分诊升级）</div>";
+  const opts = ctx.options.map(o=>`
+    <label class="opt"><input type="radio" name="dec" value="${o.key}"
+      onchange="onDecChange()">
+    <span><b>${o.label}</b><div class="hint">${o.hint}</div></span></label>`)
+    .join("");
+  const evi = ctx.evidence_candidates.map(e=>
+    `<label><input type="checkbox" class="evi" value="${esc(e)}"> ${esc(e)}</label>`).join("");
+  const assertions = (c.assertions||[]).map((a,i)=>
+    `<div>· 第 ${i+1} 条：${esc(a)}</div>`).join("");
+  // 假设前置透明：冻结时系统已标注的歧义与默认解读
+  const assump = (c.assumptions||[]).map(a=>
+    `<div>· <b>歧义点</b>：${esc(a.point)}<br>
+    　<b>默认解读</b>：${esc(a.assumption)}<br>
+    　<b>依据</b>：${esc(a.basis)}</div>`).join("")
+    || "<div>· 无（本契约未标注假设）</div>";
+  window._v1Assertions = (c.assertions||[]);
+  return `<div class="overlay" onclick="if(event.target===this)closeOverlay()">
+  <div class="sheet">
+    <h3>裁决卡 · ${esc(sid)}</h3>
+    <div class="principle">请先确认你已了解双方立场与检验证据。
+      你的裁决对象是<b>规则</b>，不是代码——代码将由系统按你发布的新规则
+      重新完整检验。</div>
+    <div class="layer"><b>双方怎么说</b>
+      <div>📋 规则 v${c.version??"—"}（哈希 ${esc((c.frozen_hash||"").slice(0,16))}…）：</div>
+      ${assertions}
+      <div style="margin-top:6px"><b>冻结时系统已标注的假设：</b>${assump}</div>
+      <div style="margin-top:6px">🙋 送审方：${esc(d.focus||"—")}
+        ${d.clause?`（涉及条款：${esc(d.clause)}）`:""}
+        <span class="mut">${d.ts?new Date(d.ts*1000).toLocaleString():""}</span></div>
+    </div>
+    <div class="layer"><b>客观事实（检验证据，与争议点分开看）</b>${failed}</div>
+    <div class="layer"><b>💬 追问（仅补充信息，不产生任何状态变更）</b>
+      <div class="chatlog" id="adjChat" style="max-height:120px"></div>
+      <div class="row">
+        <input type="text" id="adjQ" style="flex:1"
+          placeholder="例：下游渠道对'有效期'的约定原文在哪？">
+        <button class="ghost" onclick="adjAsk('${esc(sid)}')">问</button>
+      </div></div>
+    <div class="layer"><b>四选一裁决</b>${opts}</div>
+    <div class="layer" id="reviseBox" style="display:none"><b>修订文本
+      （系统按当前契约起草，请亲手修改；每行一条断言）</b>
+      <textarea id="revisionText" rows="5">${esc((c.assertions||[]).join("\n"))}</textarea>
+      <div class="mut">v1.0 将封存保留，永不覆盖。</div>
+      <button class="ghost" onclick="showDiff()">查看 v1.0 ↔ v1.1 对照</button>
+      <div id="diffBox" style="margin-top:6px"></div>
+    </div>
+    <div class="layer"><b>引用证据（勾选将进入裁决记录）</b>
+      <div class="evi">${evi}</div></div>
+    <div class="layer"><b>补证附件（每行一条；修订契约时将写入新版本契约）</b>
+      <textarea id="refs" rows="2" placeholder="例：《渠道对账协议 v2.3》第 4 条"></textarea></div>
+    <div class="layer"><b>裁决理由（必填，将永久写入证据包；特批放行不少于 20 字）</b>
+      <textarea id="rationale" rows="2"></textarea></div>
+    <div class="row">
+      <button id="signBtn" disabled onclick="confirmAdjudicate('${esc(sid)}')">
+        ✍️ 确认并签署</button>
+      <span class="mut">签署即留痕：签署人、通道、引用材料全部进证据包。</span>
+    </div>
+    <div id="flash"></div>
+  </div></div>`;
+}
+
+function onDecChange(){
+  const dec=document.querySelector("input[name=dec]:checked");
+  const box=document.getElementById("reviseBox");
+  if(box) box.style.display = (dec && dec.value==="revise") ? "block":"none";
+  const btn=document.getElementById("signBtn");
+  if(btn) btn.disabled = !(dec &&
+    document.getElementById("rationale").value.trim().length>=8);
+}
+
+function showDiff(){
+  const oldL = window._v1Assertions||[];
+  const newL = document.getElementById("revisionText").value.split("\n")
+    .map(s=>s.trim()).filter(Boolean);
+  const rows=[];
+  const n=Math.max(oldL.length,newL.length);
+  for(let i=0;i<n;i++){
+    const o=oldL[i], w=newL[i];
+    if(o===undefined) rows.push(`<div style="color:var(--green)">＋ ${esc(w)}</div>`);
+    else if(w===undefined) rows.push(`<div style="color:var(--red)">－ ${esc(o)}</div>`);
+    else if(o!==w) rows.push(
+      `<div style="color:var(--sub)">v1.0：${esc(o)}</div>
+       <div style="color:var(--green)">v1.1：${esc(w)}</div>`);
+    else rows.push(`<div class="mut">　${esc(o)}</div>`);
+  }
+  document.getElementById("diffBox").innerHTML =
+    `<div style="border:1px solid var(--line);border-radius:8px;
+      padding:8px;font-size:12px">${rows.join("")}</div>`;
+}
+
+async function adjAsk(sid){
+  const q=document.getElementById("adjQ").value.trim(); if(!q)return;
+  document.getElementById("adjQ").value="";
+  const log=document.getElementById("adjChat");
+  log.innerHTML+=`<div><span class="u">你：</span>${esc(q)}</div>`;
+  const r=await (await fetch("/api/hall_chat",{method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({sid:sid,message:q,history:[]})})).json();
+  log.innerHTML+=`<div><span>窗口：</span>${esc(r.reply||r.error||"")}</div>`;
+  log.scrollTop=log.scrollHeight;
+}
+document.addEventListener("change", e=>{
+  if(e.target.name==="dec" || e.target.id==="rationale"){
+    const btn=document.getElementById("signBtn");
+    if(btn) btn.disabled = !(
+      document.querySelector("input[name=dec]:checked") &&
+      document.getElementById("rationale").value.trim().length>=8);
+  }});
+document.addEventListener("input", e=>{
+  if(e.target.id==="rationale"){
+    const btn=document.getElementById("signBtn");
+    if(btn) btn.disabled = !(
+      document.querySelector("input[name=dec]:checked") &&
+      e.target.value.trim().length>=8);
+  }});
+
+function tokenSub(){
+  // 仅作回显：验签在服务端；这里只把 JWT 中段 claims 读出来给人看
+  try{
+    const t=document.getElementById("tok").value.split(".")[1];
+    return JSON.parse(atob(t.replace(/-/g,"+").replace(/_/g,"/"))).sub||"未知";
+  }catch(e){ return "未填令牌（将被拒）"; }
+}
+
+function confirmAdjudicate(sid){
+  const dec=document.querySelector("input[name=dec]:checked").value;
+  const rationale=document.getElementById("rationale").value.trim();
+  const refs=document.getElementById("refs").value.split("\n")
+    .map(s=>s.trim()).filter(Boolean);
+  const evi=[...document.querySelectorAll(".evi:checked")].map(x=>x.value);
+  const LABEL={uphold:"维持契约",revise:"修订契约",
+    request_evidence:"要求补充证据",override:"特批放行（标黄）"}[dec];
+  let revision=null;
+  if(dec==="revise"){
+    revision=document.getElementById("revisionText").value.split("\n")
+      .map(s=>s.trim()).filter(Boolean);
+    if(!revision.length){alert("修订文本不能为空");return;}
+  }
+  const echo=`你即将签署：${LABEL}\n\n`+
+    `签署人：${tokenSub()} ｜ 通道：工作台裁决卡 ｜ 引用材料：${evi.length} 项`+
+    ` ｜ 补证附件：${refs.length} 条\n`+
+    (revision?`契约 v1.0 → v1.1（v1.0 全文封存可查）\n`:"")+
+    `\n理由：${rationale}\n\n此操作永久写入证据包，不可撤销。`;
+  if(!confirm(echo)) return;
+  const body={decision:dec,rationale:rationale,
+    evidence_reviewed:evi,references:refs};
+  if(revision) body.revision_assertions=revision;
+  fetch("/api/adjudicate/"+sid,{method:"POST",
+    headers:{"Content-Type":"application/json",
+      "X-Console-Token":document.getElementById("tok").value},
+    body:JSON.stringify(body)})
+  .then(r=>r.json()).then(b=>{
+    const f=document.getElementById("flash");
+    if(b.ok!==false && b.result){
+      const rev=b.result.contract_revision;
+      const eviList=evi.map(e=>`✓ ${e}`).join("　")||"（未勾选）";
+      f.className="flash ok";
+      f.innerHTML=`🟢 <b>裁决已生效，辛苦了</b><br>`+
+        `系统已自动完成：① 裁决记录（#${b.result.adjudication_id}）进入证据包`+
+        `② 流水线状态：${b.result.pipeline_state}`+
+        (rev&&rev.frozen_hash?`③ 契约 v1.1 已发布（哈希 ${rev.frozen_hash.slice(0,12)}…，v1.0 封存可查）`:"③ 待后续动作接续")+
+        `<br><span class="mut">备查——你裁决前查看过的材料：${esc(eviList)}</span>`;
+      setTimeout(()=>{closeOverlay();load();},3000);
+    }else{
+      f.className="flash err";
+      f.textContent="被拒：" + (b.error||JSON.stringify(b));
+    }});
+}
+
+function mergeCard(sid, mc){
+  let body;
+  if(!mc.available){
+    body = `<div class="layer">${esc(mc.reason||"merge 检查不可用")}</div>`;
+  }else{
+    const c = mc.card;
+    const rows = (c.checks||[]).map((k,i)=>
+      `<div class="opt" style="cursor:default">
+        <span>${k.ok?"✅":"❌"}</span>
+        <span><b>${esc(k.name)}</b>
+        <div class="hint">${esc(k.detail)}</div></span></div>`).join("");
+    const icon = c.ready ? "✅" : (c.icon||"⛔");
+    body = `<div class="layer"><b>合并就绪检查 · ${c.checks.filter(k=>k.ok).length}/${c.checks.length} 通过</b>
+      ${rows}</div>
+      <div class="layer"><b>结论</b>${icon} ${esc(c.verdict)}
+      <div class="hint mut">这张 PR 的完整过程（含争议与规则修订）都在证据链里。</div></div>`;
+  }
+  return `<div class="overlay" onclick="if(event.target===this)closeOverlay()">
+  <div class="sheet">
+    <h3>合并确认卡 · ${esc(sid)}</h3>
+    <div class="principle">验收 ≠ 合并 ≠ 发布。系统只给就绪意见；
+      <b>点合并是负责人的权力，不是系统的</b>。</div>
+    ${body}
+    <div class="row"><span class="mut">
+      就绪后请到 GitHub PR 页执行合并——系统的权力止于就绪意见，合并动作只属于人。</span></div>
+  </div></div>`;
+}
+
+load().then(()=>{
+  const h = location.hash.match(/card=([\w-]+)/);
+  if(h) openCard(h[1], (location.hash.match(/kind=(\w+)/)||[])[1]||"escalated");
+});
+setInterval(load, 2500);
+</script>
+</body>
+</html>
+"""
+
+
+# ---------------------------------------------------------------------------
+# 办事大厅（团队版提交页 + 四类信封 + 会话追问）。
+# 铁律：聊天用于讨论与起草，卡片用于正式生效——聊天里说的任何话
+# 永不直接驱动状态机。文案 = 公证处窗口工作人员，不是系统日志。
+# ---------------------------------------------------------------------------
+HALL_PAGE = r"""<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8"><title>办事大厅 · CodeNotary</title>
+<style>
+:root{--ink:#1a2332;--sub:#5b6b7f;--line:#d9e0e8;--bg:#f5f7fa;--card:#fff;
+--red:#c0392b;--green:#1e8449;--amber:#b9770e;--blue:#2166ac}
+*{box-sizing:border-box;margin:0}
+body{font:14px/1.6 system-ui,"PingFang SC","Microsoft YaHei",sans-serif;
+background:var(--bg);color:var(--ink);padding:16px}
+h1{font-size:18px}
+.wrap{display:grid;grid-template-columns:minmax(340px,1fr) 2fr;gap:14px;
+margin-top:12px}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:12px;
+padding:16px}
+.panel h2{font-size:15px;margin-bottom:10px}
+.hintbar{background:#eef3fb;border-left:3px solid var(--blue);padding:6px 10px;
+border-radius:0 6px 6px 0;font-size:12px;color:var(--sub);margin:8px 0}
+textarea,input[type=text]{width:100%;border:1px solid var(--line);
+border-radius:8px;padding:8px;font:inherit;font-size:13px}
+button{padding:7px 16px;border:0;border-radius:8px;background:var(--blue);
+color:#fff;cursor:pointer}
+button.ghost{background:#eef1f5;color:var(--ink)}
+button:disabled{background:#aab4c0}
+.task{border:1px solid var(--line);border-radius:8px;padding:8px 10px;
+margin:6px 0;cursor:pointer;font-size:13px}
+.task:hover{border-color:var(--blue)}
+.task .mut{color:var(--sub);font-size:12px}
+.env{border-radius:10px;padding:10px 12px;margin:8px 0;border:1px solid
+var(--line);background:var(--card)}
+.env .tag{display:inline-block;font-size:11px;padding:1px 8px;border-radius:4px;
+color:#fff;margin-right:6px}
+.env.todo{border-color:var(--red)} .env.todo .tag{background:var(--red)}
+.env.progress .tag{background:var(--blue)}
+.env.receipt{border-color:var(--green)} .env.receipt .tag{background:var(--green)}
+.env.evidence .tag{background:var(--amber)}
+.env .t{font-weight:600;margin-bottom:4px}
+.env .five{font-size:13px;color:var(--ink)}
+.env .five div{margin:2px 0}
+.env .five b{color:var(--sub);font-weight:600;font-size:12px}
+.chatlog{border:1px solid var(--line);border-radius:8px;padding:10px;
+min-height:120px;max-height:260px;overflow:auto;background:#fbfcfe;
+font-size:13px;white-space:pre-wrap}
+.chatlog .u{color:var(--blue)}
+.mut{color:var(--sub);font-size:12px}
+.row{display:flex;gap:8px;margin-top:8px;align-items:center}
+.draft{border:1px dashed var(--amber);border-radius:8px;padding:10px;
+margin-top:10px;font-size:13px}
+.draft input,.draft textarea{margin:4px 0}
+</style>
+</head>
+<body>
+<nav style="display:flex;gap:6px;margin-bottom:14px;font-size:13px"><a href="/workbench" style="padding:5px 14px;border:1px solid #d9e0e8;border-radius:8px;text-decoration:none;color:#1a2332">任务看板</a><a href="/hall" style="padding:5px 14px;border:1px solid #d9e0e8;border-radius:8px;text-decoration:none;color:#1a2332">办事大厅</a><a href="/skillboard" style="padding:5px 14px;border:1px solid #d9e0e8;border-radius:8px;text-decoration:none;color:#1a2332">Skill 看板</a><a href="/" style="padding:5px 14px;border:1px solid #d9e0e8;border-radius:8px;text-decoration:none;color:#5b6b7f">流水线视图</a></nav>
+<h1>办事大厅</h1>
+<div class="mut">像去办事大厅，不像用开发工具 · 对话仅用于补充信息，不产生任何状态变更</div>
+<div class="wrap">
+  <div class="panel">
+    <h2>送审 / 求修</h2>
+    <div class="hintbar">一句话描述问题，可附 ZIP（有代码要审）；
+      接待员帮您起草公证申请，<b>您确认后才取号</b>。</div>
+    <textarea id="ask" rows="3"
+      placeholder="例：优惠券有效至 11 月 10 日，但没到期就核销不了"></textarea>
+    <div class="row">
+      <input type="file" id="zip" accept=".zip" style="font-size:12px">
+      <button onclick="draftIt()">请接待员起草</button>
+    </div>
+    <div id="draftBox"></div>
+    <h2 style="margin-top:18px">我的任务</h2>
+    <div id="tasks"></div>
+  </div>
+  <div class="panel">
+    <h2 id="taskTitle">选择一个任务查看进展</h2>
+    <div id="envs"></div>
+    <div id="chatArea" style="display:none">
+      <h2 style="margin-top:14px">追问</h2>
+      <div class="hintbar">这里只帮您查落盘记录、摆事实；
+        <b>不产生任何状态变更</b>。正式动作请走卡片。</div>
+      <div class="chatlog" id="chatlog"></div>
+      <div class="row">
+        <input type="text" id="q" placeholder="例：失败的是哪个场景？契约哪一条？">
+        <button onclick="askFollow()">问</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const esc = s => String(s??"").replace(/[&<>"]/g,
+  c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+let CUR = null, HISTORY = [];
+
+async function zipB64(){
+  const f = document.getElementById("zip").files[0];
+  if(!f) return null;
+  const buf = await f.arrayBuffer();
+  let bin=""; new Uint8Array(buf).forEach(b=>bin+=String.fromCharCode(b));
+  return btoa(bin);
+}
+async function draftIt(){
+  const message = document.getElementById("ask").value.trim();
+  if(!message){alert("先写一句话描述问题");return;}
+  const body = {message, history:[]};
+  const z = await zipB64(); if(z) body.zip_b64 = z;
+  const r = await (await fetch("/api/assist",{method:"POST",
+    headers:{"Content-Type":"application/json"},body:JSON.stringify(body)}))
+    .json();
+  if(r.ok===false){alert(r.error);return;}
+  const d = r.draft||{};
+  document.getElementById("draftBox").innerHTML = `
+    <div class="draft">
+      <b>公证申请草稿</b>（请检查，确认才取号）
+      ${r.llm===false?'<div class="mut">接待员暂不可用，以下为预填草稿</div>':""}
+      <input type="text" id="dTitle" value="${esc(d.title||"")}"
+        placeholder="一句话名称">
+      <textarea id="dReport" rows="3"
+        placeholder="问题描述（现象/背景/影响）">${esc(d.report||message)}</textarea>
+      <textarea id="dExpect" rows="3"
+        placeholder="验收标准：怎样算修好（可检查的判断句）">${esc(d.expected_behavior||"")}</textarea>
+      <div class="row">
+        <button onclick="submitIntake()">确认无误，取号送审</button>
+        <span class="mut">${r.source_files?`附源码 ${r.source_files.length} 件/测试 ${r.test_files.length} 件`:""}</span>
+      </div>
+    </div>`;
+  window._files = r.source_files && r.source_files.length ?
+    {source_files:r.source_files, test_files:r.test_files} : {};
+}
+async function submitIntake(){
+  const body = {title:document.getElementById("dTitle").value,
+    report:document.getElementById("dReport").value,
+    expected_behavior:document.getElementById("dExpect").value,
+    target:"coupon_expiry", ...window._files};
+  const r = await (await fetch("/api/intake",{method:"POST",
+    headers:{"Content-Type":"application/json"},body:JSON.stringify(body)}))
+    .json();
+  if(r.ok===false){alert("取号被拒："+r.error);return;}
+  alert("已取号：" + (r.result?r.result.scenario_id:"") + "，进展会主动通知您");
+  document.getElementById("draftBox").innerHTML="";
+  document.getElementById("ask").value=""; loadTasks();
+}
+
+const KIND = {todo:["🔴 待办","todo"],progress:["🔵 进展","progress"],
+  receipt:["🟢 回执","receipt"],evidence:["📎 证据","evidence"]};
+async function loadTasks(){
+  const b = await (await fetch("/api/board")).json();
+  const all = Object.values(b.columns).flat();
+  document.getElementById("tasks").innerHTML = all.map(c=>
+    `<div class="task" onclick="openTask('${esc(c.run_id)}')">
+      <b>${esc(c.title)}</b>
+      <div class="mut">${esc(c.state_label||"")}${c.gates_progress?
+        " · "+c.gates_progress:""}</div></div>`).join("") ||
+      '<div class="mut">还没有任务</div>';
+}
+async function openTask(sid){
+  CUR = sid; HISTORY = [];
+  const r = await (await fetch("/api/hall/"+sid)).json();
+  document.getElementById("taskTitle").textContent =
+    r.title + " · " + (r.state_label||"");
+  document.getElementById("envs").innerHTML = r.envelopes.map(e=>{
+    const [tag, cls] = KIND[e.kind]||["", "progress"];
+    return `<div class="env ${cls}">
+      <span class="tag">${tag}</span><span class="t">${esc(e.title)}</span>
+      <div class="five">
+        <div><b>发生了什么</b>　${esc(e.what)}</div>
+        <div><b>意味着什么</b>　${esc(e.meaning)}</div>
+        <div><b>您能做什么</b>　${esc(e.action)}</div>
+        <div><b>证据在哪</b>　${esc(e.evidence)}</div>
+        <div><b>下一步</b>　${esc(e.next)}</div>
+      </div></div>`;}).join("");
+  document.getElementById("chatArea").style.display="block";
+  document.getElementById("chatlog").innerHTML="";
+}
+async function askFollow(){
+  const q = document.getElementById("q").value.trim();
+  if(!q||!CUR) return;
+  document.getElementById("q").value="";
+  const log = document.getElementById("chatlog");
+  log.innerHTML += `\n<span class="u">您：</span>${esc(q)}\n`;
+  HISTORY.push({role:"user",content:q});
+  const r = await (await fetch("/api/hall_chat",{method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({sid:CUR,message:q,history:HISTORY})})).json();
+  const reply = r.reply||("出错了："+(r.error||""));
+  HISTORY.push({role:"assistant",content:reply});
+  log.innerHTML += `<span>窗口：</span>${esc(reply)}\n`;
+  log.scrollTop = log.scrollHeight;
+}
+loadTasks().then(()=>{
+  const h = location.hash.match(/task=([\w-]+)/);
+  if(h) openTask(h[1]);
+});
+setInterval(loadTasks, 4000);
+</script>
+</body>
+</html>
+"""
+
+# ---------------------------------------------------------------------------
+# 统一导航（所有视图共享）+ Run 时间线 + Skill 看板
+# ---------------------------------------------------------------------------
+NAV_HTML = (
+    '<nav style="display:flex;gap:6px;margin-bottom:14px;font-size:13px">'
+    '<a href="/workbench" style="padding:5px 14px;border:1px solid #d9e0e8;'
+    'border-radius:8px;text-decoration:none;color:#1a2332">任务看板</a>'
+    '<a href="/hall" style="padding:5px 14px;border:1px solid #d9e0e8;'
+    'border-radius:8px;text-decoration:none;color:#1a2332">办事大厅</a>'
+    '<a href="/skillboard" style="padding:5px 14px;border:1px solid #d9e0e8;'
+    'border-radius:8px;text-decoration:none;color:#1a2332">Skill 看板</a>'
+    '<a href="/" style="padding:5px 14px;border:1px solid #d9e0e8;'
+    'border-radius:8px;text-decoration:none;color:#5b6b7f">流水线视图</a>'
+    '</nav>')
+
+RUN_PAGE = r"""<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8"><title>任务详情 · CodeNotary</title>
+<style>
+:root{--ink:#1a2332;--sub:#5b6b7f;--line:#d9e0e8;--bg:#f5f7fa;--card:#fff;
+--red:#c0392b;--green:#1e8449;--amber:#b9770e;--blue:#2166ac;--hitl:#6c3483}
+*{box-sizing:border-box;margin:0}
+body{font:13px/1.55 system-ui,"PingFang SC","Microsoft YaHei",sans-serif;
+background:var(--bg);color:var(--ink);padding:14px 20px}
+a{color:var(--blue);text-decoration:none}
+.topbar{background:var(--card);border:1px solid var(--line);border-radius:10px;
+padding:12px 16px;display:flex;gap:24px;align-items:center;flex-wrap:wrap}
+.topbar h1{font-size:16px}
+.meta{display:flex;gap:16px;font-size:12px;color:var(--sub);flex-wrap:wrap}
+.meta b{color:var(--ink);font-weight:600}
+.st3{display:flex;margin-left:auto;border:1px solid var(--line);
+border-radius:8px;overflow:hidden}
+.st3 div{padding:5px 14px;font-size:12px;border-right:1px solid var(--line)}
+.st3 div:last-child{border-right:0}
+.st3 .ok{color:var(--green);font-weight:600}
+.st3 .bad{color:var(--red);font-weight:600}
+.st3 .wait{color:var(--amber);font-weight:600}
+.stepper{display:flex;margin:14px 0;background:var(--card);
+border:1px solid var(--line);border-radius:10px;padding:10px 8px;
+overflow-x:auto}
+.step{flex:1;min-width:86px;text-align:center;position:relative;
+padding:6px 4px;font-size:12px}
+.step:not(:last-child)::after{content:"";position:absolute;top:16px;
+right:-4px;width:8px;height:2px;background:var(--line)}
+.step .dot{width:10px;height:10px;border-radius:50%;margin:0 auto 4px;
+background:#cdd5de;border:2px solid #cdd5de}
+.step.done .dot{background:var(--green);border-color:var(--green)}
+.step.blocked .dot{background:var(--red);border-color:var(--red)}
+.step.blocked.hitl .dot{background:var(--hitl);border-color:var(--hitl)}
+.step.current .dot{background:#fff;border-color:var(--blue);
+box-shadow:0 0 0 3px rgba(33,102,172,.25)}
+.step.hitl .dot{background:var(--hitl);border-color:var(--hitl)}
+.step .n{color:var(--ink)} .step .s{color:var(--sub);font-size:11px}
+.step.current .n{font-weight:700;color:var(--blue)}
+.smwrap{margin-top:14px;background:#f7f9fb;border:1px solid #eef1f5;
+border-radius:10px;padding:12px 16px}
+.smwrap .t{font-size:12px;color:var(--sub);margin-bottom:8px}
+.smstrip{display:flex;gap:0;align-items:center;flex-wrap:wrap;row-gap:8px}
+.smstrip .st{padding:4px 12px;font-size:12.5px;background:#eef1f5;
+color:var(--sub);border:1px solid transparent}
+.smstrip .st:first-child{border-radius:8px 0 0 8px}
+.smstrip .st.last{border-radius:0 8px 8px 0}
+.smstrip .st.done{background:#e8f6ee;color:var(--green);border-color:#bfe3cf}
+.smstrip .st.current{background:var(--blue);color:#fff;font-weight:700;
+box-shadow:0 0 0 3px rgba(33,102,172,.2)}
+.smstrip .st.off{background:#fdf6e3;color:var(--amber);
+border-color:#eedaa5}
+.smstrip .arr{color:#b8c2cd;margin:0 2px;font-size:12px}
+.tabs{display:flex;gap:2px;border-bottom:2px solid var(--line);margin-top:10px}
+.tabs button{background:none;border:0;padding:8px 16px;font-size:13px;
+cursor:pointer;color:var(--sub);border-bottom:2px solid transparent;
+margin-bottom:-2px}
+.tabs button.on{color:var(--blue);border-bottom-color:var(--blue);
+font-weight:600}
+.pane{background:var(--card);border:1px solid var(--line);border-top:0;
+border-radius:0 0 10px 10px;padding:14px 16px}
+table{width:100%;border-collapse:collapse;font-size:12.5px}
+th{text-align:left;color:var(--sub);font-weight:600;padding:6px 8px;
+border-bottom:1px solid var(--line)}
+td{padding:6px 8px;border-bottom:1px solid #eef1f5;vertical-align:top}
+.chip{display:inline-block;padding:1px 8px;border-radius:4px;font-size:11px}
+.chip.green{background:#e8f6ee;color:var(--green)}
+.chip.red{background:#fdecea;color:var(--red)}
+.chip.hitl{background:#f4ecf7;color:var(--hitl)}
+.chip.gray{background:#eef1f5;color:var(--sub)}
+.chip.amber{background:#fdf6e3;color:var(--amber)}
+details summary{cursor:pointer;color:var(--blue);font-size:12px}
+pre{background:#0d1420;color:#d5e3f0;padding:10px;border-radius:8px;
+font-size:11.5px;overflow:auto;max-height:280px}
+.kv{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
+gap:8px;margin:10px 0}
+.kv .k{background:#f7f9fb;border:1px solid #eef1f5;border-radius:8px;
+padding:8px 10px}
+.kv .v{font-size:16px;font-weight:700}
+.kv .l{font-size:11px;color:var(--sub)}
+.note{font-size:12px;color:var(--sub)}
+</style>
+</head>
+<body>
+__NAV__
+<div class="topbar">
+  <div><h1 id="title">—</h1><div class="meta" id="meta"></div></div>
+  <div class="st3" id="st3"></div>
+</div>
+<div class="stepper" id="stepper"></div>
+<div class="tabs" id="tabs"></div>
+<div class="pane" id="pane"></div>
+<script>
+const esc=s=>String(s??"").replace(/[&<>"]/g,
+  c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const sid=new URLSearchParams(location.search).get("sid")
+  ||(location.hash.match(/sid=([\w-]+)/)||[])[1];
+let R=null,TAB="overview";
+const TABS=[["overview","概览"],["contract","验收契约"],["verify","验证结果"],
+  ["agents","Agent 运行"],["evidence","证据"],["audit","审计记录"]];
+const DEC={green:["通过","green"],red:["未通过","red"],
+  yellow:["待复核","amber"]};
+
+async function boot(){
+  R=await (await fetch("/api/runview/"+sid)).json();
+  if(R.error){document.getElementById("title").textContent="任务不存在";return;}
+  renderHead(); renderTabs(); renderPane();
+}
+
+function renderHead(){
+  document.getElementById("title").textContent=R.title;
+  const b=R.binding;
+  document.getElementById("meta").innerHTML=[
+    b?`PR <b>#${b.pr}</b>`:null,
+    b?`Commit <b>${(b.head_sha||"").slice(0,10)}</b>`:null,
+    `状态 <b>${esc(R.state_label)}</b>`,
+    `Run <b>${esc(R.run_id)}</b>`].filter(Boolean).join("<span>·</span>");
+  const st=R.stages;
+  const cell=(lab,obj)=>{
+    const cls=obj.done?"ok":(obj.state==="未通过"?"bad":
+      obj.state==="待人工裁决"||obj.state==="进行中"?"wait":"");
+    return `<div class="${cls}">${lab}：${esc(obj.state)}</div>`;};
+  document.getElementById("st3").innerHTML=
+    cell("验收",st.accept)+cell("合并",st.merge)+cell("发布",st.release);
+  document.getElementById("stepper").innerHTML=R.steps.map(s=>{
+    const cls=s.blocked?(s.hitl?"step blocked hitl":"step blocked"):s.done?
+      (s.hitl?"step done hitl":"step done"):s.current?"step current":"step";
+    const sub=s.blocked?(s.hitl?"待裁决":"未通过"):s.done?"完成":
+      s.current?"进行中":"待执行";
+    return `<div class="${cls}"><div class="dot"></div>
+      <div class="n">${esc(s.name)}</div><div class="s">${sub}</div></div>`;
+  }).join("");
+}
+
+function renderTabs(){
+  document.getElementById("tabs").innerHTML=TABS.map(([k,n])=>
+    `<button class="${k===TAB?'on':''}" onclick="TAB='${k}';renderPane();renderTabs()">${n}</button>`
+  ).join("");
+}
+
+function kvGrid(items){
+  return `<div class="kv">${items.map(([v,l])=>
+    `<div class="k"><div class="v">${esc(v)}</div><div class="l">${esc(l)}</div></div>`
+  ).join("")}</div>`;
+}
+function detailBlock(obj){
+  return `<details><summary>技术详情（原始数据）</summary>
+    <pre>${esc(JSON.stringify(obj,null,2))}</pre></details>`;
+}
+
+function renderPane(){
+  const el=document.getElementById("pane");
+  if(TAB==="overview"){
+    const m=R.overview.metrics||{};
+    const cards=R.cards||[];
+    el.innerHTML =
+      kvGrid([[R.state_label,"当前状态"],[m.tool_calls??"—","网关调用"],
+        [m.wall_time_s!=null?(m.wall_time_s>=3600?(m.wall_time_s/3600).toFixed(1)+" 小时":m.wall_time_s>=60?(m.wall_time_s/60).toFixed(1)+" 分钟":m.wall_time_s+" 秒"):"—","端到端历时（含等待）"],
+        [m.adversarial_loop_iterations??0,"对抗环迭代"],
+        [m.human_interventions??0,"人工介入"],
+        [m.skill_match_calls??0,"Skill 咨询"],
+        [m.security_events??0,"越权拒绝"],[R.overview.rework??"—","重修轮次"]])
+      + `<div class="smwrap"><div class="t">状态流转（14 态状态机）</div>
+        <div class="smstrip">` + R.sm_strip.map((s,i,arr)=>{
+        const off=s.done&&!["RECEIVED","SCREENED","TRIAGED","DIAGNOSED",
+          "CONTRACTED","AUTHORING","TESTING","GATING","NOTARIZED",
+          "RELEASED"].includes(s.state);
+        const cls=s.current?"st current":off?"st off":s.done?"st done":"st";
+        return (i?'<span class="arr">→</span>':"")+
+          `<span class="${cls}${i===arr.length-1?' last':''}">${s.state}</span>`;
+      }).join("") + `</div></div>`
+      + `<h3 style="font-size:13px;margin:14px 0 6px">处理过程</h3>
+      <table><tr><th>环节</th><th>要点</th><th>状态</th><th>下一步</th><th></th></tr>`
+      + cards.map(c=>{
+        const tone=c.tone||"";
+        const chip=tone==="hitl"?"chip hitl":tone==="red"?"chip red":
+          tone==="green"?"chip green":"chip gray";
+        return `<tr><td><b>${esc(c.role)}</b> · ${esc(c.title)}</td>
+          <td>${c.lines.slice(0,2).map(esc).join("<br>")}</td>
+          <td><span class="${chip}">${esc(c.status)}</span></td>
+          <td class="note">${esc(c.next)}</td>
+          <td><details><summary>详情</summary>
+            ${c.lines.slice(2).map(l=>`<div>${esc(l)}</div>`).join("")}
+            ${detailBlock(c.detail)}</details></td></tr>`;
+      }).join("") + "</table>";
+  }
+  else if(TAB==="contract"){
+    const c=(R.cards.find(x=>x.role==="契约")||{});
+    el.innerHTML = c.lines
+      ? `<table><tr><th>#</th><th>规则内容</th></tr>` +
+        c.lines.filter(l=>!l.startsWith("——")).map((l,i)=>
+          `<tr><td>${i+1}</td><td>${esc(l)}</td></tr>`).join("") +
+        `</table>` + detailBlock(c.detail)
+      : `<div class="note">本任务尚未冻结验收规则。</div>`;
+  }
+  else if(TAB==="verify"){
+    el.innerHTML = `<table><tr><th>检验项</th><th>结论</th><th>说明</th>
+      <th>未通过用例</th><th></th></tr>` +
+      R.verification.map(v=>{
+        const[lab,cls]=DEC[v.decision]||[v.decision,"gray"];
+        return `<tr><td><b>${esc(v.gate)}</b></td>
+          <td><span class="chip ${cls}">${lab}</span></td>
+          <td>${esc(v.summary)}</td>
+          <td>${(v.failed_tests||[]).map(t=>`<code>${esc(t)}</code>`).join("<br>")||"—"}</td>
+          <td>${detailBlock(v.detail)}</td></tr>`;
+      }).join("") + "</table>";
+  }
+  else if(TAB==="agents"){
+    el.innerHTML = `<table><tr><th>Agent</th><th>调用</th>
+      <th>关键产出</th><th>Skill 调用（信号 → Skill · 治理）</th></tr>` +
+      R.agents.map(a=>{
+        const sk=(a.skill_calls||[]).map(m=>
+          `<div>${esc(m.signal)} → <b>${esc(m.skill)}</b> v${esc(m.version||"—")}
+           <span class="chip ${m.governance==="probation"?"amber":"gray"}">${m.governance==="probation"?"试用":"正式"}</span></div>`
+        ).join("")||"—";
+        return `<tr><td><b>${esc(a.role)}</b></td><td>${a.calls}</td>
+          <td class="note">${(a.artifacts||[]).map(esc).join("<br>")||"—"}</td>
+          <td>${sk}</td></tr>`;
+      }).join("") + "</table>"
+      + (R.skill_calls.length? "":
+        `<div class="note" style="margin-top:8px">本次运行未发生 Skill 咨询。</div>`);
+  }
+  else if(TAB==="evidence"){
+    el.innerHTML = `<div class="note">证据文件均带 SHA-256 封印；
+      点击文件名查看内容并现场校验哈希。</div>
+      <table><tr><th>文件</th><th>说明</th></tr>` +
+      (R.cards||[]).filter(c=>c.detail).map(c=>
+        `<tr><td colspan="2"><b>${esc(c.role)} · ${esc(c.title)}</b>
+         ${detailBlock(c.detail)}</td></tr>`).join("") + "</table>";
+  }
+  else if(TAB==="audit"){
+    const sec=(R.security_events||[]).map(e=>
+      `<tr><td class="chip red">越权拒绝</td><td>${esc(e.tool)}</td>
+       <td>${esc(e.role)}</td><td class="note">${esc(e.detail)}</td></tr>`).join("");
+    el.innerHTML = (sec?`<h3 style="font-size:13px;margin-bottom:6px">安全事件</h3>
+      <table>${sec}</table>`:"")
+      + `<h3 style="font-size:13px;margin:12px 0 6px">调用轨迹（最近 ${R.trace_tail.length} 条）</h3>
+      <table><tr><th>时间</th><th>角色</th><th>工具</th><th>状态</th></tr>` +
+      R.trace_tail.slice().reverse().map(e=>
+        `<tr><td class="note">${new Date(e.ts*1000).toLocaleTimeString()}</td>
+         <td>${esc(e.role)}</td><td>${esc(e.tool)}</td>
+         <td class="note">${esc(e.state_after)}</td></tr>`).join("") + "</table>";
+  }
+}
+boot();
+</script>
+</body>
+</html>
+""".replace("__NAV__", NAV_HTML)
+
+SKILL_PAGE = r"""<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8"><title>Skill 看板 · CodeNotary</title>
+<style>
+:root{--ink:#1a2332;--sub:#5b6b7f;--line:#d9e0e8;--bg:#f5f7fa;--card:#fff;
+--red:#c0392b;--green:#1e8449;--amber:#b9770e;--blue:#2166ac}
+*{box-sizing:border-box;margin:0}
+body{font:14px/1.6 system-ui,"PingFang SC","Microsoft YaHei",sans-serif;
+background:var(--bg);color:var(--ink);padding:16px}
+h1{font-size:17px;margin-bottom:12px}
+.mut{color:var(--sub);font-size:12px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));
+gap:12px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;
+padding:14px}
+.card .t{font-weight:600;font-size:15px}
+.card .d{color:var(--ink);font-size:13px;margin:6px 0}
+.badge{display:inline-block;font-size:11px;padding:1px 8px;border-radius:4px;
+margin-right:4px}
+.badge.loaded{background:#e8f6ee;color:var(--green)}
+.badge.retired{background:#fdecea;color:var(--red)}
+.badge.rejected{background:#fdf6e3;color:var(--amber)}
+.badge.probation{background:#fdf6e3;color:var(--amber);border:1px dashed var(--amber)}
+.badge.ver{background:#eef1f5;color:var(--sub)}
+.sig{border-top:1px dashed var(--line);margin-top:8px;padding-top:6px;
+font-size:12px;color:var(--sub)}
+.sig b{color:var(--ink)}
+.chain{margin-top:6px;font-size:12px}
+.chain .v{padding:1px 6px;border:1px solid var(--line);border-radius:4px}
+.chain .v.ret{opacity:.5;text-decoration:line-through}
+</style>
+</head>
+<body>
+__NAV__
+<div style="display:flex;align-items:center">
+<h1>Skill 看板</h1>
+<span class="mut" style="margin-left:auto">治理令牌
+<input id="tok" type="password" placeholder="裁决人令牌（只存本页内存）"
+ style="padding:4px 8px;border:1px solid var(--line);border-radius:6px"></span>
+</div>
+<div class="mut" id="sub"></div>
+<div id="queue"></div>
+<h2 id="gridLabel" style="font-size:15px;margin:14px 0 8px"></h2>
+<div class="grid" id="grid"></div>
+<script>
+async function govern(action, name){
+  const reason = prompt((action==="confirm"?"追认理由（将写入注册表）：":
+    "否决理由（一票否决，将写入注册表）："));
+  if(!reason) return;
+  const r = await (await fetch("/api/skill_"+action,{method:"POST",
+    headers:{"Content-Type":"application/json",
+      "X-Console-Token":document.getElementById("tok").value},
+    body:JSON.stringify({name, reason})})).json();
+  if(r.ok===false){ alert("被拒："+(r.error||"")); return; }
+  boot();
+}
+</script>
+<script>
+const esc=s=>String(s??"").replace(/[&<>"]/g,
+  c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const STATUS={loaded:["在用","loaded"],retired:["已退役","retired"],
+  rejected:["未通过兼容检查","rejected"],probation:["试用中","probation"]};
+async function boot(){
+  const r=await (await fetch("/api/skillboard")).json();
+  document.getElementById("sub").textContent=
+    `共 ${r.cards.length} 个 Skill ｜ 注册表只增不改（append-only）`;
+  const q = r.probation_queue||[];
+  document.getElementById("queue").innerHTML = q.length ?
+    `<h2 style="font-size:15px;margin:14px 0 8px">追认队列（${q.length}）</h2>
+     <div class="mut" style="margin-bottom:8px">试用区的 Skill 可以参与判断、
+     结果标注试用；命中数据见各 run 的 skill_matches.json。
+     追认转正或一票否决都须留理由、进注册表。</div>` +
+    q.map(c=>`<div class="card">
+      <div class="t">${esc(c.name)} <span class="badge probation">试用中</span>
+        <span class="badge ver">v${esc(c.version||"—")}</span></div>
+      <div class="d">${esc((c.description||"").split("；")[0].split("。")[0])}</div>
+      <div class="row" style="display:flex;gap:8px;margin-top:8px">
+        <button onclick="govern('confirm','${esc(c.name)}')">追认转正</button>
+        <button class="ghost" onclick="govern('retire','${esc(c.name)}')">一票否决</button>
+      </div></div>`).join("") : "";
+  document.getElementById("gridLabel").textContent = "全部 Skill";
+  document.getElementById("grid").innerHTML=r.cards.map(c=>{
+    const[lab,cls]=(STATUS[c.status]||[c.status||"—","ver"]);
+    const sigs=(c.signals||[]).map(s=>
+      `<div>信号 <b>${esc(s.signal)}</b>：${esc(s.trigger)}<br>
+       <span>适用角色：${(s.roles||[]).join("、")} ｜ 评估覆盖 ${s.coverage_n} 样本</span></div>`
+    ).join("")||"<div>未被信号表引用（种子储备）</div>";
+    return `<div class="card">
+      <div class="t">${esc(c.name)}</div>
+      <div><span class="badge ${cls}">${lab}</span>
+        <span class="badge ver">v${esc(c.version||"—")}</span>
+        <span class="badge ver">${esc(c.compat||"")}</span></div>
+      <div class="d">${esc((c.description||"").split("；")[0].split("。")[0])}</div>
+      <div class="sig">${sigs}</div>
+    </div>`;
+  }).join("");
+}
+boot();
+</script>
+</body>
+</html>
+""".replace("__NAV__", NAV_HTML)
+
 
 class Handler(BaseHTTPRequestHandler):
     runs_dir = PKG_ROOT / "runs"
@@ -1824,10 +3339,63 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(data)
 
-    def _check_token(self) -> bool:
-        if TOKEN is None:
-            return True
-        return self.headers.get("X-Console-Token") == TOKEN
+    def _merge_card(self, sid: str) -> dict:
+        """Merge 确认卡：薄工具 merge_readiness 的三态意见（release 角色执行，
+        非 LLM）。证据包里的 pr_binding 提供绑定的 commit SHA。"""
+        run_dir = self.runs_dir / sid
+        binding = read_json(run_dir / "evidence" / "pr_binding.json")
+        if not binding:
+            return {"available": False,
+                    "reason": "该 run 没有 PR 绑定（evidence/pr_binding.json）"
+                              "——inhouse 任务无合并对象"}
+        if not DEMO_REPO:
+            return {"available": False,
+                    "reason": "console 未配置 --demo-repo，无法做 git 检查"}
+        tool = Path(DEMO_REPO) / "scripts" / "merge_readiness.py"
+        if not tool.exists():
+            return {"available": False, "reason": f"缺 {tool}"}
+        argv = [sys.executable, str(tool), "--repo-dir", DEMO_REPO,
+                "--base", "main", "--head-sha", binding["head_sha"],
+                "--evidence", str(run_dir.resolve()), "--json"]
+        if os.environ.get("GH_TOKEN") and binding.get("repo"):
+            argv += ["--repo", binding["repo"]]      # 真实 GitHub check
+        else:
+            argv += ["--local"]  # 未接入时第五项以证书绑定为准（见工具文案）
+        proc = subprocess.run(argv, capture_output=True, text=True,
+                              timeout=60)
+        try:
+            card = json.loads(proc.stdout)
+        except json.JSONDecodeError:
+            card = {"ready": False, "verdict": "检查异常",
+                    "checks": [], "card_raw": proc.stdout + proc.stderr}
+        return {"available": True, "ready": proc.returncode == 0,
+                "card": card, "binding": binding}
+
+    def _check_token(self) -> dict | None:
+        """Return verified (redacted) claims for the write token, or None.
+
+        Modes: no guard (demo), static shared token (legacy --token),
+        capability JWT (--token-secret; HS256 claims = sub/role/scope/
+        credential_id/exp). What reaches the gateway is the CLAIMS —
+        the raw token never leaves this process.
+        """
+        if TOKEN is None and TOKEN_SECRET is None:
+            return {"subject": "operator", "role": "leader",
+                    "scope": ["resolve", "adjudicate"],
+                    "credential_id": "session-unguarded"}
+        header = self.headers.get("X-Console-Token", "")
+        if TOKEN_SECRET is not None:
+            try:
+                from notary_token import verify as verify_token, \
+                    redacted_claims
+                return redacted_claims(verify_token(header, TOKEN_SECRET))
+            except Exception:
+                return None
+        if hmac.compare_digest(header, TOKEN or ""):
+            return {"subject": "console-operator", "role": "leader",
+                    "scope": ["resolve", "adjudicate"],
+                    "credential_id": "static-token"}
+        return None
 
     def do_GET(self):  # noqa: N802
         path = urlparse(self.path).path
@@ -1835,6 +3403,49 @@ class Handler(BaseHTTPRequestHandler):
             self._send(200, PAGE, "text/html")
         elif path == "/desk":
             self._send(200, DESK_PAGE, "text/html")
+        elif path == "/workbench":
+            self._send(200, WORKBENCH_PAGE, "text/html")
+        elif path == "/hall":
+            self._send(200, HALL_PAGE, "text/html")
+        elif path == "/run":
+            self._send(200, RUN_PAGE, "text/html")
+        elif path.startswith("/api/runview/"):
+            sid = path.rsplit("/", 1)[-1]
+            run_dir = self.runs_dir / sid
+            if not run_dir.is_dir():
+                self._send(404, json.dumps({"error": "unknown run"}))
+            else:
+                self._send(200, json.dumps(runview_data(run_dir,
+                                                        self.runs_dir)))
+        elif path == "/skillboard":
+            self._send(200, SKILL_PAGE, "text/html")
+        elif path == "/api/skillboard":
+            self._send(200, json.dumps(skillboard_data()))
+        elif path.startswith("/api/hall/"):
+            sid = path.rsplit("/", 1)[-1]
+            run_dir = self.runs_dir / sid
+            if not run_dir.is_dir():
+                self._send(404, json.dumps({"error": "unknown run"}))
+            else:
+                f = hall_facts(run_dir)
+                self._send(200, json.dumps({
+                    "run_id": sid,
+                    "title": f["issue"].get("title", sid),
+                    "state": f["state"],
+                    "state_label": STATE_LABELS.get(f["state"], f["state"]),
+                    "envelopes": hall_timeline(run_dir)}))
+        elif path == "/api/board":
+            self._send(200, json.dumps(board_data(self.runs_dir)))
+        elif path.startswith("/api/adjudication_context/"):
+            sid = path.rsplit("/", 1)[-1]
+            run_dir = self.runs_dir / sid
+            if not run_dir.is_dir():
+                self._send(404, json.dumps({"error": "unknown run"}))
+            else:
+                self._send(200, json.dumps(adjudication_context(run_dir)))
+        elif path.startswith("/api/merge_card/"):
+            sid = path.rsplit("/", 1)[-1]
+            self._send(200, json.dumps(self._merge_card(sid)))
         elif path == "/api/gw":
             h = gateway_get("/health")
             ver = gateway_get("/policy")
@@ -1917,7 +3528,8 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_POST(self):  # noqa: N802
         path = urlparse(self.path).path
-        if not self._check_token():
+        claims = self._check_token()
+        if claims is None:
             self._send(403, json.dumps({"ok": False, "error": "bad token"}))
             return
         length = int(self.headers.get("Content-Length", "0"))
@@ -2004,6 +3616,68 @@ class Handler(BaseHTTPRequestHandler):
             _code, body = gateway_post(sid, "notary_flow.resolve_human",
                                        payload)
             self._send(200, json.dumps(body))
+        elif path.startswith("/api/adjudicate/"):
+            # 人工门②：最小权限 capability——scope 必须含 adjudicate
+            if "adjudicate" not in claims.get("scope", []):
+                self._send(403, json.dumps({
+                    "ok": False,
+                    "error": "scope 'adjudicate' required; this token "
+                             "cannot adjudicate"}))
+                return
+            sid = path.rsplit("/", 1)[-1]
+            payload["role"] = claims.get("role") or "adjudicator"
+            payload["claims"] = claims  # redacted claims; never the token
+            payload["channel"] = "console-token"
+            _code, body = gateway_post(sid, "notary_flow.adjudicate",
+                                       payload)
+            # 修订契约：裁决生效后系统动作全自动——用卡片上人手编辑的
+            # 修订文本发布契约 v1.1（references 由网关从裁决记录带入）
+            revision = payload.get("revision_assertions")
+            if body.get("ok") and payload.get("decision") == "revise" \
+                    and isinstance(revision, list) and revision:
+                fcode, fbody = gateway_post(sid, "notary_contract.freeze", {
+                    "assertions": [str(a) for a in revision],
+                    "role": "contract"})
+                body.setdefault("result", {})["contract_revision"] = \
+                    fbody.get("result", fbody)
+            self._send(200, json.dumps(body))
+        elif path == "/api/skill_confirm":
+            if "adjudicate" not in claims.get("scope", []):
+                self._send(403, json.dumps({
+                    "ok": False, "error": "scope 'adjudicate' required"}))
+                return
+            payload["role"] = claims.get("role") or "adjudicator"
+            payload["claims"] = claims
+            sid = str(payload.pop("sid", None) or "skill-governance")
+            _code, body = gateway_post(sid, "notary_skill.confirm", payload)
+            self._send(200, json.dumps(body))
+        elif path == "/api/skill_retire":
+            if "adjudicate" not in claims.get("scope", []):
+                self._send(403, json.dumps({
+                    "ok": False, "error": "scope 'adjudicate' required"}))
+                return
+            payload["role"] = claims.get("role") or "leader"
+            payload["claims"] = claims
+            sid = str(payload.pop("sid", None) or "skill-governance")
+            _code, body = gateway_post(sid, "notary_skill.retire", payload)
+            self._send(200, json.dumps(body))
+        elif path == "/api/hall_chat":
+            # 会话追问：只读落盘证据，永不驱动状态机（聊天起草、卡片生效）
+            sid = str(payload.get("sid", ""))
+            run_dir = self.runs_dir / sid
+            if not run_dir.is_dir():
+                self._send(404, json.dumps({"ok": False,
+                                            "error": "unknown run"}))
+                return
+            message = str(payload.get("message", "")).strip()
+            history = payload.get("history") or []
+            if not message:
+                self._send(400, json.dumps({"ok": False,
+                                            "error": "empty message"}))
+                return
+            self._send(200, json.dumps(hall_chat_reply(
+                run_dir, history if isinstance(history, list) else [],
+                message)))
         else:
             self._send(404, json.dumps({"ok": False, "error": "not found"}))
 
@@ -2020,17 +3694,44 @@ def main():
     ap.add_argument("--token", default=None,
                     help="if set, write APIs (intake/reset/resolve) require "
                          "X-Console-Token header; read APIs stay open")
+    ap.add_argument("--token-secret", default=None,
+                    help="path to the HS256 secret file: write APIs require "
+                         "a capability JWT (see tools/notary_token.py); "
+                         "takes precedence over --token")
+    ap.add_argument("--demo-repo", default=None,
+                    help="path to the codenotary-demo checkout; enables the "
+                         "merge-readiness card on the workbench")
     args = ap.parse_args()
-    global GATEWAY, TOKEN
+    global GATEWAY, TOKEN, TOKEN_SECRET, DEMO_REPO
     GATEWAY = args.gateway
     TOKEN = args.token
+    DEMO_REPO = args.demo_repo
+    if args.token_secret:
+        TOKEN_SECRET = Path(args.token_secret).read_text(encoding="utf-8").strip()
     Handler.runs_dir = Path(args.runs)
     srv = ThreadingHTTPServer((args.host, args.port), Handler)
+    mode = ("capability-JWT" if TOKEN_SECRET else
+            "static" if TOKEN else "OFF (demo mode)")
     print(f"CodeNotary Console v2 on http://{args.host}:{args.port} "
           f"(runs: {Handler.runs_dir}, gateway: {GATEWAY}, "
-          f"write-token: {'set' if TOKEN else 'OFF (demo mode)'})")
+          f"write-token: {mode})")
     srv.serve_forever()
 
 
+
+
+def _force_utf8_stdio() -> None:
+    """Cross-platform output safety: Chinese Windows consoles are GBK, and
+    printing Unicode status marks would crash the process. Force UTF-8."""
+    for stream_name in ("stdout", "stderr"):
+        stream = getattr(sys, stream_name, None)
+        if stream is not None and hasattr(stream, "reconfigure"):
+            try:
+                stream.reconfigure(encoding="utf-8", errors="replace")
+            except Exception:
+                pass
+
+
 if __name__ == "__main__":
+    _force_utf8_stdio()
     main()

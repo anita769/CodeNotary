@@ -76,6 +76,9 @@ DEFAULT_CONFIG: dict[str, Any] = {
     "mutation": {"red_below": 0.60, "green_above": 0.85, "max_mutants": 12},
     "test_timeout_s": 30,
     "rework": {"default_max_rounds": 2},
+    # 人工门③：skill 治理。probation = 新注册进试用区（可被 match、结果
+    # 标注试用、看板追认转正/一票否决）；strict = 未追认不可被 match。
+    "skill_governance": "probation",
     "convention": {"max_line_length": 100, "rules": {
         "diff-scope-discipline": True,
         "exception-handling-convention": True,
@@ -118,6 +121,10 @@ def load_config(path: Path) -> None:
     if not isinstance(user, dict):
         raise SystemExit("notary.json must be a JSON object")
     _merge_config(CONFIG, user)
+    if CONFIG["skill_governance"] not in ("probation", "strict"):
+        raise SystemExit(
+            f"notary.json: skill_governance must be 'probation' or 'strict', "
+            f"got {CONFIG['skill_governance']!r}")
 
 
 class IllegalTransition(Exception):
@@ -129,13 +136,24 @@ def sha256_text(text: str) -> str:
 
 
 def freeze_contract(issue_id: str, assertions: list[str],
-                    context_refs: list[str]) -> str:
-    """Tamper-evident contract freeze: sha256 over canonical JSON."""
+                    context_refs: list[str],
+                    assumptions: list[dict[str, str]] | None = None) -> str:
+    """Tamper-evident contract freeze: sha256 over canonical JSON.
+
+    `assumptions` (ambiguity point / default reading / basis) enter the
+    hash only when non-empty: an assumptions-free contract keeps the v1.1
+    canonical form byte-identical, so every previously frozen hash and
+    sealed evidence pack still recomputes. Once assumptions exist they
+    are frozen — silently editing a recorded assumption changes the hash.
+    """
+    canonical_obj: dict[str, Any] = {
+        "issue_id": issue_id, "assertions": assertions,
+        "context_refs": context_refs}
+    if assumptions:
+        canonical_obj["assumptions"] = assumptions
     canonical = json.dumps(
-        {"issue_id": issue_id, "assertions": assertions,
-         "context_refs": context_refs},
-        ensure_ascii=False, sort_keys=True, separators=(",", ":"),
-    )
+        canonical_obj, ensure_ascii=False, sort_keys=True,
+        separators=(",", ":"))
     return sha256_text(canonical)
 
 
@@ -257,6 +275,24 @@ class NotaryStateMachine:
         self._record(None)
         return self.state
 
+    def dispute(self) -> str:
+        """REJECTED -> ESCALATED: formal dispute of the verdict's basis.
+
+        A red-gate rejection is mechanically correct UNDER the frozen
+        contract; disputing it does not retry the gate, it challenges the
+        contract clause's requirement basis. The pipeline stops and waits
+        for a human adjudicator — ESCALATED is a designed pause, not an
+        error. Green gates are kept: adjudication that upholds the
+        contract leaves the attempt concluded, and adjudication that
+        revises the contract voids them in revise_contract().
+        """
+        if self.state != "REJECTED":
+            raise IllegalTransition(
+                f"dispute not valid from {self.state}")
+        self.state = "ESCALATED"
+        self._record(None)
+        return self.state
+
     def release(self) -> str:
         if self.state != "NOTARIZED":
             raise IllegalTransition(f"release requires NOTARIZED, not {self.state}")
@@ -270,6 +306,125 @@ class NotaryStateMachine:
         self.state = "ROLLED_BACK"
         self._record(None)
         return self.state
+
+
+# ---------------------------------------------------------------------------
+# Checkpoint resume verification (three-way: state / contract hash / history)
+#
+# Verification MUST NOT share code with what it verifies, so the transition
+# legality below is an independent re-statement of NotaryStateMachine's
+# rules — if the two ever disagree, that is itself a finding.
+# ---------------------------------------------------------------------------
+
+_RESUME_EXPLICIT_EDGES = {
+    ("RECEIVED", "QUARANTINED"), ("SCREENED", "QUARANTINED"),
+    ("GATING", "REJECTED"), ("GATING", "ESCALATED"), ("GATING", "NOTARIZED"),
+    ("ESCALATED", "GATING"), ("ESCALATED", "CONTRACTED"),
+    ("REJECTED", "AUTHORING"), ("REJECTED", "ESCALATED"),
+    ("NOTARIZED", "RELEASED"), ("RELEASED", "ROLLED_BACK"),
+}
+
+
+def _legal_resume_edge(prev: str, cur: str) -> bool:
+    if prev == cur:
+        # A green verdict in GATING records history without leaving GATING.
+        return prev == "GATING"
+    if prev in _ADVERSARIAL_PAIR and cur in _ADVERSARIAL_PAIR:
+        return True  # author/tester adversarial loop, both directions
+    if (prev, cur) in _RESUME_EXPLICIT_EDGES:
+        return True
+    if prev in _CANONICAL_ORDER and cur in _CANONICAL_ORDER:
+        return _CANONICAL_ORDER.index(cur) > _CANONICAL_ORDER.index(prev)
+    if cur == "REJECTED":
+        # reject_early: any pre-gating state; resolve_human reject: ESCALATED.
+        return prev not in ("GATING", "NOTARIZED", "RELEASED")
+    if cur == "ESCALATED":
+        # triage escalate: forbidden only from terminal-ish states.
+        return prev not in _TRIAGE_ESCALATE_FORBIDDEN
+    return False
+
+
+def verify_checkpoint(run_dir: Path, data: dict[str, Any]) -> list[str]:
+    """Three-way consistency check, run on EVERY resume.
+
+    Judges asked: "when you resume, how do you know the version is the
+    right one?" The answer, made structural here:
+
+      1. state    — sm.state is a known state and equals the history tail;
+                    the visited_contracted flag agrees with the history.
+      2. contract — if the run passed CONTRACTED, a contract exists and its
+                    frozen_hash recomputes exactly; the on-disk contract.json
+                    (evidence) must equal the checkpointed contract.
+      3. history  — every recorded transition is a legal edge under an
+                    independent re-statement of the state machine table.
+
+    Returns a list of failure reasons; empty means three-way consistent.
+    A failed checkpoint is NEVER resumed — replay from trace remains the
+    proof path.
+    """
+    failures: list[str] = []
+    sm = data.get("sm") or {}
+    state = sm.get("state")
+    history = sm.get("history") or []
+    green = set(sm.get("green_gates") or [])
+    visited = bool(sm.get("visited_contracted"))
+
+    # -- 1. state ------------------------------------------------------------
+    if state not in PIPELINE_STATES:
+        failures.append(f"state: unknown state {state!r}")
+    if not history:
+        failures.append("state: empty history")
+    else:
+        if history[0].get("state") != "RECEIVED":
+            failures.append("state: history does not start at RECEIVED")
+        if history[-1].get("state") != state:
+            failures.append(
+                f"state: head {state!r} != history tail "
+                f"{history[-1].get('state')!r}")
+        if visited != any(h.get("state") == "CONTRACTED" for h in history):
+            failures.append(
+                "state: visited_contracted flag disagrees with history")
+    if not green <= _REQUIRED_GREEN_GATES:
+        failures.append(f"state: unknown green gates {sorted(green)}")
+    if state in ("NOTARIZED", "RELEASED", "ROLLED_BACK") \
+            and green != _REQUIRED_GREEN_GATES:
+        failures.append(f"state: {state} without all gates green")
+
+    # -- 2. contract ----------------------------------------------------------
+    contract = data.get("contract")
+    if visited and contract is None:
+        failures.append(
+            "contract: run passed CONTRACTED but checkpoint has no contract")
+    if contract is not None:
+        recomputed = freeze_contract(
+            contract.get("issue_id", ""), contract.get("assertions") or [],
+            contract.get("context_refs")
+            or [str(run_dir / "diagnosis.json")],  # legacy checkpoints
+            contract.get("assumptions") or None)
+        if recomputed != contract.get("frozen_hash"):
+            failures.append(
+                "contract: frozen_hash does not recompute (content tampered "
+                "or wrong version)")
+        disk_contract = run_dir / "contract.json"
+        if disk_contract.exists():
+            try:
+                on_disk = json.loads(disk_contract.read_text(encoding="utf-8"))
+            except (OSError, json.JSONDecodeError):
+                on_disk = None
+            if on_disk != contract:
+                failures.append(
+                    "contract: checkpoint disagrees with on-disk "
+                    "contract.json (evidence)")
+
+    # -- 3. history -----------------------------------------------------------
+    for i in range(1, len(history)):
+        prev, cur = history[i - 1].get("state"), history[i].get("state")
+        if cur not in PIPELINE_STATES:
+            failures.append(f"history: entry {i} has unknown state {cur!r}")
+        elif not _legal_resume_edge(prev, cur):
+            failures.append(
+                f"history: illegal transition {prev} -> {cur} at entry {i}")
+    return failures
 
 
 # ---------------------------------------------------------------------------
@@ -384,9 +539,9 @@ def _write_workdir(workdir: Path, sources: dict[str, str],
         shutil.rmtree(workdir)
     workdir.mkdir(parents=True)
     for name, content in sources.items():
-        (workdir / Path(name).name).write_text(content)
+        (workdir / Path(name).name).write_text(content, encoding="utf-8")
     for name, content in test_files.items():
-        (workdir / Path(name).name).write_text(content)
+        (workdir / Path(name).name).write_text(content, encoding="utf-8")
 
 
 def _run_unittest(workdir: Path, sandbox: bool = False) -> dict[str, Any]:
@@ -398,7 +553,7 @@ def _run_unittest(workdir: Path, sandbox: bool = False) -> dict[str, Any]:
     argv = [sys.executable, "-m", "unittest", "discover",
             "-s", str(workdir), "-p", "test_*.py"]
     if sandbox:
-        (workdir / "_sandbox_main.py").write_text(_SANDBOX_MAIN)
+        (workdir / "_sandbox_main.py").write_text(_SANDBOX_MAIN, encoding="utf-8")
         argv = [sys.executable, "_sandbox_main.py"]
     try:
         proc = subprocess.run(
@@ -560,7 +715,7 @@ class NotaryRun:
         if not fixture_path.exists():
             raise KeyError(
                 f"unknown scenario '{scenario_id}'; available: {list_scenarios()}")
-        self.fixture = json.loads(fixture_path.read_text())
+        self.fixture = json.loads(fixture_path.read_text(encoding="utf-8"))
         self.scenario_id = scenario_id
         self.mode = self.fixture["mode"]
         self.sm = NotaryStateMachine(scenario_id)
@@ -592,7 +747,7 @@ class NotaryRun:
 
     def _write_json(self, path: Path, data: Any) -> None:
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(json.dumps(data, ensure_ascii=False, indent=2))
+        path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
 
     # -- checkpoint / resume --------------------------------------------------
     #
@@ -602,7 +757,9 @@ class NotaryRun:
     # state is checkpointed to runs/<sid>/checkpoint.json; on startup the
     # gateway restores every unfinished run. Replay and checkpoint are
     # complementary: checkpoint is the fast path (resume), replay is the
-    # proof path (deterministic recomputation).
+    # proof path (deterministic recomputation). Every restore passes
+    # verify_checkpoint() first — a checkpoint whose state, contract hash
+    # and history do not agree three-way is refused, never trusted.
 
     def checkpoint(self) -> None:
         data = {
@@ -623,20 +780,35 @@ class NotaryRun:
             "rework_round": self.rework_round,
             "max_rework_rounds": self.max_rework_rounds,
         }
-        self._write_json(self.run_dir / "checkpoint.json", data)
+        # Atomic write: tmp + rename, so a crash mid-write can never leave
+        # a truncated checkpoint.json that restore() would have to reject.
+        tmp = self.run_dir / "checkpoint.json.tmp"
+        self._write_json(tmp, data)
+        tmp.replace(self.run_dir / "checkpoint.json")
 
     @classmethod
     def restore(cls, run_dir: Path) -> "NotaryRun | None":
         cp = run_dir / "checkpoint.json"
         if not cp.exists():
             return None
-        data = json.loads(cp.read_text())
+        data = json.loads(cp.read_text(encoding="utf-8"))
         scenario_id = data["scenario_id"]
         fixture_path = SCENARIOS_DIR / f"{scenario_id}.json"
         if not fixture_path.exists():
             return None
+        # Every resume is verified three-way (state / contract / history).
+        # A checkpoint that fails is refused, loudly — replay from trace
+        # remains possible, silent trust of a stale or tampered checkpoint
+        # is not.
+        failures = verify_checkpoint(run_dir, data)
+        _append_resume_log(run_dir, scenario_id, data, failures)
+        if failures:
+            print(f"[resume] {scenario_id}: checkpoint verification FAILED — "
+                  f"{'; '.join(failures)}; run NOT resumed "
+                  f"(replay from trace remains possible)", flush=True)
+            return None
         self = cls.__new__(cls)
-        self.fixture = json.loads(fixture_path.read_text())
+        self.fixture = json.loads(fixture_path.read_text(encoding="utf-8"))
         self.scenario_id = scenario_id
         self.mode = self.fixture["mode"]
         sm = NotaryStateMachine(scenario_id)
@@ -656,6 +828,12 @@ class NotaryRun:
         self.rework_round = data["rework_round"]
         self.max_rework_rounds = data["max_rework_rounds"]
         self.trace_path = run_dir / "trace.jsonl"
+        contract_note = (f"{self.contract['frozen_hash'][:12]}…"
+                         if self.contract else "not frozen")
+        print(f"[resume] {scenario_id}: state={sm.state} ✓ "
+              f"contract={contract_note} ✓ "
+              f"history={len(sm.history)} transitions legal ✓ "
+              f"(3-way consistent)", flush=True)
         return self
 
     def log(self, tool: str, payload: Any, result: Any, ms: float,
@@ -717,14 +895,14 @@ class NotaryRun:
             return dict(embedded)
         names = self.fixture.get("baseline_test_files") or [
             self.fixture["baseline_test_file"]]
-        return {name: (TARGET_DIR / name).read_text() for name in names}
+        return {name: (TARGET_DIR / name).read_text(encoding="utf-8") for name in names}
 
     def target_source(self) -> dict[str, str]:
         embedded = self.fixture.get("embedded_target_files")
         if embedded is not None:
             sources = dict(embedded)
         else:
-            sources = {name: (TARGET_DIR / name).read_text()
+            sources = {name: (TARGET_DIR / name).read_text(encoding="utf-8")
                        for name in self.fixture["target_files"]}
         sources.update(self.fixture.get("source_overrides", {}))
         return sources
@@ -738,6 +916,32 @@ class NotaryRun:
             raise ValueError(
                 "contract not frozen yet; freeze it via notary_contract.freeze")
         return self.contract
+
+
+def _append_resume_log(run_dir: Path, scenario_id: str, data: dict,
+                       failures: list[str]) -> None:
+    """Persist every resume verification for the checkpoint panel: the
+    three-way check outcome plus the versions recovered (state / contract
+    hash / history length). Append-only, like every audit artifact."""
+    log_path = run_dir / "resume_log.json"
+    try:
+        log = json.loads(log_path.read_text(encoding="utf-8")) if log_path.exists() else []
+        sm = data.get("sm") or {}
+        contract = data.get("contract") or {}
+        log.append({
+            "ts": time.time(),
+            "result": "rejected" if failures else "resumed",
+            "failures": failures,
+            "state": sm.get("state"),
+            "contract_version": contract.get("version"),
+            "contract_hash": (contract.get("frozen_hash") or "")[:16] or None,
+            "history_len": len(sm.get("history") or []),
+            "green_gates": sorted(sm.get("green_gates") or []),
+        })
+        log_path.write_text(json.dumps(log, ensure_ascii=False, indent=2), encoding="utf-8")
+    except OSError:
+        pass
+
 
 
 RUNS: dict[str, NotaryRun] = {}
@@ -869,17 +1073,24 @@ def _append_index(entry: dict[str, Any]) -> None:
         json.dumps(idx, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
 
-def _registry_state() -> tuple[dict[str, dict], set[str], bool]:
-    """Latest register entry per name, retired-name set, index-exists flag."""
+def _registry_state() -> tuple[dict[str, dict], set[str], set[str], bool]:
+    """Latest register entry per name, retired set, confirmed set, index flag.
+
+    confirm（追认转正）是注册表上的一等动作：人工门③的看板追认从
+    probation 转为正式服役；否决则用既有 retire 一票否决。"""
     latest: dict[str, dict] = {}
     retired: set[str] = set()
+    confirmed: set[str] = set()
     for e in _load_index()["entries"]:
         if e.get("action") == "register":
             latest[e["name"]] = e
             retired.discard(e["name"])
+            confirmed.discard(e["name"])
         elif e.get("action") == "retire":
             retired.add(e["name"])
-    return latest, retired, SKILL_INDEX_PATH.exists()
+        elif e.get("action") == "confirm":
+            confirmed.add(e["name"])
+    return latest, retired, confirmed, SKILL_INDEX_PATH.exists()
 
 
 def load_skills() -> list[dict[str, Any]]:
@@ -892,7 +1103,7 @@ def load_skills() -> list[dict[str, Any]]:
     silent serve. Retired skills (tombstoned in the index) are listed for
     audit but never served.
     """
-    latest, retired, indexed = _registry_state()
+    latest, retired, confirmed, indexed = _registry_state()
     skills = [_load_one_skill(p, "seed")
               for p in sorted(SKILLS_DIR.glob("*/SKILL.md"))]
     for path in sorted(SKILL_REGISTRY_DIR.glob("*.md")):
@@ -910,6 +1121,10 @@ def load_skills() -> list[dict[str, Any]]:
             rec["supersedes"] = entry.get("supersedes")
         if rec["status"] == "loaded" and rec["name"] in retired:
             rec["status"] = "retired"
+        if rec["status"] == "loaded" and rec["name"] not in confirmed:
+            # 新注册进试用区：可被 match（probation 模式）、结果标注试用；
+            # 种子 skill 随包审计过，不在此列。
+            rec["status"] = "probation"
         skills.append(rec)
     for rec in skills:
         if rec["source"] == "seed" and rec["status"] == "loaded" \
@@ -930,9 +1145,11 @@ def _resolve_latest(name: str, by_name: dict[str, dict]
         chain.append(cur)
         cur = next((n for n, s in by_name.items()
                     if s.get("supersedes") == cur), None)
+    servable = {"loaded"} | (
+        {"probation"} if CONFIG["skill_governance"] == "probation" else set())
     for cand in reversed(chain):
         rec = by_name.get(cand)
-        if rec and rec["status"] == "loaded":
+        if rec and rec["status"] in servable:
             return rec, chain
     return None, chain
 
@@ -950,6 +1167,7 @@ def _resolve_latest(name: str, by_name: dict[str, dict]
 KNOWN_ROLES = {
     "sentinel", "triage", "rca", "contract", "author", "tester",
     "convention", "gatekeeper", "release", "postmortem", "leader", "human",
+    "adjudicator",
 }
 
 # Entry conditions: which pipeline states each state-sensitive tool may be
@@ -986,6 +1204,7 @@ ROLE_POLICY: dict[str, set[str]] = {
     "notary_flow.diagnosis": {"rca"},
     "notary_flow.reproduce": {"rca"},
     "notary_flow.request_rework": {"gatekeeper", "leader"},
+    "notary_flow.dispute": {"author", "leader"},
     "notary_contract.freeze": {"contract"},
     "notary_author.get_context": {"author"},
     "notary_author.submit_implementation": {"author"},
@@ -998,11 +1217,13 @@ ROLE_POLICY: dict[str, set[str]] = {
     "notary_gate.run_convention_gate": {"gatekeeper", "convention"},
     "notary_rebuttal.submit": {"author"},
     "notary_flow.resolve_human": {"leader", "human"},
+    "notary_flow.adjudicate": {"adjudicator", "leader"},
     "notary_release.deploy": {"release"},
     "notary_release.rollback": {"release"},
     "notary_evidence.seal": {"release", "postmortem"},
     "notary_skill.register": {"postmortem"},
     "notary_skill.retire": {"postmortem", "leader"},
+    "notary_skill.confirm": {"leader", "adjudicator"},
     "notary_intake.submit_issue": {"ci", "triage", "leader"},
 }
 
@@ -1093,7 +1314,7 @@ def t_reproduce(run: NotaryRun, _p: dict) -> dict:
         shutil.rmtree(workdir)
     workdir.mkdir(parents=True)
     for name, content in run.target_source().items():
-        (workdir / Path(name).name).write_text(content)
+        (workdir / Path(name).name).write_text(content, encoding="utf-8")
     repro = str(_p.get("repro_snippet", "")).strip() \
         or run.fixture.get("repro_snippet") or (
         "from queue_box import Mailbox\n"
@@ -1106,12 +1327,40 @@ def t_reproduce(run: NotaryRun, _p: dict) -> dict:
     if run.fixture.get("custom_target"):
         # Customer-uploaded code: rlimit ceilings before any statement runs.
         repro = _SANDBOX_PREAMBLE + repro
-    (workdir / "repro.py").write_text(repro)
+    (workdir / "repro.py").write_text(repro, encoding="utf-8")
     proc = subprocess.run([sys.executable, "repro.py"], capture_output=True,
                           text=True, timeout=CONFIG["test_timeout_s"], cwd=str(workdir))
     return {"command": "python3 repro.py  # scenario repro snippet",
             "stdout": proc.stdout.strip(), "stderr": proc.stderr.strip(),
             "exit_code": proc.returncode}
+
+
+def _validate_assumptions(raw: Any) -> list[dict[str, str]]:
+    """Contract assumptions schema: recorded ambiguity, not silent guessing.
+
+    Each entry is {point, assumption, basis}: the ambiguity found in the
+    issue, the default reading the contract adopts, and what that reading
+    rests on (prior behavior / downstream agreement / ...). Assumptions
+    may go ahead without blocking, but they are frozen into the contract
+    hash and remain challengeable via notary_flow.dispute.
+    """
+    if not isinstance(raw, list):
+        raise ValueError("assumptions must be a list of "
+                         "{point, assumption, basis} objects")
+    out: list[dict[str, str]] = []
+    for i, a in enumerate(raw):
+        if not isinstance(a, dict):
+            raise ValueError(f"assumptions[{i}] must be an object")
+        entry = {}
+        for key in ("point", "assumption", "basis"):
+            value = str(a.get(key, "")).strip()
+            if len(value) < 4:
+                raise ValueError(
+                    f"assumptions[{i}].{key} must be non-empty; an "
+                    f"assumption without its basis is a silent guess")
+            entry[key] = value
+        out.append(entry)
+    return out
 
 
 def t_freeze_contract(run: NotaryRun, p: dict) -> dict:
@@ -1120,17 +1369,25 @@ def t_freeze_contract(run: NotaryRun, p: dict) -> dict:
                                  for a in assertions):
         raise ValueError("assertions must be a non-empty list of verifiable "
                          "plain-text statements (>= 8 chars each)")
+    assumptions = _validate_assumptions(p.get("assumptions") or [])
+    revising = run.sm.state == "ESCALATED" and run.contract is not None
+    if revising and not assumptions:
+        # 修订不清空留痕假设：未显式给出时继承上一版（歧义留痕跨版本延续）
+        assumptions = run.contract.get("assumptions") or []
     in_scope = p.get("in_scope") or run.fixture["target_files"]
     out_of_scope = p.get("out_of_scope") or []
-    revising = run.sm.state == "ESCALATED" and run.contract is not None
     previous_hash = run.contract["frozen_hash"] if revising else None
     previous_version = run.contract.get("version", 1) if revising else 0
+    context_refs = [str(run.run_dir / "diagnosis.json")]
     contract_hash = freeze_contract(
-        run.fixture["issue"]["id"], assertions,
-        [str(run.run_dir / "diagnosis.json")])
+        run.fixture["issue"]["id"], assertions, context_refs,
+        assumptions or None)
     run.contract = {
         "issue_id": run.fixture["issue"]["id"],
         "assertions": assertions,
+        "assumptions": assumptions,
+        "context_refs": context_refs,  # recorded so the hash recomputes
+                                       # anywhere, not just on this machine
         "in_scope": in_scope,
         "out_of_scope": out_of_scope,
         "version": previous_version + 1,
@@ -1144,13 +1401,23 @@ def t_freeze_contract(run: NotaryRun, p: dict) -> dict:
         # Contract evolution: the revision chains to the version it
         # replaces, so the arbitration trail is tamper-evident.
         run.contract["previous_hash"] = previous_hash
+        # 补证附件：修订若源自裁决，把裁决的 references 写进新契约
+        adj_path = run.run_dir / "adjudication.json"
+        if adj_path.exists():
+            adj = json.loads(adj_path.read_text(encoding="utf-8"))
+            revise = next((a for a in reversed(adj)
+                           if a.get("decision") == "revise"), None)
+            if revise and revise.get("references"):
+                run.contract["references"] = revise["references"]
+                run.contract["adjudication_id"] = revise.get("id")
     run._write_json(run.run_dir / "contract.json", run.contract)
     if revising:
         run.sm.revise_contract()
     else:
         run.sm.advance_to("CONTRACTED")
     return {"frozen_hash": contract_hash, "version": run.contract["version"],
-            "revised": revising, "pipeline_state": run.sm.state}
+            "revised": revising, "assumptions_recorded": len(assumptions),
+            "pipeline_state": run.sm.state}
 
 
 def t_author_context(run: NotaryRun, _p: dict) -> dict:
@@ -1201,7 +1468,7 @@ def t_submit_implementation(run: NotaryRun, p: dict) -> dict:
     part = run.run_dir / "work" / "author_wt"
     part.mkdir(parents=True, exist_ok=True)
     for name, content in files.items():
-        (part / name).write_text(content)
+        (part / name).write_text(content, encoding="utf-8")
     if run.sm.state == "CONTRACTED":
         run.sm.advance_to("AUTHORING")
     return {"stored": sorted(files), "pipeline_state": run.sm.state}
@@ -1219,7 +1486,7 @@ def t_submit_tests(run: NotaryRun, p: dict) -> dict:
     part = run.run_dir / "work" / "tester_wt"
     part.mkdir(parents=True, exist_ok=True)
     for name, content in files.items():
-        (part / name).write_text(content)
+        (part / name).write_text(content, encoding="utf-8")
     if run.sm.state == "CONTRACTED":
         run.sm.advance_to("AUTHORING")
     if run.sm.state == "AUTHORING":
@@ -1296,7 +1563,7 @@ def t_run_mutation_gate(run: NotaryRun, _p: dict) -> dict:
     survivors_md = ["# Mutation survivors\n"]
     for s in survived:
         survivors_md.append(f"- {s['id']} line {s['line']}: {s['mutation']}")
-    (run.run_dir / "survivors.md").write_text("\n".join(survivors_md) + "\n")
+    (run.run_dir / "survivors.md").write_text("\n".join(survivors_md) + "\n", encoding="utf-8")
     out = {"mutants_total": len(mutants), "killed": len(killed),
            "survived": survived, "invalid": len(invalid),
            "score": round(score, 4),
@@ -1413,7 +1680,7 @@ def t_list_verdicts(run: NotaryRun, _p: dict) -> dict:
     verdicts = {}
     vdir = run.run_dir / "verdicts"
     for path in sorted(vdir.glob("*.json")):
-        verdicts[path.stem] = json.loads(path.read_text())
+        verdicts[path.stem] = json.loads(path.read_text(encoding="utf-8"))
     return {"verdicts": verdicts, "pipeline_state": run.sm.state,
             "history_len": len(run.sm.history)}
 
@@ -1451,7 +1718,7 @@ def t_request_rework(run: NotaryRun, p: dict) -> dict:
     run.rework_round += 1
     state = run.sm.rework()
     log_path = run.run_dir / "rework.json"
-    log = json.loads(log_path.read_text()) if log_path.exists() else []
+    log = json.loads(log_path.read_text(encoding="utf-8")) if log_path.exists() else []
     log.append({"round": run.rework_round, "budget": run.max_rework_rounds,
                 "reason": reason, "from": "REJECTED", "to": state,
                 "ts": time.time()})
@@ -1460,6 +1727,113 @@ def t_request_rework(run: NotaryRun, p: dict) -> dict:
             "budget": run.max_rework_rounds,
             "green_gates_cleared": True,
             "pipeline_state": state}
+
+
+def t_dispute(run: NotaryRun, p: dict) -> dict:
+    """REJECTED -> ESCALATED: dispute the verdict's contract basis.
+
+    The red gate was mechanically correct under contract vN; the dispute
+    channel exists for the one question the machine cannot answer: what
+    is the requirement basis of this contract clause? The target of a
+    dispute is the CONTRACT, never the test process — a dispute about
+    gate mechanics is a rework request, not an escalation. The pipeline
+    stops and waits for a human adjudicator (designed pause).
+    """
+    focus = str(p.get("focus", "")).strip()
+    if len(focus) < 8:
+        raise ValueError(
+            "focus must state the challenged clause's basis question "
+            "(>= 8 chars); a dispute without a stated focus is not "
+            "auditable")
+    clause = str(p.get("clause", "")).strip()
+    if run.sm.state != "REJECTED":
+        raise IllegalTransition(
+            f"dispute only valid in REJECTED, not {run.sm.state}; "
+            f"the dispute channel challenges a concluded red verdict, "
+            f"not a pipeline in flight")
+    if run.contract is None:
+        raise IllegalTransition(
+            "dispute requires a frozen contract to challenge")
+    state = run.sm.dispute()
+    entry = {"focus": focus, "clause": clause or None,
+             "contract_version": run.contract.get("version"),
+             "contract_hash": run.contract["frozen_hash"],
+             "role": p.get("role"), "from": "REJECTED", "to": state,
+             "ts": time.time()}
+    log_path = run.run_dir / "dispute.json"
+    log = json.loads(log_path.read_text(encoding="utf-8")) if log_path.exists() else []
+    log.append(entry)
+    run._write_json(log_path, log)
+    return {"dispute_id": len(log), "focus": focus,
+            "contract_version": entry["contract_version"],
+            "pipeline_state": state,
+            "note": "escalated for human adjudication; gates keep their "
+                    "recorded verdicts, the pipeline waits"}
+
+
+_ADJUDICATION_DECISIONS = ("uphold", "revise", "request_evidence", "override")
+
+
+def t_adjudicate(run: NotaryRun, p: dict) -> dict:
+    """Human gate ②: adjudicate an ESCALATED dispute (four options).
+
+    The adjudicator rules on the CONTRACT's basis, never on the code —
+    after a revision the system re-verifies the code under v1.1 itself.
+    Claims (subject/role/scope/credential_id) are recorded for audit;
+    the raw token NEVER touches disk. State effects:
+      uphold           -> back to REJECTED (the red verdict stands)
+      revise           -> stays ESCALATED; the next contract freeze carries
+                          this adjudication's references into v1.1
+      request_evidence -> stays ESCALATED (supplementation is a verdict)
+      override         -> GATING (special release: mandatory reason,
+                          flagged yellow in the record)
+    """
+    decision = str(p.get("decision", "")).strip()
+    if decision not in _ADJUDICATION_DECISIONS:
+        raise ValueError(
+            f"decision must be one of: {' / '.join(_ADJUDICATION_DECISIONS)}")
+    rationale = str(p.get("rationale", "")).strip()
+    min_len = 8 if decision != "override" else 20
+    if len(rationale) < min_len:
+        raise ValueError(
+            f"rationale too short (>= {min_len} chars"
+            + ("; override is a signed exception, argue it properly"
+               if decision == "override" else "") + ")")
+    if run.sm.state != "ESCALATED":
+        raise IllegalTransition(
+            f"adjudicate only valid in ESCALATED, not {run.sm.state}")
+    claims = p.get("claims") or {}
+    actor = str(claims.get("subject") or p.get("role") or "unknown")
+    entry = {
+        "decision": decision,
+        "rationale": rationale,
+        "actor": actor,
+        "role": claims.get("role") or p.get("role"),
+        "scope": claims.get("scope", []),
+        "credential_id": claims.get("credential_id"),
+        "channel": str(p.get("channel") or "direct"),
+        "evidence_reviewed": [str(x) for x in p.get("evidence_reviewed", [])],
+        "references": [str(x) for x in p.get("references", [])],
+        "contract_version": (run.contract or {}).get("version"),
+        "contract_hash": (run.contract or {}).get("frozen_hash"),
+        "flagged": decision == "override",  # 特批标黄
+        "ts": time.time(),
+    }
+    log_path = run.run_dir / "adjudication.json"
+    log = json.loads(log_path.read_text(encoding="utf-8")) if log_path.exists() else []
+    entry["id"] = len(log) + 1
+    log.append(entry)
+    run._write_json(log_path, log)
+    if decision == "uphold":
+        state = run.sm.resolve_human(False)
+    elif decision == "override":
+        state = run.sm.resolve_human(True)
+    else:  # revise / request_evidence: pipeline waits for the follow-up act
+        state = run.sm.state
+    return {"adjudication_id": entry["id"], "decision": decision,
+            "actor": actor, "credential_id": entry["credential_id"],
+            "pipeline_state": state,
+            "note": "裁决对象是规则不是代码；代码由系统按规则重新验证"}
 
 
 def t_resolve_human(run: NotaryRun, p: dict) -> dict:
@@ -1525,7 +1899,7 @@ def _write_certificate(run: NotaryRun) -> None:
     vdir = run.run_dir / "verdicts"
     if vdir.is_dir():
         for vf in sorted(vdir.glob("*.json")):
-            verdicts[vf.stem] = json.loads(vf.read_text())
+            verdicts[vf.stem] = json.loads(vf.read_text(encoding="utf-8"))
     gate_lines = []
     for gate, v in verdicts.items():
         line = f"| {gate} | {v['decision']} | {v['summary']} |"
@@ -1569,16 +1943,68 @@ def should_issue_certificate(fixture: dict) -> bool:
 def t_seal(run: NotaryRun, _p: dict) -> dict:
     if should_issue_certificate(run.fixture):
         _write_certificate(run)  # the certificate is part of the sealed package
-    manifest: dict[str, str] = {}
+    # Volatile files are sealed by PREFIX, not by whole-file hash:
+    # trace.jsonl keeps growing (the seal call itself is logged right
+    # after) and checkpoint.json is rewritten after every call. We bind
+    # the first N lines of the trace at seal time; later appends cannot
+    # alter them (append-only), and verify recomputes the same prefix.
+    # checkpoint.json is intentionally unsealed — its integrity is the
+    # job of restore-time three-way verification, not of the evidence seal.
+    trace_lines = run.trace_path.read_text(encoding="utf-8").splitlines(keepends=True) \
+        if run.trace_path.exists() else []
+    manifest: dict[str, Any] = {"files": {}}
     for path in sorted(run.run_dir.rglob("*")):
         if path.is_file() and "__pycache__" not in path.parts \
-                and path.name != "manifest.json":
-            manifest[str(path.relative_to(run.run_dir))] = sha256_text(
-                path.read_bytes().decode("utf-8", errors="replace"))
+                and "work" not in path.parts \
+                and path.name not in ("manifest.json", "trace.jsonl",
+                                      "checkpoint.json", "checkpoint.json.tmp"):
+            manifest["files"][str(path.relative_to(run.run_dir))] = \
+                sha256_text(path.read_bytes().decode("utf-8", errors="replace"))
+    manifest["trace_prefix"] = {
+        "lines": len(trace_lines),
+        "sha256": sha256_text("".join(trace_lines))}
+    manifest["gateway_version"] = GATEWAY_VERSION
     run._write_json(run.run_dir / "manifest.json", manifest)
-    return {"sealed_files": len(manifest),
+    signed = _sign_manifest(run)
+    return {"sealed_files": len(manifest["files"]),
             "manifest": str(run.run_dir / "manifest.json"),
+            "signed": signed,
             "pipeline_state": run.sm.state}
+
+
+def _sign_manifest(run: NotaryRun) -> bool:
+    """Ed25519-sign manifest.json if keys/notary_ed25519.pem exists.
+
+    The seal proves the evidence was not touched AFTER sealing; the
+    signature proves WHO sealed it. Signing uses the openssl CLI (no new
+    Python deps); a configured key with no openssl available is a hard
+    error, never a silent unsigned seal.
+    """
+    key = PKG_ROOT / "keys" / "notary_ed25519.pem"
+    if not key.exists():
+        return False
+    manifest_path = run.run_dir / "manifest.json"
+    sig_path = run.run_dir / "evidence" / "manifest.sig.bin"
+    sig_path.parent.mkdir(parents=True, exist_ok=True)
+    proc = subprocess.run(
+        ["openssl", "pkeyutl", "-sign", "-inkey", str(key), "-rawin",
+         "-in", str(manifest_path), "-out", str(sig_path)],
+        capture_output=True, text=True)
+    if proc.returncode != 0:
+        raise RuntimeError(f"manifest signing failed: {proc.stderr.strip()}")
+    pub_proc = subprocess.run(
+        ["openssl", "pkey", "-in", str(key), "-pubout"],
+        capture_output=True, text=True)
+    fingerprint = sha256_text(pub_proc.stdout)[:16]
+    run._write_json(run.run_dir / "evidence" / "manifest.sig.json", {
+        "algorithm": "Ed25519",
+        "signature_hex": sig_path.read_bytes().hex(),
+        "pubkey_fingerprint": fingerprint,
+        "signed_file": "manifest.json",
+        "note": "verify: openssl pkeyutl -verify -pubin -inkey "
+                "notary_ed25519.pub -rawin -in manifest.json -sigfile <sig>"})
+    sig_path.unlink()  # canonical form is the hex inside the JSON
+    return True
 
 
 def t_list_evidence(run: NotaryRun, _p: dict) -> dict:
@@ -1614,7 +2040,7 @@ def t_register_skill(run: NotaryRun, p: dict) -> dict:
     if supersedes:
         header += f"supersedes: {supersedes}\n"
     header += "---\n\n"
-    target.write_text(header + content + "\n")
+    target.write_text(header + content + "\n", encoding="utf-8")
     _append_index({
         "action": "register", "name": name, "version": version,
         "supersedes": supersedes,
@@ -1625,6 +2051,35 @@ def t_register_skill(run: NotaryRun, p: dict) -> dict:
     return {"registered": name, "version": version,
             "supersedes": supersedes, "path": str(target)}
 
+
+def t_confirm_skill(run: NotaryRun, p: dict) -> dict:
+    """Probation -> loaded: 看板追认转正（人工门③）。
+
+    追认不是审批前置，而是事后确认：试用期的命中数据（skill_matches.json）
+    就是评审材料。追加 confirm 条目进 append-only 注册表。
+    """
+    name = str(p.get("name", "")).strip()
+    reason = str(p.get("reason", "")).strip()
+    if not _SAFE_NAME_RE.match(name) or not reason:
+        raise ValueError("skill name must be safe and reason non-empty; "
+                         "追认须留理由")
+    by_name = {s["name"]: s for s in load_skills()}
+    rec = by_name.get(name)
+    if rec is None:
+        raise ValueError(f"unknown skill '{name}'")
+    if rec["status"] != "probation":
+        raise ValueError(
+            f"skill '{name}' is {rec['status']}, not in probation; "
+            f"只有试用区的 Skill 需要追认")
+    claims = p.get("claims") or {}
+    _append_index({
+        "action": "confirm", "name": name,
+        "by": claims.get("subject") or p.get("role"),
+        "credential_id": claims.get("credential_id"),
+        "reason": reason, "ts": time.time()})
+    return {"confirmed": name, "version": rec.get("version"),
+            "governance_after": "loaded",
+            "note": "追认已登记；注册表只增不改，可随时用 retire 否决"}
 
 def t_retire_skill(run: NotaryRun, p: dict) -> dict:
     """Tombstone a skill (append-only rollback): it immediately stops being
@@ -1641,9 +2096,11 @@ def t_retire_skill(run: NotaryRun, p: dict) -> dict:
     if rec["status"] == "retired":
         raise ValueError(f"skill '{name}' is already retired")
     _append_index({"action": "retire", "name": name, "reason": reason,
-                   "source_run": run.scenario_id, "ts": time.time()})
-    run._write_json(run.run_dir / "evidence" / "retired_skill.json",
-                    {"retired": name, "reason": reason})
+                   "source_run": run.scenario_id if run else None,
+                   "ts": time.time()})
+    if run is not None:
+        run._write_json(run.run_dir / "evidence" / "retired_skill.json",
+                        {"retired": name, "reason": reason})
     return {"retired": name, "reason": reason,
             "note": "tombstone appended; the supersedes-chain predecessor, "
                     "if any, serves again immediately"}
@@ -1670,6 +2127,8 @@ INTAKE_TARGETS: dict[str, dict[str, list[str]]] = {
     "mailbox_router": {"target_files": ["queue_box.py", "mailbox_router.py"],
                        "baseline_test_files": ["test_queue_box_baseline.py",
                                                "test_router_baseline.py"]},
+    "coupon_expiry": {"target_files": ["coupon.py"],
+                      "baseline_test_files": ["test_coupon_baseline.py"]},
 }
 
 
@@ -1762,6 +2221,10 @@ def t_intake_submit_issue(p: dict) -> dict:
             raise ValueError("uploaded change must include at least one "
                              ".py file")
     sid_seed = title + report + expected
+    # Optional caller tag (e.g. CI run_tag "pr1-v2"): same content + same
+    # tag = same scenario (webhook retry stays idempotent); same issue
+    # re-delivered under a new tag = a NEW run alongside the old one.
+    sid_seed += str(p.get("run_tag", "")).strip()
     if source_files is not None:
         sid_seed += json.dumps(source_files, sort_keys=True)
     sid = "intake_" + sha256_text(sid_seed)[:10]
@@ -1878,9 +2341,25 @@ def t_skill_match(run: NotaryRun, p: dict) -> dict:
                    "version": rec.get("version"), "source": rec["source"],
                    "description": rec["description"],
                    "roles": entry.get("roles", [])}
+            if rec["status"] == "probation":
+                # 试用区命中：结果与命中日志都标注——"命中数据说话，
+                # 人看数据决定"（追认制的评审依据）。
+                out["governance"] = "probation"
+                out["probation_note"] = (
+                    "该 Skill 处于试用区：判断可参考，裁决仍由确定性门禁"
+                    "与人工门兜底")
             if rec["name"] != entry["skill"]:
                 out["resolved_from"] = entry["skill"]
                 out["supersedes_chain"] = chain
+            if run is not None:
+                log_path = run.run_dir / "evidence" / "skill_matches.json"
+                log = json.loads(log_path.read_text(encoding="utf-8"))                     if log_path.exists() else []
+                log.append({"ts": time.time(), "role": p.get("role"),
+                            "signal": entry["signal"],
+                            "skill": rec["name"],
+                            "version": rec.get("version"),
+                            "governance": rec["status"]})
+                run._write_json(log_path, log)
             return out
     valid = sorted(e["signal"] for e in table["signals"])
     raise ValueError(f"unknown trigger signal {signal!r}; "
@@ -1901,6 +2380,8 @@ TOOLS: dict[str, Callable[[NotaryRun, dict], Any]] = {
     "notary_flow.diagnosis": t_diagnosis,
     "notary_flow.reproduce": t_reproduce,
     "notary_flow.request_rework": t_request_rework,
+    "notary_flow.dispute": t_dispute,
+    "notary_flow.adjudicate": t_adjudicate,
     "notary_contract.freeze": t_freeze_contract,
     "notary_author.get_context": t_author_context,
     "notary_author.submit_implementation": t_submit_implementation,
@@ -1921,6 +2402,7 @@ TOOLS: dict[str, Callable[[NotaryRun, dict], Any]] = {
     "notary_evidence.list": t_list_evidence,
     "notary_skill.register": t_register_skill,
     "notary_skill.retire": t_retire_skill,
+    "notary_skill.confirm": t_confirm_skill,
     "notary_skill.list": t_skill_list,
     "notary_skill.get": t_skill_get,
     "notary_skill.match": t_skill_match,
@@ -1967,7 +2449,7 @@ def render_metrics() -> str:
             f'codenotary_rework_rounds{{run="{sid}"}} {run.rework_round}')
         if run.trace_path.exists():
             counts: dict[tuple[str, str], int] = {}
-            for line in run.trace_path.read_text().splitlines():
+            for line in run.trace_path.read_text(encoding="utf-8").splitlines():
                 if not line.strip():
                     continue
                 e = json.loads(line)
@@ -1981,7 +2463,9 @@ def render_metrics() -> str:
 
 
 # Run-agnostic reads: served without a run (and never create/reset one).
-RUNLESS_TOOLS = {"notary_skill.list", "notary_skill.get", "notary_skill.match"}
+RUNLESS_TOOLS = {"notary_skill.list", "notary_skill.get",
+                 "notary_skill.match", "notary_skill.confirm",
+                 "notary_skill.retire"}
 
 
 class NotaryHandler(BaseHTTPRequestHandler):
@@ -2049,7 +2533,7 @@ class NotaryHandler(BaseHTTPRequestHandler):
                 return
             if len(parts) == 3 and parts[0] == "tools" and parts[2] == "trace":
                 run = get_run(parts[1])
-                trace = (run.trace_path.read_text()
+                trace = (run.trace_path.read_text(encoding="utf-8")
                          if run.trace_path.exists() else "")
                 self._send(HTTPStatus.OK, {"ok": True, "result": trace})
                 return
@@ -2099,8 +2583,15 @@ class NotaryHandler(BaseHTTPRequestHandler):
                         f"unknown tool call '{tool_call}', available: "
                         + ", ".join(sorted(TOOLS)))
                 if tool_call in RUNLESS_TOOLS and scenario_id not in RUNS:
-                    # run-agnostic skill read: serve without creating (or
+                    # run-agnostic skill ops: serve without creating (or
                     # resetting!) a run. No run -> no per-run trace write.
+                    # Role policy still applies (fail-closed); a denied
+                    # runless call simply has no run to record the event in.
+                    allowed = ROLE_POLICY.get(tool_call)
+                    if role is not None and allowed is not None                             and role not in allowed:
+                        raise ValueError(
+                            f"role '{role}' is not permitted to call "
+                            f"{tool_call} (allowed: {sorted(allowed)})")
                     result = TOOLS[tool_call](None, payload)
                     self._send(HTTPStatus.OK, {"ok": True, "result": result})
                     return
@@ -2119,22 +2610,35 @@ class NotaryHandler(BaseHTTPRequestHandler):
                         f"{tool_call} not valid in state {run.sm.state}; "
                         f"entry requires one of: {sorted(entry)}")
                 result = TOOLS[tool_call](run, payload)
+            # Persist BEFORE responding: a crash between response and
+            # checkpoint must never lose a committed state change (the
+            # SIGKILL-after-response race found in finals prep).
+            self._persist(run, tool_call, payload, result, started, role,
+                          trace_event)
             self._send(HTTPStatus.OK, {"ok": True, "result": result})
         except (IllegalTransition, ValueError, KeyError, RuntimeError) as exc:
             result = {"error": str(exc)}
+            self._persist(run, tool_call, payload, result, started, role,
+                          trace_event)
             self._send(HTTPStatus.BAD_REQUEST, {"ok": False, "error": str(exc)})
         except Exception as exc:  # noqa: BLE001 - gateway must not die on one call
             result = {"error": f"internal: {exc}"}
+            self._persist(run, tool_call, payload, result, started, role,
+                          trace_event)
             self._send(HTTPStatus.INTERNAL_SERVER_ERROR,
                        {"ok": False, "error": f"internal: {exc}"})
-        if run is not None and tool_call:
-            ms = (time.monotonic() - started) * 1000
-            try:
-                run.log(tool_call, payload, result, ms,
-                        role=role, event=trace_event)
-                run.checkpoint()
-            except OSError:
-                pass
+
+    def _persist(self, run, tool_call: str, payload: dict, result,
+                 started: float, role, trace_event) -> None:
+        if run is None or not tool_call:
+            return
+        ms = (time.monotonic() - started) * 1000
+        try:
+            run.log(tool_call, payload, result, ms,
+                    role=role, event=trace_event)
+            run.checkpoint()
+        except OSError:
+            pass
 
     def log_message(self, fmt: str, *args: Any) -> None:
         print(f"{self.address_string()} - {fmt % args}", flush=True)
@@ -2165,5 +2669,20 @@ def main() -> None:
     server.serve_forever()
 
 
+
+
+def _force_utf8_stdio() -> None:
+    """Cross-platform output safety: Chinese Windows consoles are GBK, and
+    printing Unicode status marks would crash the process. Force UTF-8."""
+    for stream_name in ("stdout", "stderr"):
+        stream = getattr(sys, stream_name, None)
+        if stream is not None and hasattr(stream, "reconfigure"):
+            try:
+                stream.reconfigure(encoding="utf-8", errors="replace")
+            except Exception:
+                pass
+
+
 if __name__ == "__main__":
+    _force_utf8_stdio()
     main()

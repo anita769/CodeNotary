@@ -4,3 +4,5 @@ __pycache__/
 *.pyc
 .agentteams.env
 .env
+keys/notary_ed25519.pem
+keys/token_secret

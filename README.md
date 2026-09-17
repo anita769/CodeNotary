@@ -100,6 +100,16 @@ python3 tools/notary_console.py --port 18091
 
 LLM 输出永不驱动状态转移。所有门禁分数、red/yellow/green 裁决与流水线状态转移由 `tools/notary_gateway.py` 中的确定性代码完成（移植自主仓库 `codenotary/state_machine.py`，14 状态、非法转移抛 `IllegalTransition`）。author/tester 盲测隔离在工具契约层强制执行：网关中不存在能向对方暴露产物的工具。
 
+## 证据复算（双层复现）
+
+证据包不采信自述，支持第三方零 LLM 复算：
+
+```bash
+make verify EVIDENCE=evidence-pack.zip
+```
+
+复算四层：Ed25519 签名（封印者身份，公钥在 `keys/notary_ed25519.pub`）→ manifest 哈希链 + trace 封印前缀 → 契约 frozen_hash 重算 → 三门禁在包内代码上重跑并与封存 verdict 比对。第一层（复算）任何人可跑；第二层（含 LLM 的完整重跑）需自带模型 key。
+
 ## 开源与许可声明
 
 - **许可证**：Apache-2.0（见包根 `LICENSE`）；第三方依赖为零（纯 Python 标准库），vendored 真实源码样本（pypa/packaging）的出处与许可见 `tools/notary_target/VENDORED.md`。
