@@ -2485,7 +2485,6 @@ border-radius:6px}
 padding:10px;margin-bottom:8px;cursor:pointer}
 .card:hover{box-shadow:0 2px 8px rgba(26,35,50,.12)}
 .card.old{opacity:.68;border-style:dashed;background:#fafbfc}
-.card.latest{border-left:3px solid var(--blue)}
 .card .t{font-weight:600;font-size:13px;margin-bottom:4px}
 .card .m{font-size:12px;color:var(--sub)}
 .card .dot{display:inline-block;width:8px;height:8px;border-radius:50%;
@@ -2530,11 +2529,11 @@ white-space:pre-wrap}
 </style>
 </head>
 <body>
-<nav style="display:flex;gap:6px;margin-bottom:14px;font-size:13px"><a href="/workbench" style="padding:5px 14px;border:1px solid #d9e0e8;border-radius:8px;text-decoration:none;color:#1a2332">任务看板</a><a href="/hall" style="padding:5px 14px;border:1px solid #d9e0e8;border-radius:8px;text-decoration:none;color:#1a2332">办事大厅</a><a href="/skillboard" style="padding:5px 14px;border:1px solid #d9e0e8;border-radius:8px;text-decoration:none;color:#1a2332">Skill 看板</a><a href="/pipeline" style="padding:5px 14px;border:1px solid #d9e0e8;border-radius:8px;text-decoration:none;color:#5b6b7f">流水线视图</a></nav>
+<nav style="display:flex;gap:6px;margin-bottom:14px;font-size:13px"><a href="/workbench" style="padding:5px 14px;border:1px solid #d9e0e8;border-radius:8px;text-decoration:none;color:#1a2332">任务看板</a><a href="/hall" style="padding:5px 14px;border:1px solid #d9e0e8;border-radius:8px;text-decoration:none;color:#1a2332">办事大厅</a><a href="/skillboard" style="padding:5px 14px;border:1px solid #d9e0e8;border-radius:8px;text-decoration:none;color:#1a2332">Skill 看板</a></nav>
 <header>
   <h1>任务工作台</h1><span class="mut">CodeNotary 公证处 · 内勤台</span>
   <span class="token">签署令牌 <input id="tok" type="password"
-    placeholder="裁决人令牌（只存于本页内存，不落盘）"></span>
+    placeholder="裁决人令牌"></span>
 </header>
 <div class="board" id="board"></div>
 <div id="overlay"></div>
@@ -2563,7 +2562,7 @@ function render(){
         const cv = c.contract_version ?
           `<span class="badge">契约 v${c.contract_version}</span>` : "";
         const clickable = `onclick="location.href='/run?sid=${esc(c.run_id)}'"`;
-        const vcls = c.version_count>1 ? (c.is_latest?" latest":" old") : "";
+        const vcls = c.version_count>1 && !c.is_latest ? " old" : "";
         const ver = c.version_count>1 ?
           `<div class="m">同一工单第 ${c.version_index}/${c.version_count} 版` +
           (c.is_latest ? "（最新）" :
@@ -2871,7 +2870,7 @@ margin-top:10px;font-size:13px}
 </style>
 </head>
 <body>
-<nav style="display:flex;gap:6px;margin-bottom:14px;font-size:13px"><a href="/workbench" style="padding:5px 14px;border:1px solid #d9e0e8;border-radius:8px;text-decoration:none;color:#1a2332">任务看板</a><a href="/hall" style="padding:5px 14px;border:1px solid #d9e0e8;border-radius:8px;text-decoration:none;color:#1a2332">办事大厅</a><a href="/skillboard" style="padding:5px 14px;border:1px solid #d9e0e8;border-radius:8px;text-decoration:none;color:#1a2332">Skill 看板</a><a href="/pipeline" style="padding:5px 14px;border:1px solid #d9e0e8;border-radius:8px;text-decoration:none;color:#5b6b7f">流水线视图</a></nav>
+<nav style="display:flex;gap:6px;margin-bottom:14px;font-size:13px"><a href="/workbench" style="padding:5px 14px;border:1px solid #d9e0e8;border-radius:8px;text-decoration:none;color:#1a2332">任务看板</a><a href="/hall" style="padding:5px 14px;border:1px solid #d9e0e8;border-radius:8px;text-decoration:none;color:#1a2332">办事大厅</a><a href="/skillboard" style="padding:5px 14px;border:1px solid #d9e0e8;border-radius:8px;text-decoration:none;color:#1a2332">Skill 看板</a></nav>
 <h1>办事大厅</h1>
 <div class="mut">像去办事大厅，不像用开发工具 · 对话仅用于补充信息，不产生任何状态变更</div>
 <div class="wrap">
@@ -3029,8 +3028,6 @@ NAV_HTML = (
     'border-radius:8px;text-decoration:none;color:#1a2332">办事大厅</a>'
     '<a href="/skillboard" style="padding:5px 14px;border:1px solid #d9e0e8;'
     'border-radius:8px;text-decoration:none;color:#1a2332">Skill 看板</a>'
-    '<a href="/pipeline" style="padding:5px 14px;border:1px solid #d9e0e8;'
-    'border-radius:8px;text-decoration:none;color:#5b6b7f">流水线视图</a>'
     '</nav>')
 
 RUN_PAGE = r"""<!DOCTYPE html>
