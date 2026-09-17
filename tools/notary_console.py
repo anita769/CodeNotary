@@ -3150,6 +3150,13 @@ padding:8px 10px}
 .resume{border:1px solid var(--green);background:#e8f6ee;border-radius:8px;
 padding:8px 12px;margin-bottom:12px;font-size:12.5px}
 .resume.bad{border-color:var(--red);background:#fdecea}
+.topnav{display:flex;gap:8px;align-items:center;background:#fff;
+border:1px solid var(--line);border-radius:10px;padding:8px 12px;
+margin-bottom:16px;box-shadow:0 1px 3px rgba(26,35,50,.06)}
+.topnav .brand{font-weight:700;font-size:14px;margin-right:8px}
+.topnav a{padding:5px 14px;border-radius:8px;text-decoration:none;
+color:#1a2332;font-size:13px}
+.topnav a:hover{background:#eef3fb}
 .note{font-size:12px;color:var(--sub)}
 </style>
 </head>
