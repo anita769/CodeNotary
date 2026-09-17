@@ -355,7 +355,9 @@ def hall_timeline(run_dir: Path) -> list[dict]:
                 "kind": "todo", "ts": v.get("timestamp"),
                 "title": "需要您处理：检验未通过",
                 "what": f"{GATE_LABELS.get(gate, gate)}判定不通过：{humanize_summary(v.get('summary', ''))}",
-                "meaning": "按当前验收规则，这次改动暂不可放行",
+                "meaning": "按当前验收规则，这次改动暂不可放行。机器修实现、"
+                          "人裁决意图——系统可在隔离环境自主试修候选补丁，"
+                          "是否写回您的仓库由您授权",
                 "action": "您可以：①按修复指引改完重新送审；②若认为规则本身"
                           "缺乏依据，提出异议（/notary dispute）",
                 "evidence": f"verdicts/{gate.lower()}.json",
@@ -592,7 +594,7 @@ def runview_data(run_dir: Path, runs_root: Path) -> dict:
                                               v.get("decision", "—")),
             "tone": v.get("decision"),
             "next": "下一项检验" if v.get("decision") == "green"
-                    else "送审方修复或提出异议"})
+                    else "隔离试修 / 送审方修复 / 提出异议"})
     for d in dispute:
         cards.append({
             "role": "争议", "title": "送审方异议（正式通道）", "tone": "hitl",
@@ -2486,6 +2488,10 @@ padding:10px;margin-bottom:8px;cursor:pointer}
 .card:hover{box-shadow:0 2px 8px rgba(26,35,50,.12)}
 .card.old{opacity:.68;border-style:dashed;background:#fafbfc}
 .card.rel{border-left:3px solid var(--blue)}
+.topnav{display:flex;gap:8px;align-items:center;background:#fff;border:1px solid var(--line);border-radius:10px;padding:8px 12px;margin-bottom:16px;box-shadow:0 1px 3px rgba(26,35,50,.06)}
+.topnav .brand{font-weight:700;font-size:14px;margin-right:8px}
+.topnav a{padding:5px 14px;border-radius:8px;text-decoration:none;color:#1a2332;font-size:13px}
+.topnav a:hover{background:#eef3fb}
 .card .t{font-weight:600;font-size:13px;margin-bottom:4px}
 .card .m{font-size:12px;color:var(--sub)}
 .card .dot{display:inline-block;width:8px;height:8px;border-radius:50%;
@@ -2530,7 +2536,7 @@ white-space:pre-wrap}
 </style>
 </head>
 <body>
-<nav style="display:flex;gap:6px;margin-bottom:14px;font-size:13px"><a href="/workbench" style="padding:5px 14px;border:1px solid #d9e0e8;border-radius:8px;text-decoration:none;color:#1a2332">任务看板</a><a href="/hall" style="padding:5px 14px;border:1px solid #d9e0e8;border-radius:8px;text-decoration:none;color:#1a2332">办事大厅</a><a href="/skillboard" style="padding:5px 14px;border:1px solid #d9e0e8;border-radius:8px;text-decoration:none;color:#1a2332">Skill 看板</a></nav>
+<div class="topnav"><span class="brand">⚖️ CodeNotary 公证处</span><a href="/workbench">任务看板</a><a href="/hall">办事大厅</a><a href="/skillboard">Skill 看板</a></div>
 <header>
   <h1>任务工作台</h1><span class="mut">CodeNotary 公证处 · 内勤台</span>
   <span class="token">签署令牌 <input id="tok" type="password"
@@ -2865,6 +2871,10 @@ font-size:13px;white-space:pre-wrap}
 flex-direction:column;max-height:calc(100vh - 24px)}
 #taskPanel #envs{flex:1;overflow:auto;min-height:0}
 #taskPanel #chatArea{flex:none}
+.topnav{display:flex;gap:8px;align-items:center;background:#fff;border:1px solid var(--line);border-radius:10px;padding:8px 12px;margin-bottom:16px;box-shadow:0 1px 3px rgba(26,35,50,.06)}
+.topnav .brand{font-weight:700;font-size:14px;margin-right:8px}
+.topnav a{padding:5px 14px;border-radius:8px;text-decoration:none;color:#1a2332;font-size:13px}
+.topnav a:hover{background:#eef3fb}
 .row{display:flex;gap:8px;margin-top:8px;align-items:center}
 .draft{border:1px dashed var(--amber);border-radius:8px;padding:10px;
 margin-top:10px;font-size:13px}
@@ -2872,9 +2882,8 @@ margin-top:10px;font-size:13px}
 </style>
 </head>
 <body>
-<nav style="display:flex;gap:6px;margin-bottom:14px;font-size:13px"><a href="/workbench" style="padding:5px 14px;border:1px solid #d9e0e8;border-radius:8px;text-decoration:none;color:#1a2332">任务看板</a><a href="/hall" style="padding:5px 14px;border:1px solid #d9e0e8;border-radius:8px;text-decoration:none;color:#1a2332">办事大厅</a><a href="/skillboard" style="padding:5px 14px;border:1px solid #d9e0e8;border-radius:8px;text-decoration:none;color:#1a2332">Skill 看板</a></nav>
+<div class="topnav"><span class="brand">⚖️ CodeNotary 公证处</span><a href="/workbench">任务看板</a><a href="/hall">办事大厅</a><a href="/skillboard">Skill 看板</a></div>
 <h1>办事大厅</h1>
-<div class="mut">像去办事大厅，不像用开发工具 · 对话仅用于补充信息，不产生任何状态变更</div>
 <div class="wrap">
   <div class="panel">
     <h2>送审 / 求修</h2>
@@ -3023,14 +3032,11 @@ setInterval(loadTasks, 4000);
 # 统一导航（所有视图共享）+ Run 时间线 + Skill 看板
 # ---------------------------------------------------------------------------
 NAV_HTML = (
-    '<nav style="display:flex;gap:6px;margin-bottom:14px;font-size:13px">'
-    '<a href="/workbench" style="padding:5px 14px;border:1px solid #d9e0e8;'
-    'border-radius:8px;text-decoration:none;color:#1a2332">任务看板</a>'
-    '<a href="/hall" style="padding:5px 14px;border:1px solid #d9e0e8;'
-    'border-radius:8px;text-decoration:none;color:#1a2332">办事大厅</a>'
-    '<a href="/skillboard" style="padding:5px 14px;border:1px solid #d9e0e8;'
-    'border-radius:8px;text-decoration:none;color:#1a2332">Skill 看板</a>'
-    '</nav>')
+    '<div class="topnav"><span class="brand">⚖️ CodeNotary 公证处</span>'
+    '<a href="/workbench">任务看板</a>'
+    '<a href="/hall">办事大厅</a>'
+    '<a href="/skillboard">Skill 看板</a>'
+    '</div>')
 
 RUN_PAGE = r"""<!DOCTYPE html>
 <html lang="zh">
@@ -3299,6 +3305,10 @@ SKILL_PAGE = r"""<!DOCTYPE html>
 <style>
 :root{--ink:#1a2332;--sub:#5b6b7f;--line:#d9e0e8;--bg:#f5f7fa;--card:#fff;
 --red:#c0392b;--green:#1e8449;--amber:#b9770e;--blue:#2166ac}
+.topnav{display:flex;gap:8px;align-items:center;background:#fff;border:1px solid var(--line);border-radius:10px;padding:8px 12px;margin-bottom:16px;box-shadow:0 1px 3px rgba(26,35,50,.06)}
+.topnav .brand{font-weight:700;font-size:14px;margin-right:8px}
+.topnav a{padding:5px 14px;border-radius:8px;text-decoration:none;color:#1a2332;font-size:13px}
+.topnav a:hover{background:#eef3fb}
 *{box-sizing:border-box;margin:0}
 body{font:14px/1.6 system-ui,"PingFang SC","Microsoft YaHei",sans-serif;
 background:var(--bg);color:var(--ink);padding:16px}
@@ -3323,6 +3333,10 @@ font-size:12px;color:var(--sub)}
 .chain{margin-top:6px;font-size:12px}
 .chain .v{padding:1px 6px;border:1px solid var(--line);border-radius:4px}
 .chain .v.old{opacity:.6;background:#f4f6f8}
+.topnav{display:flex;gap:8px;align-items:center;background:#fff;border:1px solid var(--line);border-radius:10px;padding:8px 12px;margin-bottom:16px;box-shadow:0 1px 3px rgba(26,35,50,.06)}
+.topnav .brand{font-weight:700;font-size:14px;margin-right:8px}
+.topnav a{padding:5px 14px;border-radius:8px;text-decoration:none;color:#1a2332;font-size:13px}
+.topnav a:hover{background:#eef3fb}
 .chain .v.ret{opacity:.5;text-decoration:line-through}
 .chain .v.cur{background:#e8f0fe;border-color:var(--blue)}
 </style>
