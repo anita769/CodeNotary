@@ -777,7 +777,10 @@ def runview_data(run_dir: Path, runs_root: Path) -> dict:
             "verification": verification, "overview": overview,
             "trace_tail": summary.get("trace_tail", []),
             "security_events": facts["security_events"],
-            "resume": resume_log[-1] if resume_log else None}
+            "resume": resume_log[-1] if resume_log else None,
+            "resume_count": len(resume_log),
+            "sealed_files": len((read_json(run_dir / "manifest.json") or {})
+                                .get("files") or {})}
 
 
 def skillboard_data() -> dict:
@@ -789,6 +792,31 @@ def skillboard_data() -> dict:
         by_skill.setdefault(sig["skill"], []).append(sig)
     confirmed = {e["name"] for e in base.get("ledger", [])
                  if e.get("action") == "confirm"}
+    # 试用详情：跨 run 聚合 skill_matches.json——追认评审要看命中实证，
+    # 不是只看 SOP 文本（"命中数据说话，人看数据决定"）
+    trial: dict[str, dict] = {}
+    runs_root = PKG_ROOT / "runs"
+    if runs_root.is_dir():
+        for d in runs_root.iterdir():
+            for mrec in (read_json(d / "evidence" / "skill_matches.json")
+                         or []):
+                name = mrec.get("skill")
+                if not name:
+                    continue
+                t = trial.setdefault(name, {"hits": 0, "roles": set(),
+                                            "signals": set(), "runs": set(),
+                                            "last_ts": 0})
+                t["hits"] += 1
+                if mrec.get("role"):
+                    t["roles"].add(mrec["role"])
+                if mrec.get("signal"):
+                    t["signals"].add(mrec["signal"])
+                t["runs"].add(d.name)
+                t["last_ts"] = max(t["last_ts"], mrec.get("ts") or 0)
+    trial_out = {k: {"hits": v["hits"], "roles": sorted(v["roles"]),
+                     "signals": sorted(v["signals"]),
+                     "runs": sorted(v["runs"]), "last_ts": v["last_ts"]}
+                 for k, v in trial.items()}
     cards = []
     for sk in base.get("skills", []):
         if "status" not in sk:
@@ -799,7 +827,7 @@ def skillboard_data() -> dict:
             else:
                 sk["status"] = "loaded"
         sigs = by_skill.get(sk["name"], [])
-        cards.append({**sk, "signals": [
+        cards.append({**sk, "trial": trial_out.get(sk["name"]), "signals": [
             {"signal": s["signal"], "trigger": s["trigger"],
              "roles": s.get("roles", []),
              "coverage_n": len(s.get("coverage", []))} for s in sigs]})
@@ -3119,6 +3147,9 @@ gap:8px;margin:10px 0}
 padding:8px 10px}
 .kv .v{font-size:16px;font-weight:700}
 .kv .l{font-size:11px;color:var(--sub)}
+.resume{border:1px solid var(--green);background:#e8f6ee;border-radius:8px;
+padding:8px 12px;margin-bottom:12px;font-size:12.5px}
+.resume.bad{border-color:var(--red);background:#fdecea}
 .note{font-size:12px;color:var(--sub)}
 </style>
 </head>
@@ -3129,6 +3160,7 @@ __NAV__
   <div class="chain" id="chain"></div></div>
   <div class="st3" id="st3"></div>
 </div>
+<div id="resumeBanner"></div>
 <div class="stepper" id="stepper"></div>
 <div class="tabs" id="tabs"></div>
 <div class="pane" id="pane"></div>
@@ -3151,6 +3183,20 @@ async function boot(){
 
 function renderHead(){
   document.getElementById("title").textContent=R.title;
+  const rs=R.resume;
+  if(rs){
+    const when=new Date(rs.ts*1000).toLocaleString();
+    document.getElementById("resumeBanner").innerHTML =
+      (rs.failures&&rs.failures.length)?
+      `<div class="resume bad">⚠️ 检查点校验未通过，本次<b>拒绝恢复</b>（${when}）：`+
+      `${esc(rs.failures.join("；"))}。运行轨迹仍可完整回放，全程可证。</div>`
+      :`<div class="resume">♻️ <b>已从检查点恢复</b>（第 ${R.resume_count} 次 · ${when}），`+
+      `四方校验通过：状态机轨迹合法（${rs.history_len} 步）✓ `+
+      (rs.contract_hash?`契约 v${rs.contract_version} 哈希复算一致（${esc(rs.contract_hash)}…）✓ `:"")+
+      `落盘证据与检查点一致 ✓ `+
+      (R.sealed_files?`封印 ${R.sealed_files} 个文件 + 轨迹前缀复算一致 ✓`:"")+
+      `</div>`;
+  }
   const b=R.binding;
   document.getElementById("meta").innerHTML=[
     b?`PR <b>#${b.pr}</b>`:null,
@@ -3346,7 +3392,7 @@ __NAV__
 <div style="display:flex;align-items:center">
 <h1>Skill 看板</h1>
 <span class="mut" style="margin-left:auto">治理令牌
-<input id="tok" type="password" placeholder="裁决人令牌（只存本页内存）"
+<input id="tok" type="password" placeholder="治理令牌"
  style="padding:4px 8px;border:1px solid var(--line);border-radius:6px"></span>
 </div>
 <div class="mut" id="sub"></div>
@@ -3381,14 +3427,22 @@ async function boot(){
      <div class="mut" style="margin-bottom:8px">试用区的 Skill 可以参与判断、
      结果标注试用；命中数据见各 run 的 skill_matches.json。
      追认转正或一票否决都须留理由、进注册表。</div>` +
-    q.map(c=>`<div class="card">
+    q.map(c=>{
+      const tr=c.trial;
+      const trialHtml = tr && tr.hits ?
+        `<div class="m" style="margin-top:6px">试用实证：命中 <b>${tr.hits}</b> 次 · `+
+        `角色 ${tr.roles.join("、")||"—"} · 信号 ${tr.signals.join("、")||"—"}<br>`+
+        `最近 ${new Date(tr.last_ts*1000).toLocaleString()} · 见于 ${tr.runs.slice(0,3).join("、")}${tr.runs.length>3?" 等":""}</div>`
+        : `<div class="m" style="margin-top:6px">尚无命中记录——可在试用台输入信号现场触发，或在彩排 run 中观察。</div>`;
+      return `<div class="card">
       <div class="t">${esc(c.name)} <span class="badge probation">试用中</span>
         <span class="badge ver">v${esc(c.version||"—")}</span></div>
       <div class="d">${esc((c.description||"").split("；")[0].split("。")[0])}</div>
+      ${trialHtml}
       <div class="row" style="display:flex;gap:8px;margin-top:8px">
         <button onclick="govern('confirm','${esc(c.name)}')">追认转正</button>
         <button class="ghost" onclick="govern('retire','${esc(c.name)}')">一票否决</button>
-      </div></div>`).join("") : "";
+      </div></div>`;}).join("") : "";
   document.getElementById("gridLabel").textContent = "全部 Skill";
   document.getElementById("grid").innerHTML=r.cards.map(c=>{
     const[lab,cls]=(STATUS[c.status]||[c.status||"—","ver"]);

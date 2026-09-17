@@ -424,6 +424,46 @@ def verify_checkpoint(run_dir: Path, data: dict[str, Any]) -> list[str]:
         elif not _legal_resume_edge(prev, cur):
             failures.append(
                 f"history: illegal transition {prev} -> {cur} at entry {i}")
+    # -- 4. evidence seal (if this run was sealed) ---------------------------
+    # Judges asked: "when you resume, how do you know the code, the rules
+    # and the evidence are the same versions?" Checks 1-3 cover state and
+    # rules (contract hash recomputes); this check covers the evidence:
+    # every sealed file must re-hash byte-identical, and the append-only
+    # trace must still match its sealed prefix. A run that was adjudicated
+    # into a contract revision is re-sealed at freeze time (t_freeze_
+    # contract), so a legitimate v1.1 never trips this check.
+    manifest = None
+    try:
+        manifest = json.loads(
+            (run_dir / "manifest.json").read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        manifest = None
+    manifest = manifest or {}
+    sealed = manifest.get("files")
+    if isinstance(sealed, dict) and sealed:
+        for rel, want in sorted(sealed.items()):
+            fp = run_dir / rel
+            try:
+                got = sha256_text(
+                    fp.read_bytes().decode("utf-8", errors="replace"))
+            except OSError:
+                failures.append(f"evidence: sealed file missing {rel}")
+                continue
+            if got != want:
+                failures.append(
+                    f"evidence: sealed file modified after seal: {rel}")
+        tp = manifest.get("trace_prefix") or {}
+        n_lines, want_prefix = tp.get("lines"), tp.get("sha256")
+        if n_lines and want_prefix:
+            try:
+                lines = (run_dir / "trace.jsonl").read_text(
+                    encoding="utf-8").splitlines(keepends=True)
+            except OSError:
+                lines = []
+            if len(lines) < n_lines or sha256_text(
+                    "".join(lines[:n_lines])) != want_prefix:
+                failures.append("evidence: trace prefix seal mismatch "
+                                "(append-only log was altered)")
     return failures
 
 
@@ -1415,8 +1455,15 @@ def t_freeze_contract(run: NotaryRun, p: dict) -> dict:
         run.sm.revise_contract()
     else:
         run.sm.advance_to("CONTRACTED")
+    resealed = False
+    if revising and (run.run_dir / "manifest.json").exists():
+        # 封存不是终点快照而是活装订：修订契约改写 contract.json 后
+        # 必须重封印，否则恢复校验的封印复算会把合法 v1.1 误判为篡改
+        t_seal(run, {})
+        resealed = True
     return {"frozen_hash": contract_hash, "version": run.contract["version"],
-            "revised": revising, "assumptions_recorded": len(assumptions),
+            "revised": revising, "resealed": resealed,
+            "assumptions_recorded": len(assumptions),
             "pipeline_state": run.sm.state}
 
 
