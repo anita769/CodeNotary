@@ -226,7 +226,18 @@ def board_data(runs_dir: Path) -> dict:
     for group in by_title.values():
         if len(group) < 2:
             continue
-        group.sort(key=lambda c: c["last_ts"])
+        # 版本先后=出生时间（trace 首事件），不是最近动作时间——
+        # v1 等待裁决期间 last_ts 仍跳动，会把版本序排反
+        for c in group:
+            first = None
+            tf = runs_dir / c["run_id"] / "trace.jsonl"
+            try:
+                with tf.open(encoding="utf-8") as fh:
+                    first = (json.loads(fh.readline()) or {}).get("ts")
+            except (OSError, ValueError):
+                pass
+            c["_birth_ts"] = first if first is not None else c["last_ts"]
+        group.sort(key=lambda c: c["_birth_ts"])
         latest = group[-1]
         for i, c in enumerate(group, 1):
             c["version_index"] = i
