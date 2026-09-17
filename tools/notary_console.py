@@ -255,7 +255,21 @@ def board_data(runs_dir: Path) -> dict:
         "released": [c for c in cards if c["state"] in ("RELEASED",
                                                        "ROLLED_BACK")],
     }
-    return {"columns": columns, "total": len(cards)}
+    # 服务级恢复摘要：网关上次启动时的自动恢复与校验结果
+    # （恢复是服务级自动事件，归口服务级入口，不占任务卡）
+    boots = []
+    for c in cards:
+        lg = read_json(runs_dir / c["run_id"] / "resume_log.json") or []
+        if lg:
+            boots.append({"run_id": c["run_id"], **lg[-1]})
+    recovery = None
+    if boots:
+        ts = max(b["ts"] for b in boots)
+        at_boot = [b for b in boots if ts - b["ts"] <= 300]
+        failed = [b["run_id"] for b in at_boot if b["failures"]]
+        recovery = {"ts": ts, "runs": len(at_boot),
+                    "all_ok": not failed, "failed": failed}
+    return {"columns": columns, "total": len(cards), "recovery": recovery}
 
 
 def adjudication_context(run_dir: Path) -> dict:
@@ -779,6 +793,7 @@ def runview_data(run_dir: Path, runs_root: Path) -> dict:
             "security_events": facts["security_events"],
             "resume": resume_log[-1] if resume_log else None,
             "resume_count": len(resume_log),
+            "resume_log": resume_log,
             "sealed_files": len((read_json(run_dir / "manifest.json") or {})
                                 .get("files") or {})}
 
@@ -2570,6 +2585,7 @@ white-space:pre-wrap}
   <span class="token">签署令牌 <input id="tok" type="password"
     placeholder="裁决人令牌"></span>
 </header>
+<div class="mut" id="bootline" style="margin:6px 0 10px"></div>
 <div class="board" id="board"></div>
 <div id="overlay"></div>
 
@@ -2582,6 +2598,12 @@ const esc = s => String(s??"").replace(/[&<>"]/g,
 
 async function load(){
   const r = await fetch("/api/board"); BOARD = await r.json(); render();
+  const rc = BOARD.recovery;
+  document.getElementById("bootline").innerHTML = rc ?
+    `⚙️ 网关上次启动于 ${new Date(rc.ts*1000).toLocaleString()}：自动恢复 ` +
+    `${rc.runs} 个任务，` + (rc.all_ok ?
+      `恢复校验全部通过 ✓（明细见各任务「审计记录」）` :
+      `<span style="color:#c0392b">${rc.failed.length} 个校验未通过，已拒绝恢复</span>`) : "";
 }
 function render(){
   const el = document.getElementById("board");
@@ -3167,7 +3189,6 @@ __NAV__
   <div class="chain" id="chain"></div></div>
   <div class="st3" id="st3"></div>
 </div>
-<div id="resumeBanner"></div>
 <div class="stepper" id="stepper"></div>
 <div class="tabs" id="tabs"></div>
 <div class="pane" id="pane"></div>
@@ -3191,25 +3212,17 @@ async function boot(){
 function renderHead(){
   document.getElementById("title").textContent=R.title;
   const rs=R.resume;
-  if(rs){
-    const when=new Date(rs.ts*1000).toLocaleString();
-    document.getElementById("resumeBanner").innerHTML =
-      (rs.failures&&rs.failures.length)?
-      `<div class="resume bad">⚠️ 检查点校验未通过，本次<b>拒绝恢复</b>（${when}）：`+
-      `${esc(rs.failures.join("；"))}。运行轨迹仍可完整回放，全程可证。</div>`
-      :`<div class="resume">♻️ <b>已从检查点恢复</b>（第 ${R.resume_count} 次 · ${when}），`+
-      `四方校验通过：状态机轨迹合法（${rs.history_len} 步）✓ `+
-      (rs.contract_hash?`契约 v${rs.contract_version} 哈希复算一致（${esc(rs.contract_hash)}…）✓ `:"")+
-      `落盘证据与检查点一致 ✓ `+
-      (R.sealed_files?`封印 ${R.sealed_files} 个文件 + 轨迹前缀复算一致 ✓`:"")+
-      `</div>`;
-  }
+  const rsChip = rs ?
+    (rs.failures&&rs.failures.length?
+      `<span class="chip red" style="cursor:pointer" onclick="goAudit()">⚠️ 恢复校验未通过</span>`
+      :`<span class="chip green" style="cursor:pointer" title="查看恢复校验明细"
+        onclick="goAudit()">♻️ 恢复校验通过 · 第 ${R.resume_count} 次</span>`) : "";
   const b=R.binding;
   document.getElementById("meta").innerHTML=[
     b?`PR <b>#${b.pr}</b>`:null,
     b?`Commit <b>${(b.head_sha||"").slice(0,10)}</b>`:null,
     `状态 <b>${esc(R.state_label)}</b>`,
-    `Run <b>${esc(R.run_id)}</b>`].filter(Boolean).join("<span>·</span>");
+    `Run <b>${esc(R.run_id)}</b>`, rsChip].filter(Boolean).join("<span>·</span>");
   const ch=R.chain||[];
   document.getElementById("chain").innerHTML=ch.length>1?
     "同一工单的版本链："+ch.map(c=>{
@@ -3239,6 +3252,32 @@ function renderTabs(){
   document.getElementById("tabs").innerHTML=TABS.map(([k,n])=>
     `<button class="${k===TAB?'on':''}" onclick="TAB='${k}';renderPane();renderTabs()">${n}</button>`
   ).join("");
+}
+function goAudit(){TAB="audit";renderPane();renderTabs();
+  document.getElementById("tabs").scrollIntoView({behavior:"smooth"});}
+async function reverify(){
+  const el=document.getElementById("reverifyOut");
+  el.textContent="正在按恢复标准现场复验…";
+  try{
+    const r=await (await fetch("/api/reverify/"+sid,{method:"POST",
+      headers:{"Content-Type":"application/json"},body:"{}"})).json();
+    const d=(r.result!==undefined)?r.result:r;
+    if(d.consistent===true){
+      el.innerHTML=`<div class="resume">✓ <b>现场复验通过</b>（`+
+        `${new Date((d.checked_at||0)*1000).toLocaleString()}）：`+
+        `状态 ${esc(d.state)} ✓ 契约 v${esc(d.contract_version)} 哈希 `+
+        `${esc(d.contract_hash||"")}… 复算一致 ✓ 轨迹 ${d.history_len} 步全合法 ✓`+
+        (d.sealed_files?` 封印 ${d.sealed_files} 文件+轨迹前缀一致 ✓`:"")+
+        (d.gateway_version_at_seal?` ｜ 封印时网关版本 ${esc(d.gateway_version_at_seal)}`+
+        `，当前 ${esc(d.gateway_version_now)}`:"")+`</div>`;
+    }else if(d.consistent===false){
+      el.innerHTML=`<div class="resume bad">✗ <b>复验未通过</b>：`+
+        `${esc((d.failures||[]).join("；"))}——若为真恢复将拒绝载入，`+
+        `轨迹回放仍可证明全程。</div>`;
+    }else{
+      el.innerHTML=`<div class="resume bad">${esc(d.note||d.error||"无检查点")}</div>`;
+    }
+  }catch(e){el.textContent="复验请求失败："+e;}
 }
 
 function kvGrid(items){
@@ -3332,10 +3371,26 @@ function renderPane(){
          ${detailBlock(c.detail)}</td></tr>`).join("") + "</table>";
   }
   else if(TAB==="audit"){
+    const rl=(R.resume_log||[]).slice().reverse();
+    const rsec = rl.length ?
+      `<h3 style="font-size:13px;margin-bottom:6px">检查点恢复记录（${rl.length} 次）
+        <button class="chip green" style="cursor:pointer;border:none;font-size:11px"
+          onclick="reverify()">立即重新校验（不重启服务）</button></h3>
+      <div id="reverifyOut"></div>
+      <table><tr><th>时间</th><th>结果</th><th>恢复出的版本</th><th>校验明细</th></tr>` +
+      rl.map(e=>{
+        const ok=!(e.failures&&e.failures.length);
+        return `<tr><td class="note">${new Date(e.ts*1000).toLocaleString()}</td>
+        <td>${ok?'<span class="chip green">恢复</span>':'<span class="chip red">拒绝</span>'}</td>
+        <td class="note">状态 ${esc(e.state||"—")} · 契约 v${esc(e.contract_version||"—")}
+          ${e.contract_hash?`（${esc(e.contract_hash)}…）`:""} · 轨迹 ${e.history_len||0} 步</td>
+        <td class="note">${ok?"状态/契约/轨迹/封印 四方一致 ✓":esc(e.failures.join("；"))}</td></tr>`;
+      }).join("") + "</table>" :
+      `<div class="note">本任务自部署以来未经历服务重启（无恢复记录）。</div>`;
     const sec=(R.security_events||[]).map(e=>
       `<tr><td class="chip red">越权拒绝</td><td>${esc(e.tool)}</td>
        <td>${esc(e.role)}</td><td class="note">${esc(e.detail)}</td></tr>`).join("");
-    el.innerHTML = (sec?`<h3 style="font-size:13px;margin-bottom:6px">安全事件</h3>
+    el.innerHTML = rsec + (sec?`<h3 style="font-size:13px;margin:12px 0 6px">安全事件</h3>
       <table>${sec}</table>`:"")
       + `<h3 style="font-size:13px;margin:12px 0 6px">调用轨迹（最近 ${R.trace_tail.length} 条）</h3>
       <table><tr><th>时间</th><th>角色</th><th>工具</th><th>状态</th></tr>` +
@@ -3685,9 +3740,10 @@ class Handler(BaseHTTPRequestHandler):
         except Exception:
             self._send(400, json.dumps({"ok": False, "error": "bad json"}))
             return
-        # 大厅公共面（只读会话/起草/取号）免令牌；受审写通道必须 JWT
+        # 大厅公共面（只读会话/起草/取号/现场复验）免令牌；受审写通道必须 JWT
         if path not in ("/api/intake", "/api/assist", "/api/skill_match",
-                        "/api/hall_chat"):
+                        "/api/hall_chat") \
+                and not path.startswith("/api/reverify/"):
             claims = self._check_token()
             if claims is None:
                 self._send(403, json.dumps({"ok": False,
@@ -3695,6 +3751,13 @@ class Handler(BaseHTTPRequestHandler):
                 return
         if path == "/api/intake":
             payload["role"] = "ci"
+        elif path.startswith("/api/reverify/"):
+            # 只读现场复验：同一套恢复校验，不重启服务、不改状态
+            sid = path.rsplit("/", 1)[-1]
+            code, body = gateway_post(
+                sid, "notary_state.reverify_checkpoint", {})
+            self._send(code, json.dumps(body))
+            return
             code, body = gateway_post("_intake", "notary_intake.submit_issue",
                                       payload)
             self._send(code, json.dumps(body))

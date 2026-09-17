@@ -1753,6 +1753,38 @@ def t_state(run: NotaryRun, _p: dict) -> dict:
             "history": run.sm.history}
 
 
+def t_reverify_checkpoint(run: "NotaryRun | None", p: dict) -> dict:
+    """Read-only live re-verification of the on-disk checkpoint: the same
+    four-way check that gates every resume, runnable without a restart.
+    Demo affordance for "show me how you know the versions match" — the
+    call itself is traced (查验留痕), but no state changes."""
+    sid = run.scenario_id if run is not None else str(p.get("_sid") or "")
+    run_dir = RUNS_DIR / sid
+    cp_path = run_dir / "checkpoint.json"
+    if not cp_path.exists():
+        return {"consistent": None,
+                "note": "该任务没有检查点（早期回放 run），"
+                        "以 trace 轨迹回放到终态为准"}
+    data = json.loads(cp_path.read_text(encoding="utf-8"))
+    failures = verify_checkpoint(run_dir, data)
+    sm = data.get("sm") or {}
+    contract = data.get("contract") or {}
+    try:
+        manifest = json.loads(
+            (run_dir / "manifest.json").read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        manifest = {}
+    return {"consistent": not failures, "failures": failures,
+            "state": sm.get("state"),
+            "contract_version": contract.get("version"),
+            "contract_hash": (contract.get("frozen_hash") or "")[:16] or None,
+            "history_len": len(sm.get("history") or []),
+            "sealed_files": len(manifest.get("files") or {}),
+            "gateway_version_at_seal": manifest.get("gateway_version"),
+            "gateway_version_now": GATEWAY_VERSION,
+            "checked_at": time.time()}
+
+
 def t_request_rework(run: NotaryRun, p: dict) -> dict:
     """Bounded rework loop (L4): REJECTED -> AUTHORING.
 
@@ -2454,6 +2486,7 @@ TOOLS: dict[str, Callable[[NotaryRun, dict], Any]] = {
     "notary_rebuttal.submit": t_rebuttal,
     "notary_verdicts.list": t_list_verdicts,
     "notary_state.get": t_state,
+    "notary_state.reverify_checkpoint": t_reverify_checkpoint,
     "notary_flow.resolve_human": t_resolve_human,
     "notary_release.deploy": t_deploy,
     "notary_release.rollback": t_rollback,
@@ -2524,7 +2557,7 @@ def render_metrics() -> str:
 # Run-agnostic reads: served without a run (and never create/reset one).
 RUNLESS_TOOLS = {"notary_skill.list", "notary_skill.get",
                  "notary_skill.match", "notary_skill.confirm",
-                 "notary_skill.retire"}
+                 "notary_skill.retire", "notary_state.reverify_checkpoint"}
 
 
 class NotaryHandler(BaseHTTPRequestHandler):
@@ -2651,7 +2684,8 @@ class NotaryHandler(BaseHTTPRequestHandler):
                         raise ValueError(
                             f"role '{role}' is not permitted to call "
                             f"{tool_call} (allowed: {sorted(allowed)})")
-                    result = TOOLS[tool_call](None, payload)
+                    result = TOOLS[tool_call](None,
+                                              {**payload, "_sid": scenario_id})
                     self._send(HTTPStatus.OK, {"ok": True, "result": result})
                     return
                 run = get_run(scenario_id)
