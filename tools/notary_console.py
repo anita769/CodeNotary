@@ -1681,7 +1681,7 @@ padding:1px 7px;font-size:11px;font-weight:700;margin:2px 4px 2px 0}
   <h1>⚖️ CodeNotary 代码公证处 <span class="badge">办事大厅</span></h1>
   <span style="flex:1"></span>
   <span class="pill" id="gw">…</span>
-  <a class="btn ghost" href="/">工程后台 →</a>
+  <a class="btn ghost" href="/pipeline">工程后台 →</a>
 </header>
 <main id="app"></main>
 <script>
@@ -2482,7 +2482,7 @@ white-space:pre-wrap}
 </style>
 </head>
 <body>
-<nav style="display:flex;gap:6px;margin-bottom:14px;font-size:13px"><a href="/workbench" style="padding:5px 14px;border:1px solid #d9e0e8;border-radius:8px;text-decoration:none;color:#1a2332">任务看板</a><a href="/hall" style="padding:5px 14px;border:1px solid #d9e0e8;border-radius:8px;text-decoration:none;color:#1a2332">办事大厅</a><a href="/skillboard" style="padding:5px 14px;border:1px solid #d9e0e8;border-radius:8px;text-decoration:none;color:#1a2332">Skill 看板</a><a href="/" style="padding:5px 14px;border:1px solid #d9e0e8;border-radius:8px;text-decoration:none;color:#5b6b7f">流水线视图</a></nav>
+<nav style="display:flex;gap:6px;margin-bottom:14px;font-size:13px"><a href="/workbench" style="padding:5px 14px;border:1px solid #d9e0e8;border-radius:8px;text-decoration:none;color:#1a2332">任务看板</a><a href="/hall" style="padding:5px 14px;border:1px solid #d9e0e8;border-radius:8px;text-decoration:none;color:#1a2332">办事大厅</a><a href="/skillboard" style="padding:5px 14px;border:1px solid #d9e0e8;border-radius:8px;text-decoration:none;color:#1a2332">Skill 看板</a><a href="/pipeline" style="padding:5px 14px;border:1px solid #d9e0e8;border-radius:8px;text-decoration:none;color:#5b6b7f">流水线视图</a></nav>
 <header>
   <h1>任务工作台</h1><span class="mut">CodeNotary 公证处 · 内勤台</span>
   <span class="token">签署令牌 <input id="tok" type="password"
@@ -2814,7 +2814,7 @@ margin-top:10px;font-size:13px}
 </style>
 </head>
 <body>
-<nav style="display:flex;gap:6px;margin-bottom:14px;font-size:13px"><a href="/workbench" style="padding:5px 14px;border:1px solid #d9e0e8;border-radius:8px;text-decoration:none;color:#1a2332">任务看板</a><a href="/hall" style="padding:5px 14px;border:1px solid #d9e0e8;border-radius:8px;text-decoration:none;color:#1a2332">办事大厅</a><a href="/skillboard" style="padding:5px 14px;border:1px solid #d9e0e8;border-radius:8px;text-decoration:none;color:#1a2332">Skill 看板</a><a href="/" style="padding:5px 14px;border:1px solid #d9e0e8;border-radius:8px;text-decoration:none;color:#5b6b7f">流水线视图</a></nav>
+<nav style="display:flex;gap:6px;margin-bottom:14px;font-size:13px"><a href="/workbench" style="padding:5px 14px;border:1px solid #d9e0e8;border-radius:8px;text-decoration:none;color:#1a2332">任务看板</a><a href="/hall" style="padding:5px 14px;border:1px solid #d9e0e8;border-radius:8px;text-decoration:none;color:#1a2332">办事大厅</a><a href="/skillboard" style="padding:5px 14px;border:1px solid #d9e0e8;border-radius:8px;text-decoration:none;color:#1a2332">Skill 看板</a><a href="/pipeline" style="padding:5px 14px;border:1px solid #d9e0e8;border-radius:8px;text-decoration:none;color:#5b6b7f">流水线视图</a></nav>
 <h1>办事大厅</h1>
 <div class="mut">像去办事大厅，不像用开发工具 · 对话仅用于补充信息，不产生任何状态变更</div>
 <div class="wrap">
@@ -2969,7 +2969,7 @@ NAV_HTML = (
     'border-radius:8px;text-decoration:none;color:#1a2332">办事大厅</a>'
     '<a href="/skillboard" style="padding:5px 14px;border:1px solid #d9e0e8;'
     'border-radius:8px;text-decoration:none;color:#1a2332">Skill 看板</a>'
-    '<a href="/" style="padding:5px 14px;border:1px solid #d9e0e8;'
+    '<a href="/pipeline" style="padding:5px 14px;border:1px solid #d9e0e8;'
     'border-radius:8px;text-decoration:none;color:#5b6b7f">流水线视图</a>'
     '</nav>')
 
@@ -3401,6 +3401,10 @@ class Handler(BaseHTTPRequestHandler):
     def do_GET(self):  # noqa: N802
         path = urlparse(self.path).path
         if path == "/" or path == "/index.html":
+            self.send_response(302)
+            self.send_header("Location", "/hall")
+            self.end_headers()
+        elif path == "/pipeline":
             self._send(200, PAGE, "text/html")
         elif path == "/desk":
             self._send(200, DESK_PAGE, "text/html")
