@@ -645,7 +645,7 @@ def runview_data(run_dir: Path, runs_root: Path) -> dict:
         "release": {"done": state == "RELEASED", "label": "发布",
                     "state": "已发布" if state == "RELEASED"
                             else "已回滚" if state == "ROLLED_BACK"
-                            else "未开始（由 CD 流程执行）"},
+                            else "未开始"},
     }
 
     # 版本链：同 issue 的多个 run
