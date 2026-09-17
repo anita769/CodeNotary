@@ -613,14 +613,15 @@ def runview_data(run_dir: Path, runs_root: Path) -> dict:
             if iss.get("title") == issue_title:
                 c = read_json(d / "contract.json") or {}
                 adj = read_json(d / "adjudication.json") or []
+                s = run_summary(d)
+                st = s.get("state")
                 siblings.append({
                     "run_id": d.name, "current": d.name == sid,
-                    "state": (read_json(d / "checkpoint.json") or {})
-                             .get("sm", {}).get("state"),
+                    "state": st,
+                    "state_label": STATE_LABELS.get(st, st or "未知"),
                     "contract_version": c.get("version"),
                     "adjudications": len(adj),
-                    "ts": (read_json(d / "checkpoint.json") or {})
-                          .get("sm", {}).get("history", [{}])[0].get("ts", 0)})
+                    "ts": s.get("last_ts", 0)})
         chain = sorted(siblings, key=lambda x: x["ts"])
 
     binding = read_json(run_dir / "evidence" / "pr_binding.json")
@@ -3060,7 +3061,8 @@ padding:8px 10px}
 <body>
 __NAV__
 <div class="topbar">
-  <div><h1 id="title">—</h1><div class="meta" id="meta"></div></div>
+  <div><h1 id="title">—</h1><div class="meta" id="meta"></div>
+  <div class="chain" id="chain"></div></div>
   <div class="st3" id="st3"></div>
 </div>
 <div class="stepper" id="stepper"></div>
@@ -3091,6 +3093,14 @@ function renderHead(){
     b?`Commit <b>${(b.head_sha||"").slice(0,10)}</b>`:null,
     `状态 <b>${esc(R.state_label)}</b>`,
     `Run <b>${esc(R.run_id)}</b>`].filter(Boolean).join("<span>·</span>");
+  const ch=R.chain||[];
+  document.getElementById("chain").innerHTML=ch.length>1?
+    "同一工单的版本链："+ch.map(c=>{
+      const lab=esc(c.run_id)+(c.contract_version?` · 契约 v${esc(c.contract_version)}`:"");
+      const st=esc(c.state_label||"");
+      return c.current?`<span class="v cur"><b>${lab}</b>（${st}·当前）</span>`
+        :`<a class="v" href="/run?sid=${esc(c.run_id)}" style="text-decoration:none;color:inherit">${lab}（${st}）</a>`;
+    }).join(" → "):"";
   const st=R.stages;
   const cell=(lab,obj)=>{
     const cls=obj.done?"ok":(obj.state==="未通过"?"bad":
@@ -3255,6 +3265,7 @@ font-size:12px;color:var(--sub)}
 .chain{margin-top:6px;font-size:12px}
 .chain .v{padding:1px 6px;border:1px solid var(--line);border-radius:4px}
 .chain .v.ret{opacity:.5;text-decoration:line-through}
+.chain .v.cur{background:#e8f0fe;border-color:var(--blue)}
 </style>
 </head>
 <body>
