@@ -2485,6 +2485,7 @@ border-radius:6px}
 padding:10px;margin-bottom:8px;cursor:pointer}
 .card:hover{box-shadow:0 2px 8px rgba(26,35,50,.12)}
 .card.old{opacity:.68;border-style:dashed;background:#fafbfc}
+.card.rel{border-left:3px solid var(--blue)}
 .card .t{font-weight:600;font-size:13px;margin-bottom:4px}
 .card .m{font-size:12px;color:var(--sub)}
 .card .dot{display:inline-block;width:8px;height:8px;border-radius:50%;
@@ -2562,7 +2563,8 @@ function render(){
         const cv = c.contract_version ?
           `<span class="badge">契约 v${c.contract_version}</span>` : "";
         const clickable = `onclick="location.href='/run?sid=${esc(c.run_id)}'"`;
-        const vcls = c.version_count>1 && !c.is_latest ? " old" : "";
+        const vcls = (c.version_count>1 && !c.is_latest ? " old" : "") +
+          (key==="released" ? " rel" : "");
         const ver = c.version_count>1 ?
           `<div class="m">同一工单第 ${c.version_index}/${c.version_count} 版` +
           (c.is_latest ? "（最新）" :
