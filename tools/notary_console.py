@@ -514,6 +514,24 @@ def runview_data(run_dir: Path, runs_root: Path) -> dict:
     facts = hall_facts(run_dir)
     cp = read_json(run_dir / "checkpoint.json") or {}
     sm = cp.get("sm", {})
+    # 展示态一律以 trace 末事件为准：老 run 无 checkpoint 或 checkpoint
+    # 陈旧（qb_inhouse_fix 实证停在 RECEIVED）；live run 的 trace 与
+    # checkpoint 逐事件同步，二者本就一致
+    seen: list[str] = []
+    tf = run_dir / "trace.jsonl"
+    if tf.exists():
+        with tf.open(encoding="utf-8") as fh:
+            for line in fh:
+                try:
+                    st0 = (json.loads(line) or {}).get("state_after")
+                except ValueError:
+                    continue
+                if st0:
+                    seen.append(st0)
+    if seen:
+        sm = {"state": seen[-1],
+              "history": [{"state": s} for s in dict.fromkeys(seen)]}
+        facts["state"] = sm["state"]
     sid = run_dir.name
     triage = read_json(run_dir / "triage.json") or {}
     diagnosis = read_json(run_dir / "diagnosis.json") or {}
@@ -2938,7 +2956,8 @@ const KIND = {todo:["🔴 待办","todo"],progress:["🔵 进展","progress"],
   receipt:["🟢 回执","receipt"],evidence:["📎 证据","evidence"]};
 async function loadTasks(){
   const b = await (await fetch("/api/board")).json();
-  const all = Object.values(b.columns).flat();
+  const all = Object.values(b.columns).flat()
+    .sort((x,y)=>(y.last_ts||0)-(x.last_ts||0));  // 最新动态在最上
   document.getElementById("tasks").innerHTML = all.map(c=>
     `<div class="task" onclick="openTask('${esc(c.run_id)}')">
       <b>${esc(c.title)}</b>
