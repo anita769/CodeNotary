@@ -144,6 +144,47 @@ def main() -> int:
             for v in vlist.values():
                 if isinstance(v, dict) and v.get("test_output"):
                     v["test_output"] = v["test_output"][-3000:]
+        mode = call(sid, "notary_change.get_issue", role="triage").get("mode")
+        if mode == "external":
+            # 外部模式的对抗环是 tester 侧：补丁不可动，盲测可重写
+            # （实证：盲测幻觉接口误伤——测试引用了实现没有的属性）
+            tester_ctx = call(sid, "notary_tester.get_context", role="tester")
+            tests = step("盲测重写（LLM，带失败反馈）", lambda: llm_json(
+                SYS.format(role="盲测"), retries=6, max_tokens=14000,
+                user="你上一轮写的盲测本身有误（引用了实现中不存在的属性/方法"
+                     "造成误伤）。重写验收测试。输出 JSON：{"files": "
+                     "{"test_blind_contract.py": "..."}}。硬性要求："
+                     "unittest TestCase 类式；**接口用法严格以基线公开测试为准"
+                     "（import 路径、构造方式、可调用的公开属性/方法），"
+                     "基线没出现过的属性一律不许用**；每条契约断言至少一个用例。"
+                     "\n\n"
+                     f"【契约】{json.dumps(tester_ctx.get('contract', {}), ensure_ascii=False)[:2500]}\n"
+                     f"【基线公开测试】{json.dumps(tester_ctx.get('baseline_tests', {}), ensure_ascii=False)[:2500]}\n"
+                     f"【上轮失败输出】{json.dumps(vlist, ensure_ascii=False)[-3500:]}"))
+            step("盲测重交", lambda: call(
+                sid, "notary_tester.submit_tests", tests, role="tester"))
+            tg = step("测试门禁（重跑）", lambda: call(
+                sid, "notary_gate.run_test_gate", role="gatekeeper"))
+            print(f"  测试门禁：{tg.get('decision')}", flush=True)
+            if tg.get("decision") == "green":
+                mg = step("变异门禁（重跑）", lambda: call(
+                    sid, "notary_gate.run_mutation_gate", role="gatekeeper"))
+                print(f"  变异门禁：{(mg.get('verdict') or mg).get('decision')}",
+                      flush=True)
+            cg = step("规范门禁（重跑）", lambda: call(
+                sid, "notary_gate.run_convention_gate", role="gatekeeper"))
+            print(f"  规范门禁：{cg.get('decision')}", flush=True)
+            state = call(sid, "notary_state.get")["state"]
+            if state == "NOTARIZED":
+                step("发布", lambda: call(sid, "notary_release.deploy",
+                                          {"version": "1.0.1-live"},
+                                          role="release"))
+                state = call(sid, "notary_state.get")["state"]
+            step("重封印", lambda: call(sid, "notary_evidence.seal",
+                                        role="release", allow_fail=True))
+            print(f"=== {state} 用时 {time.time() - t_start:.0f}s ===",
+                  flush=True)
+            return 0
         author_ctx = step("作者取上下文", lambda: call(
             sid, "notary_author.get_context", role="author"))
         impl = step("作者重修（LLM，带失败反馈）", lambda: llm_json(
