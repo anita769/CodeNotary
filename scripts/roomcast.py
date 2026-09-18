@@ -90,6 +90,9 @@ def main() -> None:
     while True:
         try:
             if trace.exists():
+                # run 被 reset 时文件会缩短重建：offset 归零重播
+                if trace.stat().st_size < offset:
+                    offset = 0
                 with trace.open(encoding="utf-8") as fh:
                     fh.seek(offset)
                     new = fh.readlines()
