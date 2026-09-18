@@ -151,9 +151,9 @@ def main() -> int:
             tester_ctx = call(sid, "notary_tester.get_context", role="tester")
             tests = step("盲测重写（LLM，带失败反馈）", lambda: llm_json(
                 SYS.format(role="盲测"), retries=6, max_tokens=14000,
-                user="你上一轮写的盲测本身有误（引用了实现中不存在的属性/方法"
-                     "造成误伤）。重写验收测试。输出 JSON：{"files": "
-                     "{"test_blind_contract.py": "..."}}。硬性要求："
+                user='你上一轮写的盲测本身有误（引用了实现中不存在的属性/方法'
+                     '造成误伤）。重写验收测试。输出 JSON：{"files": '
+                     '{"test_blind_contract.py": "..."}}。硬性要求：'
                      "unittest TestCase 类式；**接口用法严格以基线公开测试为准"
                      "（import 路径、构造方式、可调用的公开属性/方法），"
                      "基线没出现过的属性一律不许用**；每条契约断言至少一个用例。"
