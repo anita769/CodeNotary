@@ -2060,7 +2060,8 @@ def t_seal(run: NotaryRun, _p: dict) -> dict:
         if path.is_file() and "__pycache__" not in path.parts \
                 and "work" not in path.parts \
                 and path.name not in ("manifest.json", "trace.jsonl",
-                                      "checkpoint.json", "checkpoint.json.tmp") \
+                                      "checkpoint.json", "checkpoint.json.tmp",
+                                      "resume_log.json") \
                 and not path.name.startswith("manifest.sig"):
             # signature artifacts are excluded: re-sealing after a contract
             # revision rewrites them, and a seal that binds its own
