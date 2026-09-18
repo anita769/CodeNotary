@@ -1,0 +1,25 @@
+{
+  "scenario_id": "coupon_room_v1",
+  "mode": "external",
+  "title": "优惠券有效至 11 月 10 日，但没到期就核销不了",
+  "issue": {
+    "id": "ISSUE-ROOM-C1",
+    "source": "external intake (CI webhook / console upload)",
+    "title": "优惠券有效至 11 月 10 日，但没到期就核销不了",
+    "report": "用户投诉集中在今天上午：券还在有效期内，结算时提示无法核销。优惠券规则：有效至 11 月 10 日。请尽快修复，大促期间影响支付核销、订单结算、退款补偿三个流程。",
+    "expected_behavior": "有效期内的优惠券在结算时可以正常核销；11 月 10 日当天是否可以核销，按既定业务口径执行。"
+  },
+  "target_files": [
+    "coupon.py"
+  ],
+  "baseline_test_files": [
+    "test_coupon_baseline.py"
+  ],
+  "submitted_change": {
+    "author": "linwan",
+    "message": "优惠券有效至 11 月 10 日，但没到期就核销不了",
+    "files": {
+      "coupon.py": "\"\"\"Coupon redemption validity — billing service.\"\"\"\nfrom __future__ import annotations\n\nfrom datetime import datetime, timezone\n\n# 修复 Issue #1：expires_at 标注 tzinfo，与支付网关的 aware UTC 对齐。\nEXPIRES_AT = datetime(2026, 11, 10, 0, 0, tzinfo=timezone.utc)\n\n\nclass Coupon:\n    def __init__(self, code: str, expires_at: datetime = EXPIRES_AT):\n        self.code = code\n        self.expires_at = expires_at\n\n    def is_expired(self, now: datetime) -> bool:\n        # 统一换算到 UTC 再比较，修复 naive/aware 混比。\n        return now.astimezone(timezone.utc) >= EXPIRES_AT\n\n\ndef redeem(coupon: Coupon, now: datetime | None = None) -> dict:\n    \"\"\"核销入口。宁可拒收也不放行（fail-closed）。\"\"\"\n    now = now or datetime.now(timezone.utc)\n    if coupon.is_expired(now):\n        return {\"ok\": False, \"code\": coupon.code, \"reason\": \"expired\"}\n    return {\"ok\": True, \"code\": coupon.code, \"redeemed_at\": now.isoformat()}\n"
+    }
+  }
+}
