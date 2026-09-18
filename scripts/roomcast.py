@@ -109,18 +109,21 @@ def main() -> None:
                     state_part = (f" → 状态：{state_cn}"
                                   if state and state != last_state else "")
                     last_state = state or last_state
-                    # 门禁播报带结论
+                    # 门禁播报带结论：工具→自己的 verdict 文件，
+                    # 不看"最新 mtime"（批量播报时下一门禁文件已落盘，
+                    # 实测把测试红灯误报成规范绿灯）
+                    _GATE_VERDICT = {
+                        "notary_gate.run_test_gate": "test_pass.json",
+                        "notary_gate.run_mutation_gate": "mutation.json",
+                        "notary_gate.finalize_mutation": "mutation.json",
+                        "notary_gate.run_convention_gate": "convention.json",
+                    }
                     extra = ""
-                    if tool.startswith("notary_gate.run_") or \
-                            tool == "notary_gate.finalize_mutation":
-                        verdicts = (Path(args.runs_dir) / args.sid
-                                    / "verdicts")
-                        # 最新 verdict 文件结论
-                        vds = sorted(verdicts.glob("*.json"),
-                                     key=lambda p: p.stat().st_mtime) \
-                            if verdicts.is_dir() else []
-                        if vds:
-                            v = json.loads(vds[-1].read_text(encoding="utf-8"))
+                    if tool in _GATE_VERDICT:
+                        vf = (Path(args.runs_dir) / args.sid
+                              / "verdicts" / _GATE_VERDICT[tool])
+                        if vf.exists():
+                            v = json.loads(vf.read_text(encoding="utf-8"))
                             dec = {"green": "🟢 通过", "red": "🔴 未通过",
                                    "yellow": "🟡 待复核"}.get(
                                        v.get("decision"), v.get("decision"))
