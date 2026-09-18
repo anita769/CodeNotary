@@ -63,7 +63,7 @@ def call(sid: str, tool: str, payload: dict | None = None,
     return out.get("result", out)
 
 
-def llm_json(system: str, user: str, retries: int = 3,
+def llm_json(system: str, user: str, retries: int = 6,
              max_tokens: int = 14000) -> dict:
     """Ask the LLM for a JSON object; feed validation/parse errors back."""
     if not LLM_KEY:
@@ -91,6 +91,7 @@ def llm_json(system: str, user: str, retries: int = 3,
         m = re.search(r"\{.*\}", text, re.DOTALL)
         if not m:
             err = f"未找到 JSON 对象（原始 {len(text)} 字符：{text[:80]!r}）"
+            time.sleep(min(2 ** attempt, 20))  # 空响应抖动退避
             continue
         try:
             return json.loads(m.group(0))
