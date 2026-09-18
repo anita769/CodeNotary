@@ -138,6 +138,12 @@ def main() -> int:
         print(f"  重修轮次 {rg.get('rework_round')}/{rg.get('budget')}",
               flush=True)
         verdicts = call(sid, "notary_verdicts.list", role="author")
+        # 失败反馈要带测试输出全文（结论摘要不足以定位），截断防爆上下文
+        vlist = verdicts.get("verdicts", verdicts)
+        if isinstance(vlist, dict):
+            for v in vlist.values():
+                if isinstance(v, dict) and v.get("test_output"):
+                    v["test_output"] = v["test_output"][-3000:]
         author_ctx = step("作者取上下文", lambda: call(
             sid, "notary_author.get_context", role="author"))
         impl = step("作者重修（LLM，带失败反馈）", lambda: llm_json(
@@ -147,7 +153,7 @@ def main() -> int:
                  "只改契约范围内文件，保留对外接口。\n\n"
                  f"【契约】{json.dumps(author_ctx.get('contract', {}), ensure_ascii=False)[:2000]}\n"
                  f"【源码】{json.dumps(author_ctx.get('source', {}), ensure_ascii=False)[:3000]}\n"
-                 f"【失败反馈】{json.dumps(verdicts, ensure_ascii=False)[:2500]}"))
+                 f"【失败反馈（含测试输出）】{json.dumps(vlist, ensure_ascii=False)[:6000]}"))
         step("作者提交", lambda: call(
             sid, "notary_author.submit_implementation", impl, role="author"))
         tg = step("测试门禁（重跑）", lambda: call(
