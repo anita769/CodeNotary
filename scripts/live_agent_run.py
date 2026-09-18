@@ -104,6 +104,30 @@ SYS = ("你是 CodeNotary 可信交付流水线的{role}角色。只输出一个
        "被拒绝时按错误提示修正重发。")
 
 
+
+def _rebuttal_leg(sid: str) -> dict:
+    """变异幸存者的申辩腿：LLM 逐个论证等价性，然后终裁。"""
+    survivors = call(sid, "notary_gate.get_survivors", role="author")[
+        "survivors"]
+    for sv in survivors:
+        reb = llm_json(
+            SYS.format(role="修复"),
+            '以下变异体在测试后幸存。若它与原代码语义等价，给出等价性'
+            '论证；若不等价，说明它暴露了哪个缺失用例。输出 JSON：'
+            '{"kind": "equivalent_mutant" 或 "missing_test", '
+            '"justification": "..."}\n\n'
+            f"【变异体】{json.dumps(sv, ensure_ascii=False)[:1200]}")
+        if reb.get("kind") != "equivalent_mutant":
+            reb["kind"] = "missing_test"
+        step(f"申辩 mutant#{sv.get('id')}", lambda reb=reb, sv=sv:
+             call(sid, "notary_rebuttal.submit",
+                  {"mutant_id": sv["id"], "kind": reb["kind"],
+                   "justification": reb["justification"]},
+                  role="author"))
+    return step("变异终裁", lambda: call(
+        sid, "notary_gate.finalize_mutation", role="gatekeeper"))
+
+
 def step(name: str, fn) -> dict:
     t0 = time.time()
     out = fn()
@@ -169,6 +193,8 @@ def main() -> int:
             if tg.get("decision") == "green":
                 mg = step("变异门禁（重跑）", lambda: call(
                     sid, "notary_gate.run_mutation_gate", role="gatekeeper"))
+                if str(mg.get("status", "")).startswith("awaiting_rebuttal"):
+                    mg = _rebuttal_leg(sid)
                 print(f"  变异门禁：{(mg.get('verdict') or mg).get('decision')}",
                       flush=True)
             cg = step("规范门禁（重跑）", lambda: call(
@@ -364,25 +390,7 @@ def main() -> int:
         mg = step("变异门禁（确定性真跑）", lambda: call(
             sid, "notary_gate.run_mutation_gate", role="gatekeeper"))
         if str(mg.get("status", "")).startswith("awaiting_rebuttal"):
-            survivors = call(sid, "notary_gate.get_survivors",
-                             role="author")["survivors"]
-            for sv in survivors:
-                reb = llm_json(
-                    SYS.format(role="修复"),
-                    "以下变异体在测试后幸存。若它与原代码语义等价，给出等价性"
-                    "论证；若不等价，说明它暴露了哪个缺失用例。输出 JSON："
-                    "{\"kind\": \"equivalent_mutant\" 或 "
-                    "\"missing_test\", \"justification\": \"...\"}\n\n"
-                    f"【变异体】{json.dumps(sv, ensure_ascii=False)[:1200]}")
-                if reb.get("kind") != "equivalent_mutant":
-                    reb["kind"] = "missing_test"
-                step(f"申辩 mutant#{sv.get('id')}", lambda reb=reb, sv=sv:
-                     call(sid, "notary_rebuttal.submit",
-                          {"mutant_id": sv["id"], "kind": reb["kind"],
-                           "justification": reb["justification"]},
-                          role="author"))
-            mg = step("变异终裁", lambda: call(
-                sid, "notary_gate.finalize_mutation", role="gatekeeper"))
+            mg = _rebuttal_leg(sid)
         print(f"  变异门禁：{(mg.get('verdict') or {}).get('decision')}",
               flush=True)
 
