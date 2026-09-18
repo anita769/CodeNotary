@@ -93,7 +93,15 @@ def run_summary(run_dir: Path) -> dict:
                     events.append(json.loads(line))
                 except Exception:
                     pass
-    state = events[-1]["state_after"] if events else "RECEIVED"
+    # 展示态取最后一条流水线事件：runless 维护工具（skill 注册/命中等）
+    # 不驱动状态机，其 state_after 只是当时内存态的复述——若内存恢复自
+    # 陈旧 checkpoint，会把已发布的老 run 误显为"已受理"（实证 0918）
+    _RUNLESS = ("notary_skill.",)
+    state = "RECEIVED"
+    for e in reversed(events):
+        if not str(e.get("tool", "")).startswith(_RUNLESS):
+            state = e["state_after"]
+            break
     beats = {}
     for key, _name, tools in BEATS:
         hits = [e for e in events if e["tool"] in tools]

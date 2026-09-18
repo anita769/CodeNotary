@@ -761,6 +761,16 @@ class NotaryRun:
         self.sm = NotaryStateMachine(scenario_id)
         self.run_dir = RUNS_DIR / scenario_id
         if self.run_dir.exists():
+            # fail-closed：目录里已有证据时绝不允许静默抹除。
+            # 只有显式 reset（本进程生命周期内）才授权清目录——
+            # 实证 0918：陈旧 checkpoint 恢复失败 → run 不在内存 →
+            # 一次 skill.match 调用就把已发布 run 的整目录 rmtree 了
+            if scenario_id not in _RESET_OK:
+                raise RuntimeError(
+                    f"run dir '{scenario_id}' already contains evidence; "
+                    f"refusing to wipe. Call reset first (explicit), or "
+                    f"restart the gateway to resume from checkpoint.")
+            _RESET_OK.discard(scenario_id)
             shutil.rmtree(self.run_dir)
         (self.run_dir / "verdicts").mkdir(parents=True)
         (self.run_dir / "evidence" / "quarantine").mkdir(parents=True)
@@ -997,6 +1007,8 @@ def _append_resume_log(run_dir: Path, scenario_id: str, data: dict,
 
 
 RUNS: dict[str, NotaryRun] = {}
+# scenario ids explicitly reset in this process lifetime (wipe authorization)
+_RESET_OK: set[str] = set()
 
 
 def restore_all_runs() -> int:
@@ -2661,6 +2673,7 @@ class NotaryHandler(BaseHTTPRequestHandler):
                 role = str(raw_role).strip().lower() or None
             if tool_call == "reset":
                 RUNS.pop(scenario_id, None)
+                _RESET_OK.add(scenario_id)  # 显式授权下一次重建清目录
                 result: Any = {"scenario_id": scenario_id, "status": "reset"}
             elif tool_call == "notary_intake.submit_issue":
                 # Role check BEFORE the scenario is minted (a denied intake
