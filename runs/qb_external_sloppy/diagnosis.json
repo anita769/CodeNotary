@@ -1,9 +1,0 @@
-{
-  "root_cause": "same planted boundary bug as ISSUE-101; external fix claims to handle empty pop",
-  "evidence": [
-    "eval replay"
-  ],
-  "fix_hypothesis": "validate submitted change against frozen contract",
-  "confidence": 0.95,
-  "repro": ""
-}

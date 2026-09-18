@@ -1,7 +1,0 @@
-[
-  {
-    "mutant_id": "M03",
-    "kind": "equivalent_mutant",
-    "justification": "len() >= 0 always; equivalent guard"
-  }
-]

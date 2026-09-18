@@ -1,7 +1,0 @@
-{
-  "id": "ISSUE-101",
-  "source": "production incident review",
-  "title": "Mailbox.pop 在空队列时抛出原始内部 IndexError",
-  "report": "生产环境消息消费者日志出现未包装的 IndexError: pop from empty list。按设计契约，空队列弹出必须抛出带明确语义信息的 IndexError(\"pop from empty mailbox\")。当前实现对空队列直接落入 list.pop，泄漏了内部实现细节。",
-  "expected_behavior": "1) 空队列调用 pop() 抛出 IndexError 且消息恰为 'pop from empty mailbox'；2) 非空队列保持 FIFO 顺序；3) len() 与 push/pop 行为不变；4) 修改范围仅限 queue_box.py，不得改动既有基线测试。"
-}

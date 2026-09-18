@@ -1,8 +1,0 @@
-{
-  "root_cause": "pop() guard uses >= 0 which is always true; empty mailbox falls through to list.pop(0)",
-  "evidence": [
-    "checkpoint eval"
-  ],
-  "fix_hypothesis": "change guard to > 0 so empty mailbox raises the contract-specified clean error",
-  "confidence": 0.95
-}
