@@ -3016,7 +3016,7 @@ async function draftIt(){
         placeholder="验收标准：怎样算修好（可检查的判断句）">${esc(d.expected_behavior||"")}</textarea>
       <div class="row">
         <button onclick="submitIntake()">确认无误，取号送审</button>
-        <span class="mut">${r.source_files?`附源码 ${r.source_files.length} 件/测试 ${r.test_files.length} 件`:""}</span>
+        <span class="mut">${r.source_files&&r.source_files.length?`附源码 ${r.source_files.length} 件/测试 ${(r.test_files||[]).length} 件`:""}</span>
       </div>
     </div>`;
   window._files = r.source_files && r.source_files.length ?
