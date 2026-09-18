@@ -1,0 +1,41 @@
+{
+  "scenario_id": "mb_external_reorder_v2",
+  "mode": "external",
+  "title": "外部 AI 变更送审：重试补丁破坏 FIFO 顺序（真实原型 element-hq/element-x-ios #1670）",
+  "issue": {
+    "id": "ISSUE-303",
+    "source": "external AI coding assistant; 真实原型: https://github.com/element-hq/element-x-ios/issues/1670",
+    "title": "dispatcher 重试补丁：失败消息被排到队尾，后续消息越过它（乱序）",
+    "report": "真实原型为 Element X iOS #1670：消息重试导致发送顺序错乱（先发 3 再重试 1、2，最终顺序 3,1,2），用户在群里'说胡话'。外部 AI 编程助手针对 dispatcher 交付缺陷提交了重试修复补丁，送本流水线公证。",
+    "expected_behavior": "1) handler 交付失败的消息不得丢失，且必须保持 FIFO 队首位置——后续消息不得越过它（严格顺序）；2) 重试成功后按原顺序交付；3) 无订阅者 channel 的消息立即进入 dead_letters，元素为 (channel, payload) 元组；4) dispatch_all 返回当次实际成功交付的消息条数（int）；5) 修改范围仅限 dispatcher.py，基线测试不得改动。"
+  },
+  "submitted_change": {
+    "author": "external-ai-assistant (unattributed)",
+    "message": "fix(v2): keep failed message at head; retry in place (per notary feedback)",
+    "files": {
+      "dispatcher.py": "'''Message dispatcher: pull from a Mailbox and deliver to subscribers.'''\n\nfrom queue_box import Mailbox\n\nMAX_RETRIES = 3\n\n\nclass Dispatcher:\n    '''Deliver mailbox messages to per-channel subscriber handlers.'''\n\n    def __init__(self) -> None:\n        self._box = Mailbox()\n        self._subscribers = {}\n        self.dead_letters: list = []\n\n    def publish(self, channel: str, payload: str) -> None:\n        self._box.push((channel, payload))\n\n    def subscribe(self, channel: str, handler) -> None:\n        self._subscribers[channel] = handler\n\n    def pending(self) -> int:\n        return len(self._box)\n\n    def dispatch_all(self) -> int:\n        '''Deliver pending messages, retrying failed ones.\n\n        Ensures strict FIFO ordering: if a message fails to deliver after\n        MAX_RETRIES attempts, it and all subsequent messages remain in the\n        mailbox with the failed message at the head.  Messages for channels\n        without subscribers are moved to dead_letters immediately.\n        '''\n        delivered = 0\n\n        # Drain the mailbox into a local list to preserve order.\n        messages = []\n        while len(self._box) > 0:\n            messages.append(self._box.pop())\n\n        i = 0\n        while i < len(messages):\n            channel, payload = messages[i]\n            handler = self._subscribers.get(channel)\n            if handler is None:\n                # No subscriber: dead-letter immediately.\n                self.dead_letters.append((channel, payload))\n                i += 1\n                continue\n\n            # Retry up to MAX_RETRIES times.\n            success = False\n            for _ in range(MAX_RETRIES):\n                try:\n                    handler(payload)\n                    success = True\n                    break\n                except Exception:\n                    continue\n\n            if success:\n                delivered += 1\n                i += 1\n            else:\n                # Failed after MAX_RETRIES: put this message and all\n                # following messages back into the mailbox in original order.\n                # The failed message becomes the new head.\n                for msg in messages[i:]:\n                    self._box.push(msg)\n                break\n\n        return delivered\n"
+    }
+  },
+  "target_files": [
+    "queue_box.py",
+    "dispatcher.py"
+  ],
+  "baseline_test_files": [
+    "test_queue_box_baseline.py",
+    "test_dispatcher_baseline.py"
+  ],
+  "source_overrides": {
+    "queue_box.py": "\"\"\"A tiny FIFO mailbox used by the demo target service.\"\"\"\n\n\nclass Mailbox:\n    \"\"\"A minimal FIFO message box.\"\"\"\n\n    def __init__(self) -> None:\n        self._items: list[str] = []\n\n    def __len__(self) -> int:\n        return len(self._items)\n\n    def push(self, msg: str) -> None:\n        self._items.append(msg)\n\n    def pop(self) -> str:\n        \"\"\"Pop the oldest message; raise a clean error when empty.\"\"\"\n        if len(self._items) > 0:\n            return self._items.pop(0)\n        raise IndexError(\"pop from empty mailbox\")\n"
+  },
+  "reference": {
+    "note": "评审用参考产物，不对 Worker 提供。reference.tests 为盲测契约测试（eval_replay 用）。",
+    "tests": "import unittest\n\nfrom dispatcher import Dispatcher\n\n\nclass TestFifoUnderRetryContract(unittest.TestCase):\n    def test_failed_message_keeps_head_of_line(self):\n        \"\"\"A failed message keeps its FIFO head position; later messages\n        must not overtake it (strict ordering under retry).\"\"\"\n        d = Dispatcher()\n        received = []\n        state = {\"fail\": True}\n\n        def flaky(p):\n            if p == \"a\" and state[\"fail\"]:\n                state[\"fail\"] = False\n                raise RuntimeError(\"transient\")\n            received.append(p)\n\n        d.subscribe(\"orders\", flaky)\n        for p in [\"a\", \"b\", \"c\"]:\n            d.publish(\"orders\", p)\n        d.dispatch_all()\n        self.assertEqual(received, [\"a\", \"b\", \"c\"])\n\n    def test_failed_message_is_not_lost(self):\n        d = Dispatcher()\n        received = []\n        state = {\"fail\": True}\n\n        def flaky(p):\n            if state[\"fail\"]:\n                state[\"fail\"] = False\n                raise RuntimeError(\"transient\")\n            received.append(p)\n\n        d.subscribe(\"orders\", flaky)\n        d.publish(\"orders\", \"only\")\n        d.dispatch_all()\n        d.dispatch_all()\n        self.assertEqual(received, [\"only\"])\n        self.assertEqual(d.pending(), 0)\n\n\nif __name__ == \"__main__\":\n    unittest.main()\n"
+  },
+  "expected_outcome": {
+    "note": "评审用预期路径，不对 Worker 提供。",
+    "sentinel": "pass（无安全模式命中）",
+    "test_gate": "red——盲测 test_failed_message_keeps_head_of_line 失败：失败消息被 push 到队尾，b、c 越过 a 先交付（实际顺序 b,c,a）",
+    "convention_gate": "green",
+    "final": "REJECTED：重试实现破坏 FIFO 严格顺序。公证价值 = 与 Element X 真实乱序 bug 同类的缺陷被契约盲测确定性拦截"
+  }
+}
