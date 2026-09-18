@@ -3495,7 +3495,7 @@ async function boot(){
         `<div class="m" style="margin-top:6px">试用实证：命中 <b>${tr.hits}</b> 次 · `+
         `角色 ${tr.roles.join("、")||"—"} · 信号 ${tr.signals.join("、")||"—"}<br>`+
         `最近 ${new Date(tr.last_ts*1000).toLocaleString()} · 见于 ${tr.runs.slice(0,3).join("、")}${tr.runs.length>3?" 等":""}</div>`
-        : `<div class="m" style="margin-top:6px">尚无命中记录——可在试用台输入信号现场触发，或在彩排 run 中观察。</div>`;
+        : `<div class="m" style="margin-top:6px">尚无命中记录——命中数据会在试用过程中自动累积留存。</div>`;
       return `<div class="card">
       <div class="t">${esc(c.name)} <span class="badge probation">试用中</span>
         <span class="badge ver">v${esc(c.version||"—")}</span></div>
@@ -3516,6 +3516,7 @@ async function boot(){
       <div class="t">${esc(c.name)}</div>
       <div><span class="badge ${cls}">${lab}</span>
         <span class="badge ver">v${esc(c.version||"—")}</span>
+        ${c.supersedes?`<span class="badge ver">⤳ 取代 ${esc(c.supersedes)}</span>`:""}
         <span class="badge ver">${esc(c.compat||"")}</span></div>
       <div class="d">${esc((c.description||"").split("；")[0].split("。")[0])}</div>
       <div class="sig">${sigs}</div>
