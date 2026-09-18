@@ -3495,7 +3495,7 @@ async function boot(){
       const trialHtml = tr && tr.hits ?
         `<div class="m" style="margin-top:6px">试用实证：命中 <b>${tr.hits}</b> 次 · `+
         `角色 ${tr.roles.join("、")||"—"} · 信号 ${tr.signals.join("、")||"—"}<br>`+
-        `最近 ${new Date(tr.last_ts*1000).toLocaleString()} · 见于 ${tr.runs.slice(0,3).join("、")}${tr.runs.length>3?" 等":""}</div>`
+        `见于 ${tr.runs.slice(0,3).join("、")}${tr.runs.length>3?" 等":""}</div>`
         : `<div class="m" style="margin-top:6px">尚无命中记录——命中数据会在试用过程中自动累积留存。</div>`;
       return `<div class="card">
       <div class="t">${esc(c.name)} <span class="badge probation">试用中</span>
@@ -3512,7 +3512,7 @@ async function boot(){
     const[lab,cls]=(STATUS[c.status]||[c.status||"—","ver"]);
     const sigs=(c.signals||[]).map(s=>
       `<div>信号 <b>${esc(s.signal)}</b>：${esc(s.trigger)}<br>
-       <span>适用角色：${(s.roles||[]).join("、")} ｜ 评估覆盖 ${s.coverage_n} 样本</span></div>`
+       <span>适用角色：${(s.roles||[]).join("、")}</span></div>`
     ).join("")||"<div>未被信号表引用（种子储备）</div>";
     return `<div class="card">
       <div class="t">${esc(c.name)}</div>
