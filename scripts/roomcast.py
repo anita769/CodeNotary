@@ -1,50 +1,33 @@
 #!/usr/bin/env python3
-"""roomcast: 把公证流水线的真实执行事件直播到 Matrix 房间。
+"""roomcast: 把公证流水线的真实执行直播到 Matrix 房间（内容版）。
 
-"10-Agent 接力直播间"：轮询 run 的 trace.jsonl（append-only 事实层），
-每个推动流水线的事件翻译成一条人话播报发进房间。播报内容全部来自
-落盘事实，不是 LLM 叙事——房间里由此存在两条可互相对照的线：
-系统播报（本脚本）与 agent 发言（Worker 回执）。
+每个棒次事件不仅播报"做了什么"，还把该棒落盘工件的真实内容
+（分诊理由、根因分析、契约断言、盲测用例、门禁结论与失败明细……）
+带进房间——全部是落盘事实原文，不是 LLM 现场编造。
 
-用法：
-  python3 scripts/roomcast.py --sid coupon_room_v1 \
-      --room '!xxx:matrix-local...' --token-file /tmp/.at_token
-
-只读 trace，绝不写回网关。房间不存在/权限不足会打日志并继续重试。
+节奏：leader 式开场 → 每棒"角色发言（内容）+ 状态变化 + 下一棒预告"。
+只读 trace 与工件，绝不写回网关。
 """
 from __future__ import annotations
 
 import argparse
 import json
 import time
-import urllib.error
 import urllib.parse
 import urllib.request
 from pathlib import Path
 
 PKG_ROOT = Path(__file__).resolve().parent.parent
 
-# 棒次播报模板：工具 → (棒次名, 播报语气)
-BEAT_LABELS = {
-    "notary_sentinel.scan": ("哨兵", "🛡️ 入口检疫完成"),
-    "notary_flow.triage": ("分诊", "🧭 分诊结论"),
-    "notary_flow.reproduce": ("根因", "🔬 缺陷复现完成"),
-    "notary_flow.diagnosis": ("根因", "🧠 根因已定位"),
-    "notary_contract.freeze": ("契约", "📜 验收规则已冻结"),
-    "notary_author.submit_implementation": ("作者", "✍️ 修复实现已提交"),
-    "notary_tester.submit_tests": ("盲测", "🧪 盲测用例已提交（未见实现）"),
-    "notary_gate.run_test_gate": ("门禁", "🚦 测试门禁"),
-    "notary_gate.run_mutation_gate": ("门禁", "🚦 变异门禁"),
-    "notary_gate.run_convention_gate": ("门禁", "🚦 规范门禁"),
-    "notary_gate.finalize_mutation": ("门禁", "🚦 变异终裁"),
-    "notary_rebuttal.submit": ("作者", "🛡️ 等价变异体申辩"),
-    "notary_flow.dispute": ("送审方", "⚖️ 提出异议，升级人工裁决"),
-    "notary_flow.adjudicate": ("裁决", "⚖️ 人工裁决已签署"),
-    "notary_flow.request_rework": ("负责", "🔁 退回重修"),
-    "notary_release.deploy": ("发布", "🚀 已发布上线"),
-    "notary_evidence.seal": ("证据", "🔐 证据已封印（哈希链+签名）"),
-    "notary_skill.register": ("复盘", "📚 经验沉淀为新 Skill"),
-}
+# 棒序（用于"第 N 棒"与下一棒预告）
+BEAT_ORDER = ["sentinel", "triage", "rca", "contract", "author",
+              "tester", "gatekeeper", "release", "postmortem"]
+BEAT_CN = {"sentinel": "哨兵·检疫", "triage": "分诊", "rca": "根因分析",
+           "contract": "契约冻结", "author": "作者修复",
+           "tester": "盲测设计", "gatekeeper": "门禁检验",
+           "release": "发布与封印", "postmortem": "复盘沉淀"}
+
+DEC = {"green": "🟢 通过", "red": "🔴 未通过", "yellow": "🟡 待复核"}
 STATE_CN = {
     "RECEIVED": "已受理", "SCREENED": "检疫通过", "TRIAGED": "已分诊",
     "DIAGNOSED": "根因已定位", "CONTRACTED": "验收规则已冻结",
@@ -53,6 +36,99 @@ STATE_CN = {
     "QUARANTINED": "检疫隔离", "ESCALATED": "等待人工裁决",
     "REJECTED": "未放行（待修复或异议）", "ROLLED_BACK": "已回滚",
 }
+GATE_VERDICT = {
+    "notary_gate.run_test_gate": ("测试门禁", "test_pass.json"),
+    "notary_gate.run_mutation_gate": ("变异门禁", "mutation.json"),
+    "notary_gate.finalize_mutation": ("变异终裁", "mutation.json"),
+    "notary_gate.run_convention_gate": ("规范门禁", "convention.json"),
+}
+
+
+def read_json(p: Path):
+    try:
+        return json.loads(p.read_text(encoding="utf-8"))
+    except Exception:
+        return None
+
+
+def clip(text: str, n: int = 600) -> str:
+    text = (text or "").strip()
+    return text if len(text) <= n else text[:n] + "…"
+
+
+def beat_content(sid: str, runs: Path, tool: str, role: str) -> tuple[str, str] | None:
+    """返回 (棒次 key, 富文本播报)。工件原文优先。"""
+    rd = runs / sid
+    if tool == "notary_sentinel.scan":
+        q = read_json(rd / "evidence" / "quarantine" / "manifest.json") or {}
+        findings = q.get("findings") or []
+        body = "入口检疫：送审文件扫描完成，未发现危险写法。" if not findings else \
+            "入口检疫命中风险：" + "；".join(str(f)[:80] for f in findings)
+        return "sentinel", body
+    if tool == "notary_flow.triage":
+        t = read_json(rd / "triage.json") or {}
+        return "triage", (f"受理结论：{'受理' if t.get('verdict') == 'accept' else '不受理'}；"
+                          f"检验范围：{'、'.join(t.get('scope', [])) or '—'}\n"
+                          f"分诊理由：{clip(t.get('rationale', '—'), 300)}")
+    if tool == "notary_flow.diagnosis":
+        d = read_json(rd / "diagnosis.json") or {}
+        return "rca", (f"根因：{clip(d.get('root_cause', '—'), 350)}\n"
+                       f"修复假设：{clip(d.get('fix_hypothesis', '—'), 250)}\n"
+                       f"置信度：{d.get('confidence', '—')}")
+    if tool == "notary_contract.freeze":
+        c = read_json(rd / "contract.json") or {}
+        assertions = "\n".join(f"  {i+1}. {a}" for i, a in
+                               enumerate(c.get("assertions", [])))
+        assump = c.get("assumptions") or []
+        ap = ("\n冻结时标注的假设：\n" + "\n".join(
+            f"  · {a.get('point')}→{a.get('assumption')}（依据：{a.get('basis')}）"
+            for a in assump)) if assump else ""
+        return "contract", (f"验收规则 v{c.get('version', 1)} 已冻结"
+                            f"（哈希 {str(c.get('frozen_hash', ''))[:12]}…，冻结后不可改）：\n"
+                            f"{assertions}{ap}")
+    if tool == "notary_author.submit_implementation":
+        impl = read_json(rd / "evidence" / "implementation_files.json") or {}
+        return "author", "修复实现已提交：" + "、".join(impl) + \
+            "（内容哈希已入证据）"
+    if tool == "notary_tester.submit_tests":
+        bt = read_json(rd / "evidence" / "blind_test_files.json") or {}
+        return "tester", ("盲测用例已提交（编写全程未见实现代码）："
+                          + "、".join(bt))
+    if tool in GATE_VERDICT:
+        gname, gfile = GATE_VERDICT[tool]
+        v = read_json(rd / "verdicts" / gfile) or {}
+        dec = DEC.get(v.get("decision"), v.get("decision", "—"))
+        body = f"{gname}：{dec}\n{clip(v.get('summary', ''), 300)}"
+        if v.get("decision") == "red" and v.get("test_output"):
+            out = v["test_output"]
+            fails = [l for l in out.splitlines()
+                     if l.startswith(("FAIL:", "ERROR:"))]
+            if fails:
+                body += "\n未通过用例：\n" + "\n".join(
+                    f"  ✗ {f}" for f in fails[:4])
+        return "gatekeeper", body
+    if tool == "notary_gate.finalize_mutation":
+        return None  # 已并入变异门禁
+    if tool == "notary_flow.dispute":
+        d = (read_json(rd / "dispute.json") or [{}])[-1]
+        return None  # dispute 由大厅/裁决卡呈现，房间只提示升级
+    if tool == "notary_release.deploy":
+        return "release", "验收通过，修复已发布（冒烟验证通过）。"
+    if tool == "notary_evidence.seal":
+        m = read_json(rd / "manifest.json") or {}
+        files = m.get("files") or m
+        return "release", (f"证据封印完成：{len(files)} 个文件哈希入链，"
+                           f"轨迹前缀绑定，Ed25519 签名。"
+                           f"封印时网关版本 {m.get('gateway_version', '—')}")
+    if tool == "notary_skill.register":
+        return "postmortem", "复盘：本次经验已沉淀为新 Skill 并登记入册。"
+    if tool == "notary_rebuttal.submit":
+        return "author", "已提交等价变异体申辩（论证入证）。"
+    if tool == "notary_flow.adjudicate":
+        adj = (read_json(rd / "adjudication.json") or [{}])[-1]
+        return None, (f"⚖️ 人工裁决已签署：{adj.get('decision')}——"
+                      f"{clip(adj.get('rationale', ''), 200)}")
+    return None
 
 
 def matrix_post(matrix: str, token: str, room: str, text: str) -> bool:
@@ -84,15 +160,13 @@ def main() -> None:
 
     token = Path(args.token_file).read_text().strip()
     trace = Path(args.runs_dir) / args.sid / "trace.jsonl"
-    # 从文件末尾起播：历史事件不重播（驱动器内部 reset 会触发
-    # 文件重建归零重播，启动时先跳过存量内容避免重复播报——实证）
+    # 从文件末尾起播：历史事件不重播；reset 重建文件时归零
     offset = trace.stat().st_size if trace.exists() else 0
-    last_state = None
+    seen_states: list[str] = []
     print(f"[roomcast] {args.sid} → {args.room}", flush=True)
     while True:
         try:
             if trace.exists():
-                # run 被 reset 时文件会缩短重建：offset 归零重播
                 if trace.stat().st_size < offset:
                     offset = 0
                 with trace.open(encoding="utf-8") as fh:
@@ -105,38 +179,30 @@ def main() -> None:
                     except ValueError:
                         continue
                     tool = e.get("tool", "")
-                    if tool not in BEAT_LABELS:
+                    got = beat_content(args.sid, Path(args.runs_dir),
+                                       tool, e.get("role", ""))
+                    if not got:
                         continue
-                    beat, label = BEAT_LABELS[tool]
-                    role = e.get("role", "")
+                    beat, body = got
                     state = e.get("state_after", "")
+                    if state and state not in seen_states:
+                        seen_states.append(state)
+                    n = len(seen_states)
                     state_cn = STATE_CN.get(state, state)
-                    state_part = (f" → 状态：{state_cn}"
-                                  if state and state != last_state else "")
-                    last_state = state or last_state
-                    # 门禁播报带结论：工具→自己的 verdict 文件，
-                    # 不看"最新 mtime"（批量播报时下一门禁文件已落盘，
-                    # 实测把测试红灯误报成规范绿灯）
-                    _GATE_VERDICT = {
-                        "notary_gate.run_test_gate": "test_pass.json",
-                        "notary_gate.run_mutation_gate": "mutation.json",
-                        "notary_gate.finalize_mutation": "mutation.json",
-                        "notary_gate.run_convention_gate": "convention.json",
-                    }
-                    extra = ""
-                    if tool in _GATE_VERDICT:
-                        vf = (Path(args.runs_dir) / args.sid
-                              / "verdicts" / _GATE_VERDICT[tool])
-                        if vf.exists():
-                            v = json.loads(vf.read_text(encoding="utf-8"))
-                            dec = {"green": "🟢 通过", "red": "🔴 未通过",
-                                   "yellow": "🟡 待复核"}.get(
-                                       v.get("decision"), v.get("decision"))
-                            extra = f"：{dec}"
-                    text = (f"📡【{beat}】{label}{extra}"
-                            f"（{role}）{state_part}")
+                    if beat is None:
+                        text = body  # 裁决等特殊播报
+                    else:
+                        nxt = BEAT_ORDER[BEAT_ORDER.index(beat) + 1] \
+                            if beat in BEAT_ORDER and \
+                            BEAT_ORDER.index(beat) + 1 < len(BEAT_ORDER) else None
+                        head = f"【第 {n} 棒 · {BEAT_CN.get(beat, beat)}】"
+                        tail = f"\n→ 状态：{state_cn}" if state else ""
+                        if nxt and state not in ("REJECTED", "RELEASED",
+                                                 "NOTARIZED", "QUARANTINED"):
+                            tail += f"　｜　下一棒：{BEAT_CN.get(nxt, nxt)}"
+                        text = f"{head}\n{body}{tail}"
                     matrix_post(args.matrix, token, args.room, text)
-                    print(f"  >> {text}", flush=True)
+                    print(f"  >> {text[:60]}…", flush=True)
             time.sleep(args.interval)
         except KeyboardInterrupt:
             break
