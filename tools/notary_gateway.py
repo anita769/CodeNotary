@@ -1281,7 +1281,9 @@ ROLE_POLICY: dict[str, set[str]] = {
     "notary_gate.run_convention_gate": {"gatekeeper", "convention"},
     "notary_rebuttal.submit": {"author"},
     "notary_flow.resolve_human": {"leader", "human"},
-    "notary_flow.adjudicate": {"adjudicator", "leader"},
+    # 人工门②只能由裁决人角色执行：LLM leader 在彩排实证中曾自行裁决
+    # （coupon_room_v1 trace #41），权力边界必须在网关层封死
+    "notary_flow.adjudicate": {"adjudicator"},
     "notary_release.deploy": {"release"},
     "notary_release.rollback": {"release"},
     "notary_evidence.seal": {"release", "postmortem"},
