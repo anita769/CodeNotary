@@ -18,7 +18,7 @@
         {"kind": "source_marker", "ref": "class IllegalTransition", "why_zh": "结构性防线：LLM 输出（无论是否被注入）永不驱动状态转移，提示覆盖在裁决层无效"},
         {"kind": "sentinel_pattern", "ref": "dynamic eval on external input", "evidence": ["d3_qb_eval_exec", "d3_mb_eval_exec"], "why_zh": "动态执行入口即 critical 检疫拦截"},
         {"kind": "sentinel_pattern", "ref": "unsafe deserialization", "evidence": ["d3_qb_pickle_deserialize", "qb_external_pickle"], "why_zh": "反序列化载荷即 critical 拦截"},
-        {"kind": "roadmap", "ref": "sentinel_extension_candidates", "why_zh": "base64/hex/codecs 解码载荷规则已完成零回归验证，冻结至决赛后启用"}
+        {"kind": "roadmap", "ref": "sentinel_extension_candidates", "why_zh": "base64/hex/codecs 解码载荷规则已完成零回归验证，冻结至下个版本启用"}
       ],
       "coverage": "strong"
     },
@@ -94,7 +94,7 @@
   "sentinel_extension_candidates": {
     "status": "validated-frozen",
     "validated_on": "2026-08-29",
-    "validation_zh": "以下 14 条候选规则（译自论文 35 条模式层中适用于源码制品扫描的子集）已对全部 36 个评测样本完成回归实测：逐样本 findings 与 decision 完全一致（零误伤、零既有行为变化）。因现行评测集无触发样本，按'无实证不启用'原则冻结至决赛后 v1.3 随对抗样本一同启用。",
+    "validation_zh": "以下 14 条候选规则（译自论文 35 条模式层中适用于源码制品扫描的子集）已对全部 36 个评测样本完成回归实测：逐样本 findings 与 decision 完全一致（零误伤、零既有行为变化）。因现行评测集无触发样本，按'无实证不启用'原则冻结至下个版本随对抗样本一同启用。",
     "rules": [
       {"pattern": "\\bbase64\\.(b64decode|b32decode|b16decode|a85decode|b85decode)\\s*\\(", "severity": "high", "label": "obfuscated payload decode (base64)", "paper_ref": "EVASION-003"},
       {"pattern": "\\bbytes\\.fromhex\\s*\\(", "severity": "high", "label": "obfuscated payload decode (hex)", "paper_ref": "EVASION-004"},

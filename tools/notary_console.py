@@ -227,7 +227,7 @@ def board_data(runs_dir: Path) -> dict:
         }
         cards.append(card)
     # 同工单多版本标注：卡面直读"第几版/共几版、最新版到哪了"，
-    # 评委不会在准考证 v1/v2 双卡时误读成重复任务。
+    # 同标题多版本不再被误读成重复任务。
     by_title: dict[str, list] = {}
     for c in cards:
         by_title.setdefault(c["title"], []).append(c)

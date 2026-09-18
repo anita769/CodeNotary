@@ -2,7 +2,7 @@
 
 CodeNotary（代码公证处）是面向 AI 生成代码的可信交付流水线：10 个最小权限 Agent 组成质量门闭环，LLM 只做判断、确定性代码只做裁决，全程证据可封存、可回放。
 
-本目录是 CodeNotary 的 **AgentTeams 可执行代码包**（GOAI 赛道一复赛提交物），包含运行入口、依赖说明、配置文件、样例输入输出和运行证据。
+本目录是 CodeNotary 的 **AgentTeams 可执行代码包**，包含运行入口、依赖说明、配置文件、样例输入输出和运行证据。
 
 ## 包结构
 
@@ -45,7 +45,7 @@ agentteams/
 │   ├── eval_checkpoint.py         #   断点恢复实证（SIGKILL → 续跑 → 终态）
 │   ├── eval_report.py             #   → EVALUATION.md（确定性生成，含 §6 live 指标）
 │   ├── trace_metrics.py           #   trace 协同指标聚合（回放/真实运行通用）
-│   └── one_click_setup.sh         #   一键起网关+前台+自检+验收报告（评委入口）
+│   └── one_click_setup.sh         #   一键起网关+前台+自检+验收报告
 ├── runs/                          # 36 个回放样本的证据目录（无 LLM 回放产物，可复算）
 ├── demo/
 │   ├── demo_new.mp4          	   # Demo 视频
@@ -63,7 +63,7 @@ agentteams/
 
 ## 快速上手
 
-**A. 一分钟自检（无 LLM，验证裁决层——评委复算入口）**
+**A. 一分钟自检（无 LLM，验证裁决层——第三方复算入口）**
 
 ```bash
 python3 scripts/local_dryrun.py
@@ -113,6 +113,6 @@ make verify EVIDENCE=evidence-pack.zip
 ## 开源与许可声明
 
 - **许可证**：Apache-2.0（见包根 `LICENSE`）；第三方依赖为零（纯 Python 标准库），vendored 真实源码样本（pypa/packaging）的出处与许可见 `tools/notary_target/VENDORED.md`。
-- **发行状态**：本包为 GOAI 复赛提交件（v1.5 终版），随赛交付；
+- **发行状态**：当前稳定版 v1.5；
 - **证据口径**：包内全部评测与运行证据的分层声明见 `EVIDENCE_HONESTY.md`——哪些是无 LLM 的确定性回放、哪些是真实平台运行，逐类固化，引用数字前请先读它。
-- **复现入口**：`scripts/one_click_setup.sh` 一键起全套；评审复算命令清单见技术文档增刊附录 F。
+- **复现入口**：`scripts/one_click_setup.sh` 一键起全套；复算命令清单见技术文档增刊附录 F。
