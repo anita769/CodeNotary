@@ -3498,7 +3498,8 @@ async function boot(){
         : `<div class="m" style="margin-top:6px">尚无命中记录——命中数据会在试用过程中自动累积留存。</div>`;
       return `<div class="card">
       <div class="t">${esc(c.name)} <span class="badge probation">试用中</span>
-        <span class="badge ver">v${esc(c.version||"—")}</span></div>
+        <span class="badge ver">v${esc(c.version||"—")}</span>
+        ${c.supersedes?`<span class="badge ver">⤳ 取代 ${esc(c.supersedes)}</span>`:""}</div>
       <div class="d">${esc((c.description||"").split("；")[0].split("。")[0])}</div>
       ${trialHtml}
       <div class="row" style="display:flex;gap:8px;margin-top:8px">
