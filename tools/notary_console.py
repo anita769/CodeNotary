@@ -921,6 +921,7 @@ def skills_data() -> dict:
         skills.append({"name": name, "source": "registry",
                        "version": m.get("version"), "compat": m.get("compat"),
                        "retired": name in retired,
+                       "supersedes": m.get("supersedes"),
                        "description": m.get("description", "")})
     table = read_json(PKG_ROOT / "skills" / "match_table.json") or {}
     return {"skills": skills,
