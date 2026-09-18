@@ -846,9 +846,17 @@ def skillboard_data() -> dict:
             {"signal": s["signal"], "trigger": s["trigger"],
              "roles": s.get("roles", []),
              "coverage_n": len(s.get("coverage", []))} for s in sigs]})
+    # 被取代的旧版不进追认队列：追认的对象是版本链链头，旧版留档备查
+    superseded = {c["supersedes"] for c in cards if c.get("supersedes")}
+    for c in cards:
+        if c["name"] in superseded:
+            c["superseded_by"] = next(
+                x["name"] for x in cards
+                if x.get("supersedes") == c["name"])
     return {"cards": cards, "registry": base.get("registry", []),
             "probation_queue": [c for c in cards
-                                if c["status"] == "probation"],
+                                if c["status"] == "probation"
+                                and c["name"] not in superseded],
             "ledger": base.get("ledger", []),
             "match_stats": {"note":
                             "逐次命中明细见各 run 的 evidence/skill_matches.json"}}
@@ -3509,7 +3517,8 @@ async function boot(){
       </div></div>`;}).join("") : "";
   document.getElementById("gridLabel").textContent = "全部 Skill";
   document.getElementById("grid").innerHTML=r.cards.map(c=>{
-    const[lab,cls]=(STATUS[c.status]||[c.status||"—","ver"]);
+    const[lab,cls]=c.superseded_by?["已被 "+c.superseded_by+" 取代","retired"]
+      :(STATUS[c.status]||[c.status||"—","ver"]);
     const sigs=(c.signals||[]).map(s=>
       `<div>信号 <b>${esc(s.signal)}</b>：${esc(s.trigger)}<br>
        <span>适用角色：${(s.roles||[]).join("、")}</span></div>`
