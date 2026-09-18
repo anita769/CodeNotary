@@ -84,7 +84,9 @@ def main() -> None:
 
     token = Path(args.token_file).read_text().strip()
     trace = Path(args.runs_dir) / args.sid / "trace.jsonl"
-    offset = 0
+    # 从文件末尾起播：历史事件不重播（驱动器内部 reset 会触发
+    # 文件重建归零重播，启动时先跳过存量内容避免重复播报——实证）
+    offset = trace.stat().st_size if trace.exists() else 0
     last_state = None
     print(f"[roomcast] {args.sid} → {args.room}", flush=True)
     while True:
