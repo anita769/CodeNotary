@@ -3302,11 +3302,15 @@ async function refresh(){
   if(!s.exists){show('尚未开始。点「开始体验」去大厅提交问题，流水线即刻发车。');return}
   document.getElementById('stops').style.display='grid';
   let hint='';
-  if(s.state==='ESCALATED')hint='——<b>现在轮到您了</b>：去任务工作台，打开红点卡，亲手签署裁决';
+  let link='<a href="/run?sid=coupon_tour">看实时进展 →</a>';
+  if(s.state==='ESCALATED'){
+    hint='——<b>现在轮到您了</b>：亲手签署裁决';
+    link='<a href="/workbench#card=coupon_tour&kind=escalated"><b>打开裁决卡 →</b></a>';
+  }
   else if(s.state==='RELEASED')hint='——已公证交付 🎉 去任务详情看证书，或点「复位体验案例」让给下一位';
   else if(s.state==='REJECTED')hint='——门禁红灯，正在升级等待裁决';
   show('体验案例运行中：状态 <b>'+(s.state_label||s.state)+'</b>'+hint+
-    '<br><a href="/run?sid=coupon_tour">看实时进展 →</a>');
+    '<br>'+link);
 }
 async function begin(){
   // 预填问题，带游客去大厅亲手提交——问题文本会进入证据链
