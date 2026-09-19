@@ -20,6 +20,7 @@ from pathlib import Path
 
 ASSETS = Path(__file__).resolve().parent / "tour_assets"
 SID = "coupon_tour"
+PACE = 8.0  # seconds between steps: slow enough for a watching visitor
 
 
 def call(gw: str, tool: str, payload: dict | None = None,
@@ -37,6 +38,7 @@ def call(gw: str, tool: str, payload: dict | None = None,
         out = json.loads(e.read().decode())
     if not out.get("ok"):
         raise SystemExit(f"FAIL {tool}: {out.get('error')}")
+    time.sleep(PACE)  # 棒次之间留观看窗口
     return out["result"]
 
 
@@ -123,7 +125,11 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("phase", choices=["A", "C"])
     ap.add_argument("--gateway", default="http://127.0.0.1:18090")
+    ap.add_argument("--pace", type=float, default=8.0,
+                    help="seconds to dwell between pipeline steps")
     args = ap.parse_args()
+    global PACE
+    PACE = args.pace
     # Small pacing so a watching judge sees the steps land in order.
     if args.phase == "A":
         phase_a(args.gateway)
