@@ -3235,7 +3235,7 @@ NAV_HTML = (
 TOUR_PAGE = r"""<!DOCTYPE html>
 <html lang="zh">
 <head>
-<meta charset="utf-8"><title>评委导览台 · CodeNotary</title>
+<meta charset="utf-8"><title>导览台 · CodeNotary</title>
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <style>
 :root{--ink:#1a2332;--sub:#5b6b7f;--line:#d9e0e8;--bg:#f5f7fa;--card:#fff;
@@ -3270,12 +3270,11 @@ code{background:#eef2f7;padding:1px 5px;border-radius:4px;font-size:12px}
 <body>
 <div class="wrap">
 <div class="hero">
-<h1>🎓 评委导览台</h1>
+<h1>🎓 导览台</h1>
 <p class="sub">这是一套真系统在真数据上的体验环境。动线只有四步：
 ① 去大厅<b>提交你的问题</b>（已为你预填，可改）→ ② 看流水线真跑（修复、
 盲测、门禁全是真执行）→ ③ 红灯时<b>你亲手签署裁决</b>（裁决卡上理由已预填，
-无需令牌）→ ④ 看全绿交付与证书。
-整个站点随便逛——正式案例只读可看，怎么点都改不坏；玩完可复位，不留痕迹。</p>
+无需令牌）→ ④ 看全绿交付与证书。</p>
 <p style="margin-top:14px">
 <button class="btn" id="beginBtn" onclick="begin()">开始体验：去大厅提交问题</button>
 <button class="btn ghost" onclick="resetTour()">复位体验案例</button>
@@ -3283,15 +3282,13 @@ code{background:#eef2f7;padding:1px 5px;border-radius:4px;font-size:12px}
 </div>
 <div class="status" id="status"></div>
 <div class="stops" id="stops" style="display:none">
-<div class="stop"><b>① 办事大厅</b><p>看这条工单的信封时间线：每一封都写着发生了什么、意味着什么、下一步。</p><span class="try">试试：追问区问「失败的是哪个场景？」（只读）</span><p><a href="/hall#task=coupon_tour">打开大厅 →</a></p></div>
+<div class="stop"><b>① 办事大厅</b><p>看这条工单的信封时间线：每一封都写着发生了什么、意味着什么、下一步。</p><span class="try">试试：追问区问「失败的是哪个场景？」</span><p><a href="/hall#task=coupon_tour">打开大厅 →</a></p></div>
 <div class="stop"><b>② 任务工作台</b><p>五列看板。红灯时体验案例停在「待人工裁决」，点开就是真裁决卡。</p><span class="try">红灯时点开红点卡 → 修订/签署，访客身份即可落锤</span><p><a href="/workbench">打开工作台 →</a></p></div>
 <div class="stop"><b>③ 任务详情</b><p>十步接力条、14 态状态机、处理过程表——每一棒留痕。</p><span class="try">试试：审计记录里点「立即重新校验」</span><p><a href="/run?sid=coupon_tour">打开任务详情 →</a></p></div>
 <div class="stop"><b>④ Skill 看板</b><p>经验沉淀与追认制：新经验先试用、留痕，转正由人签。</p><span class="try">追认/否决对体验身份关闭（第三道人工门）</span><p><a href="/skillboard">打开 Skill 看板 →</a></p></div>
 </div>
 <div class="foot">
-体验说明：流水线中由 AI 产出的工件（分诊理由、修复代码、盲测用例）来自真实案例的回放；
-门禁检验、契约冻结、您的裁决签署、封印与复算，全部是这套网关的实时真实执行。
-可动手的只有体验案例（<code>coupon_tour</code>），与正式案例完全隔离；复位即清空，大厅取号一并清场。闲置 15 分钟自动复位。
+体验说明：该案例为体验案例。
 <br>想在自己的机器上完整跑一遍？整套系统是开源的：
 <a href="https://github.com/anita769/CodeNotary">github.com/anita769/CodeNotary</a>
 ——克隆后一条命令起网关与本界面，流水线随你跑。
@@ -3321,7 +3318,7 @@ async function resetTour(){
   const r=await j('/api/tour/reset',{method:'POST',
     headers:{'Content-Type':'application/json'},body:'{}'});
   show('已复位：'+(r.wiped&&r.wiped.length?r.wiped.join('、'):'本来就是干净的')+
-    '。下一位评委将从空白开始。');
+    '。下一位访客将从空白开始。');
 }
 refresh(); setInterval(refresh,4000);
 </script>
