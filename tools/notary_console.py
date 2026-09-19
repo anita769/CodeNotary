@@ -3284,7 +3284,7 @@ code{background:#eef2f7;padding:1px 5px;border-radius:4px;font-size:12px}
 <div class="stops" id="stops" style="display:none">
 <div class="stop"><b>① 办事大厅</b><p>看这条工单的信封时间线：每一封都写着发生了什么、意味着什么、下一步。</p><span class="try">试试：追问区问「失败的是哪个场景？」</span><p><a href="/hall#task=coupon_tour">打开大厅 →</a></p></div>
 <div class="stop"><b>② 任务工作台</b><p>五列看板。红灯时体验案例停在「待人工裁决」，点开就是真裁决卡。</p><span class="try">红灯时点开红点卡 → 修订/签署，访客身份即可落锤</span><p><a href="/workbench">打开工作台 →</a></p></div>
-<div class="stop"><b>③ 任务详情</b><p>十步接力条、14 态状态机、处理过程表——每一棒留痕。</p><span class="try">试试：审计记录里点「立即重新校验」</span><p><a href="/run?sid=coupon_tour">打开任务详情 →</a></p></div>
+<div class="stop"><b>③ 任务详情</b><p>十步接力条、14 态状态机、处理过程表——每一棒留痕。</p><span class="try">试试：查看审计记录里点「立即重新校验」</span><p><a href="/run?sid=coupon_tour">打开任务详情 →</a></p></div>
 <div class="stop"><b>④ Skill 看板</b><p>经验沉淀与追认制：新经验先试用、留痕，转正由人签。</p><span class="try">追认/否决对体验身份关闭（第三道人工门）</span><p><a href="/skillboard">打开 Skill 看板 →</a></p></div>
 </div>
 <div class="foot">
