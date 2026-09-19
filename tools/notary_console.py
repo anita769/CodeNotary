@@ -3142,6 +3142,12 @@ async function submitIntake(){
   alert("已取号：" + (r.result?r.result.scenario_id:"") + "，进展会主动通知您");
   document.getElementById("draftBox").innerHTML="";
   document.getElementById("ask").value=""; loadTasks();
+  // 右侧即刻切到新任务（驱动器建 run 有秒级延迟，重试几次）
+  const sid = r.result && r.result.scenario_id;
+  if(sid){ let n=0; const t=setInterval(async ()=>{
+    const resp = await fetch("/api/hall/"+sid);
+    if(resp.ok || ++n>=8){ clearInterval(t); if(resp.ok) openTask(sid); }
+  }, 1500); }
 }
 
 const KIND = {todo:["🔴 待办","todo"],progress:["🔵 进展","progress"],
