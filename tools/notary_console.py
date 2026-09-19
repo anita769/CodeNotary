@@ -2690,7 +2690,7 @@ white-space:pre-wrap}
 </style>
 </head>
 <body>
-<div class="topnav"><span class="brand">⚖️ CodeNotary 公证处</span><a href="/workbench">任务看板</a><a href="/hall">办事大厅</a><a href="/skillboard">Skill 看板</a></div>
+<div class="topnav"><span class="brand">⚖️ CodeNotary 公证处</span><a href="/workbench">任务看板</a><a href="/hall">办事大厅</a><a href="/skillboard">Skill 看板</a><a href="/tour">导览台</a></div>
 <header>
   <h1>任务工作台</h1><span class="mut">CodeNotary 公证处 · 内勤台</span>
   <span class="token">签署令牌 <input id="tok" type="password"
@@ -3057,7 +3057,7 @@ margin-top:10px;font-size:13px}
 </style>
 </head>
 <body>
-<div class="topnav"><span class="brand">⚖️ CodeNotary 公证处</span><a href="/workbench">任务看板</a><a href="/hall">办事大厅</a><a href="/skillboard">Skill 看板</a></div>
+<div class="topnav"><span class="brand">⚖️ CodeNotary 公证处</span><a href="/workbench">任务看板</a><a href="/hall">办事大厅</a><a href="/skillboard">Skill 看板</a><a href="/tour">导览台</a></div>
 <h1>办事大厅</h1>
 <div class="wrap">
   <div class="panel">
