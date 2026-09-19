@@ -280,6 +280,21 @@ def board_data(runs_dir: Path) -> dict:
     return {"columns": columns, "total": len(cards), "recovery": recovery}
 
 
+def _dispute_party_label(run_dir: Path, role: str | None) -> str:
+    """异议方标签按模式与角色区分：external 恒为送审方；inhouse 按 dispute
+    的发起角色（author=修复方, leader=值班经理）。标签只影响展示，不进证据。"""
+    mode = ""
+    try:
+        fx = json.loads((PKG_ROOT / "scenarios" / f"{run_dir.name}.json")
+                        .read_text(encoding="utf-8"))
+        mode = fx.get("mode", "")
+    except (OSError, json.JSONDecodeError):
+        pass
+    if mode == "external":
+        return "送审方"
+    return {"leader": "值班经理", "author": "修复方"}.get(role or "", "异议方")
+
+
 def adjudication_context(run_dir: Path) -> dict:
     """裁决卡的数据底座：争议双方立场 + 客观证据，全部来自落盘事实。"""
     dispute = read_json(run_dir / "dispute.json") or []
@@ -296,8 +311,12 @@ def adjudication_context(run_dir: Path) -> dict:
     candidates = [str(p.relative_to(run_dir))
                   for p in sorted(run_dir.rglob("*.json"))
                   if "work" not in p.parts and p.name != "checkpoint.json"]
+    last_dispute = dict(dispute[-1]) if dispute else None
+    if last_dispute is not None:
+        last_dispute["party_label"] = _dispute_party_label(
+            run_dir, last_dispute.get("role"))
     return {
-        "dispute": dispute[-1] if dispute else None,
+        "dispute": last_dispute,
         "contract": {"version": contract.get("version"),
                      "frozen_hash": contract.get("frozen_hash"),
                      "assertions": contract.get("assertions", []),
@@ -619,7 +638,7 @@ def runview_data(run_dir: Path, runs_root: Path) -> dict:
                     else "隔离试修 / 送审方修复 / 提出异议"})
     for d in dispute:
         cards.append({
-            "role": "争议", "title": "送审方异议（正式通道）", "tone": "hitl",
+            "role": "争议", "title": f"{_dispute_party_label(run_dir, d.get('role'))}异议（正式通道）", "tone": "hitl",
             "lines": [f"争议焦点：{d.get('focus', '—')}",
                       f"涉及条款：{d.get('clause') or '—'}",
                       "争议对象：契约条款的立项依据（非检验过程）"],
@@ -1011,6 +1030,86 @@ def gateway_get(path: str) -> dict | None:
             return json.loads(resp.read().decode("utf-8"))
     except Exception:
         return None
+
+
+# ---------------------------------------------------------------------------
+# Judge tour (/tour): hands-on sandbox on the REAL system. One isolated run
+# (coupon_tour) is driven by scripts/tour_drive.py; judges roam the real
+# pages with an annotation bar and a sid-locked capability token. Reset wipes
+# the sandbox run and any tour-tagged intake cards; formal runs are
+# unreachable because every write endpoint enforces the sid lock server-side.
+# ---------------------------------------------------------------------------
+TOUR_SID = "coupon_tour"
+TOUR_IDLE_SEC = 900  # idle auto-reset: next visitor always gets a clean slate
+
+
+def _tour_state(runs_dir: Path) -> tuple[bool, str, float | None]:
+    """(exists, state, last_activity_ts) of the sandbox run, from disk facts."""
+    run_dir = runs_dir / TOUR_SID
+    if not run_dir.is_dir():
+        return False, "", None
+    summary = run_summary(run_dir)
+    return True, summary["state"], summary.get("last_ts")
+
+
+def _tour_registry_path(runs_dir: Path) -> Path:
+    return runs_dir / "_tour_intakes.json"
+
+
+def _tour_remember(runs_dir: Path, sid: str) -> None:
+    p = _tour_registry_path(runs_dir)
+    ids = read_json(p) or []
+    if sid not in ids:
+        ids.append(sid)
+        p.write_text(json.dumps(ids, ensure_ascii=False), encoding="utf-8")
+
+
+def _tour_wipe_run(runs_dir: Path, sid: str) -> None:
+    """Reset via the gateway (in-memory + rebuild authorization), then remove
+    the on-disk run so the card disappears from board/hall immediately."""
+    import shutil
+    gateway_post(sid, "reset", {})
+    run_dir = runs_dir / sid
+    if run_dir.is_dir():
+        shutil.rmtree(run_dir)
+
+
+def _tour_reset_all(runs_dir: Path) -> list[str]:
+    wiped = []
+    if (runs_dir / TOUR_SID).is_dir():
+        _tour_wipe_run(runs_dir, TOUR_SID)
+        wiped.append(TOUR_SID)
+    reg = _tour_registry_path(runs_dir)
+    for sid in (read_json(reg) or []):
+        if (runs_dir / sid).is_dir():
+            _tour_wipe_run(runs_dir, sid)
+            wiped.append(sid)
+    reg.unlink(missing_ok=True)
+    return wiped
+
+
+def _tour_drive(phase: str, runs_dir: Path) -> None:
+    log = open(runs_dir / "_tour_drive.log", "ab")
+    subprocess.Popen(
+        [sys.executable, str(PKG_ROOT / "scripts" / "tour_drive.py"),
+         phase, "--gateway", GATEWAY],
+        stdout=log, stderr=subprocess.STDOUT,
+        start_new_session=True)
+
+
+def _tour_mint() -> str:
+    from notary_token import mint
+    import secrets as _s
+    claims = {"sub": "评委（体验）", "role": "adjudicator",
+              "scope": ["adjudicate", "tour"],
+              "credential_id": f"tour-{_s.token_hex(4)}",
+              "jti": _s.token_hex(12),
+              "iat": time.time(), "exp": time.time() + 4 * 3600}
+    return mint(claims, TOKEN_SECRET)
+
+
+def _is_tour_claims(claims: dict | None) -> bool:
+    return bool(claims) and "tour" in (claims.get("scope") or [])
 
 
 # ---------------------------------------------------------------------------
@@ -2702,7 +2801,7 @@ function adjudCard(sid, ctx){
       <div>📋 规则 v${c.version??"—"}（哈希 ${esc((c.frozen_hash||"").slice(0,16))}…）：</div>
       ${assertions}
       <div style="margin-top:6px"><b>冻结时系统已标注的假设：</b>${assump}</div>
-      <div style="margin-top:6px">🙋 送审方：${esc(d.focus||"—")}
+      <div style="margin-top:6px">🙋 ${esc(d.party_label||"送审方")}：${esc(d.focus||"—")}
         ${d.clause?`（涉及条款：${esc(d.clause)}）`:""}
         <span class="mut">${d.ts?new Date(d.ts*1000).toLocaleString():""}</span></div>
     </div>
@@ -3103,7 +3202,134 @@ NAV_HTML = (
     '<a href="/workbench">任务看板</a>'
     '<a href="/hall">办事大厅</a>'
     '<a href="/skillboard">Skill 看板</a>'
-    '</div>')
+    '</div>'
+    # Judge-tour annotation layer: rendered ONLY when the browser carries the
+    # tour cookie set by /tour ("开始体验"). Without the cookie the page is
+    # byte-identical in appearance to the pre-tour UI.
+    '<script>(function(){try{'
+    'if(!document.cookie.split(";").some(function(c){return c.trim().indexOf("cn_tour=")===0}))return;'
+    'document.addEventListener("DOMContentLoaded",function(){'
+    'document.body.style.paddingBottom="38px";'
+    'var bar=document.createElement("div");'
+    'bar.style.cssText="position:fixed;left:0;right:0;bottom:0;background:#fffbeb;'
+    'border-top:1px solid #f59e0b;color:#92400e;font-size:12.5px;padding:7px 16px;'
+    'z-index:99999;display:flex;gap:16px;align-items:center;flex-wrap:wrap";'
+    'bar.innerHTML="🎓 <b>评委体验模式</b><span>您的操作仅作用于体验案例 '
+    'coupon_tour；正式案例不受影响，复位后不留痕迹。</span>'
+    '<a href=/tour style=color:#b45309>返回导览台</a>'
+    '<a href=# onclick=\\"exitTour(false);return false\\" style=color:#b45309>退出体验模式</a>'
+    '<a href=# onclick=\\"exitTour(true);return false\\" style=color:#b45309>复位并退出</a>";'
+    'document.body.appendChild(bar);'
+    'var tok=sessionStorage.getItem("cn_tour_tok");'
+    'var inp=document.getElementById("tok");'
+    'if(tok&&inp&&!inp.value)inp.value=tok;'
+    '});}catch(e){}})();'
+    'function exitTour(rst){try{if(rst)fetch("/api/tour/reset",{method:"POST",'
+    'headers:{"Content-Type":"application/json"},body:"{}"});}catch(e){}'
+    'document.cookie="cn_tour=;path=/;max-age=0";'
+    'try{sessionStorage.removeItem("cn_tour_tok")}catch(e){}'
+    'location.href="/tour";}</script>')
+
+TOUR_PAGE = r"""<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8"><title>评委导览台 · CodeNotary</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+:root{--ink:#1a2332;--sub:#5b6b7f;--line:#d9e0e8;--bg:#f5f7fa;--card:#fff;
+--amber:#b9770e;--blue:#2166ac}
+*{box-sizing:border-box;margin:0}
+body{font:13.5px/1.65 system-ui,"PingFang SC","Microsoft YaHei",sans-serif;
+background:var(--bg);color:var(--ink)}
+.wrap{max-width:860px;margin:0 auto;padding:28px 18px 60px}
+.hero{background:var(--card);border:1px solid var(--line);border-radius:10px;
+padding:26px 30px;margin-bottom:18px}
+h1{font-size:24px;margin-bottom:8px}
+.sub{color:var(--sub);font-size:14px}
+.btn{display:inline-block;background:var(--blue);color:#fff;border:0;
+border-radius:6px;padding:10px 22px;font-size:15px;cursor:pointer;
+text-decoration:none}
+.btn.ghost{background:#fff;color:var(--blue);border:1px solid var(--blue)}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.status{background:#fffbeb;border:1px solid #f59e0b;border-radius:10px;
+padding:16px 20px;margin-bottom:18px;font-size:14px;display:none}
+.stops{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:18px 0}
+.stop{background:var(--card);border:1px solid var(--line);border-radius:10px;
+padding:14px 16px}
+.stop b{display:block;font-size:14.5px;margin-bottom:4px}
+.stop .try{color:var(--blue);font-size:12.5px}
+.stop p{color:var(--sub);font-size:12.5px}
+@media(max-width:640px){.stops{grid-template-columns:1fr}}
+.foot{color:var(--sub);font-size:12px;border-top:1px solid var(--line);
+margin-top:22px;padding-top:14px}
+code{background:#eef2f7;padding:1px 5px;border-radius:4px;font-size:12px}
+</style>
+</head>
+<body>
+<div class="wrap">
+<div class="hero">
+<h1>🎓 评委导览台</h1>
+<p class="sub">这是一套真系统在真数据上的体验环境。点「开始体验」后，
+优惠券案例的公证流水线将在真实网关上跑起来；流水线停在红灯时，
+由<b>您亲手</b>在真正的裁决卡上签署裁决。玩完可随时复位，不留痕迹。</p>
+<p style="margin-top:14px">
+<button class="btn" id="beginBtn" onclick="begin()">开始体验</button>
+<button class="btn ghost" onclick="resetTour()">复位体验案例</button>
+</p>
+</div>
+<div class="status" id="status"></div>
+<div class="stops" id="stops" style="display:none">
+<div class="stop"><b>① 办事大厅</b><p>看这条工单的信封时间线：每一封都写着发生了什么、意味着什么、下一步。</p><span class="try">试试：追问区问「失败的是哪个场景？」（只读）</span><p><a href="/hall#task=coupon_tour">打开大厅 →</a></p></div>
+<div class="stop"><b>② 任务工作台</b><p>五列看板。红灯时体验案例停在「待人工裁决」，点开就是真裁决卡。</p><span class="try">裁决签署：令牌已自动填好，只对本案例生效</span><p><a href="/workbench">打开工作台 →</a></p></div>
+<div class="stop"><b>③ 任务详情</b><p>十步接力条、14 态状态机、处理过程表——每一棒留痕。</p><span class="try">试试：审计记录里点「立即重新校验」</span><p><a href="/run?sid=coupon_tour">打开任务详情 →</a></p></div>
+<div class="stop"><b>④ Skill 看板</b><p>经验沉淀与追认制：新经验先试用、留痕，转正由人签。</p><span class="try">追认/否决对体验身份关闭（第三道人工门）</span><p><a href="/skillboard">打开 Skill 看板 →</a></p></div>
+</div>
+<div class="foot">
+体验说明：流水线中由 AI 产出的工件（分诊理由、修复代码、盲测用例）来自真实案例的回放；
+门禁检验、契约冻结、您的裁决签署、封印与复算，全部是这套网关的实时真实执行。
+体验案例（<code>coupon_tour</code>）与正式案例完全隔离；复位即清空。闲置 15 分钟自动复位。
+<br>想在自己的机器上完整跑一遍？整套系统是开源的：
+<a href="https://github.com/anita769/CodeNotary">github.com/anita769/CodeNotary</a>
+——克隆后一条命令起网关与本界面，流水线随你跑。
+</div>
+</div>
+<script>
+async function j(u,o){const r=await fetch(u,o);return r.json()}
+function show(t){const s=document.getElementById('status');s.style.display='block';s.innerHTML=t}
+async function refresh(){
+  const s=await j('/api/tour/status');
+  if(!s.exists){show('尚未开始。点「开始体验」，流水线即刻发车。');return}
+  document.getElementById('stops').style.display='grid';
+  let hint='';
+  if(s.state==='ESCALATED')hint='——<b>现在轮到您了</b>：去任务工作台，打开红点卡，亲手签署裁决';
+  else if(s.state==='RELEASED')hint='——已公证交付 🎉 去任务详情看证书，或点「复位体验案例」让给下一位';
+  else if(s.state==='REJECTED')hint='——门禁红灯，正在升级等待裁决';
+  show('体验案例运行中：状态 <b>'+(s.state_label||s.state)+'</b>'+hint+
+    '<br><a href="/run?sid=coupon_tour">看实时进展 →</a>');
+}
+async function begin(){
+  document.getElementById('beginBtn').disabled=true;
+  const r=await j('/api/tour/begin',{method:'POST',
+    headers:{'Content-Type':'application/json'},body:'{}'});
+  document.getElementById('beginBtn').disabled=false;
+  if(!r.ok){show('⚠️ '+(r.error||'启动失败'));return}
+  document.cookie='cn_tour=1;path=/;max-age=14400';
+  try{sessionStorage.setItem('cn_tour_tok',r.token)}catch(e){}
+  show('✅ 已发车！流水线正在跑：哨兵→分诊→根因→契约→修复→盲测→门禁。'+
+    '红灯停等时会通知您签署裁决。');
+  document.getElementById('stops').style.display='grid';
+}
+async function resetTour(){
+  const r=await j('/api/tour/reset',{method:'POST',
+    headers:{'Content-Type':'application/json'},body:'{}'});
+  show('已复位：'+(r.wiped&&r.wiped.length?r.wiped.join('、'):'本来就是干净的')+
+    '。下一位评委将从空白开始。');
+}
+refresh(); setInterval(refresh,4000);
+</script>
+</body>
+</html>
+"""
 
 RUN_PAGE = r"""<!DOCTYPE html>
 <html lang="zh">
@@ -3618,6 +3844,28 @@ class Handler(BaseHTTPRequestHandler):
                     "credential_id": "static-token"}
         return None
 
+    def _tour_begin(self) -> None:
+        """Start (or restart) the judge-tour sandbox run and mint the
+        sid-locked tour token. Busy when another session is active and
+        not idle-expired; a terminal or idle-stale sandbox is auto-reset."""
+        if TOKEN_SECRET is None:
+            self._send(503, json.dumps({"ok": False, "error":
+                "服务器未开启令牌模式，无法签发体验身份"}))
+            return
+        exists, state, last_ts = _tour_state(self.runs_dir)
+        if exists:
+            idle = time.time() - (last_ts or 0)
+            terminal = state in ("RELEASED", "NOTARIZED")
+            if not terminal and idle < TOUR_IDLE_SEC:
+                self._send(200, json.dumps({"ok": False, "error":
+                    "有评委正在体验中。可以先逛逛只读页面（大厅/任务详情"
+                    "里的正式案例同样精彩），或稍后再来。"}))
+                return
+            _tour_reset_all(self.runs_dir)
+        _tour_drive("A", self.runs_dir)
+        self._send(200, json.dumps({"ok": True, "token": _tour_mint()}))
+
+
     def do_GET(self):  # noqa: N802
         path = urlparse(self.path).path
         if path == "/" or path == "/index.html":
@@ -3632,6 +3880,15 @@ class Handler(BaseHTTPRequestHandler):
             self._send(200, WORKBENCH_PAGE, "text/html")
         elif path == "/hall":
             self._send(200, HALL_PAGE, "text/html")
+        elif path == "/tour":
+            self._send(200, TOUR_PAGE, "text/html")
+        elif path == "/api/tour/status":
+            exists, state, last_ts = _tour_state(self.runs_dir)
+            idle = (time.time() - last_ts) if last_ts else None
+            self._send(200, json.dumps({
+                "ok": True, "exists": exists, "state": state,
+                "state_label": STATE_LABELS.get(state, state),
+                "idle_s": round(idle) if idle is not None else None}))
         elif path == "/run":
             self._send(200, RUN_PAGE, "text/html")
         elif path.startswith("/api/runview/"):
@@ -3761,6 +4018,14 @@ class Handler(BaseHTTPRequestHandler):
             self._send(400, json.dumps({"ok": False, "error": "bad json"}))
             return
         # 大厅公共面（只读会话/起草/取号/现场复验）免令牌；受审写通道必须 JWT
+        # 评委导览台端点同样免令牌，但写死只作用于沙盒 run（TOUR_SID）。
+        if path in ("/api/tour/begin", "/api/tour/reset"):
+            if path == "/api/tour/begin":
+                self._tour_begin()
+            else:
+                wiped = _tour_reset_all(self.runs_dir)
+                self._send(200, json.dumps({"ok": True, "wiped": wiped}))
+            return
         if path not in ("/api/intake", "/api/assist", "/api/skill_match",
                         "/api/hall_chat") \
                 and not path.startswith("/api/reverify/"):
@@ -3769,18 +4034,49 @@ class Handler(BaseHTTPRequestHandler):
                 self._send(403, json.dumps({"ok": False,
                                             "error": "bad token"}))
                 return
+            # 体验令牌：sid 锁——只能操作沙盒 run，其余写端一律拒绝。
+            if _is_tour_claims(claims):
+                sid_in_path = path.rsplit("/", 1)[-1]
+                if path.startswith(("/api/reset/", "/api/adjudicate/")):
+                    if sid_in_path != TOUR_SID:
+                        self._send(403, json.dumps({"ok": False, "error":
+                            "体验令牌仅对体验案例 coupon_tour 有效；"
+                            "正式案例由真人处理"}))
+                        return
+                else:
+                    # resolve / skill_confirm / skill_retire 等人工门
+                    # 不随体验身份开放
+                    self._send(403, json.dumps({"ok": False, "error":
+                        "此操作属于人工门，体验身份不可用"}))
+                    return
         if path == "/api/intake":
             payload["role"] = "ci"
+            # 体验会话里的公网取号打标登记，复位时一并清扫
+            tour_session = "cn_tour=" in (self.headers.get("Cookie") or "")
+            if tour_session:
+                payload["source"] = "tour"
+            code, body = gateway_post("_intake", "notary_intake.submit_issue",
+                                      payload)
+            if tour_session and body.get("ok"):
+                sid = (body.get("result") or {}).get("scenario_id")
+                if sid:
+                    _tour_remember(self.runs_dir, sid)
+            self._send(code, json.dumps(body))
+            return
         elif path.startswith("/api/reverify/"):
             # 只读现场复验：同一套恢复校验，不重启服务、不改状态
             sid = path.rsplit("/", 1)[-1]
+            # 体验模式下复验只对沙盒开放：正式案例的审计页保持原样
+            if sid != TOUR_SID and \
+                    "cn_tour=" in (self.headers.get("Cookie") or ""):
+                self._send(403, json.dumps({"ok": False, "error":
+                    "体验模式下，现场复验请对体验案例 coupon_tour 进行；"
+                    "正式案例的审计记录保持封存原样"}))
+                return
             code, body = gateway_post(
                 sid, "notary_state.reverify_checkpoint", {})
             self._send(code, json.dumps(body))
             return
-            code, body = gateway_post("_intake", "notary_intake.submit_issue",
-                                      payload)
-            self._send(code, json.dumps(body))
         elif path == "/api/assist":
             # LLM 接待：ZIP + 一句话 → 表单草稿（多轮：history 由客户端携带）
             message = str(payload.get("message", "")).strip()
@@ -3877,6 +4173,9 @@ class Handler(BaseHTTPRequestHandler):
                     "role": "contract"})
                 body.setdefault("result", {})["contract_revision"] = \
                     fbody.get("result", fbody)
+            # 体验案例：裁决落锤后流水线自动接重修段（真人裁决是唯一等待点）
+            if sid == TOUR_SID and body.get("ok"):
+                _tour_drive("C", self.runs_dir)
             self._send(200, json.dumps(body))
         elif path == "/api/skill_confirm":
             if "adjudicate" not in claims.get("scope", []):
