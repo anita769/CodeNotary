@@ -3230,6 +3230,7 @@ NAV_HTML = (
     '<a href="/workbench">任务看板</a>'
     '<a href="/hall">办事大厅</a>'
     '<a href="/skillboard">Skill 看板</a>'
+    '<a href="/tour">导览台</a>'
     '</div>')
 
 TOUR_PAGE = r"""<!DOCTYPE html>
