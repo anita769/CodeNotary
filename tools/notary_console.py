@@ -3150,6 +3150,8 @@ async function loadTasks(){
   const b = await (await fetch("/api/board")).json();
   const all = Object.values(b.columns).flat()
     .sort((x,y)=>(y.last_ts||0)-(x.last_ts||0));  // 最新动态在最上
+  // 默认展开最新任务的时间线——进大厅即见进展，不必先点
+  if(!CUR && all.length && !location.hash){ CUR="__auto__"; openTask(all[0].run_id); }
   document.getElementById("tasks").innerHTML = all.map(c=>
     `<div class="task" onclick="openTask('${esc(c.run_id)}')">
       <b>${esc(c.title)}</b>
