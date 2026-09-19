@@ -50,10 +50,16 @@ def phase_a(gw: str) -> None:
     v1 = (ASSETS / "coupon_draft_v1.py").read_text(encoding="utf-8")
     blind = (ASSETS / "blind_tests.py").read_text(encoding="utf-8")
     call(gw, "notary_sentinel.scan", role="sentinel")
+    # 各角色按信号咨询经验库（真实 match_table 评估，命中落盘
+    # evidence/skill_matches.json，试用区命中带标注）
+    call(gw, "notary_skill.match",
+         {"signal": "timezone-semantics-suspected"}, role="rca")
     call(gw, "notary_flow.triage", {
         "verdict": "accept", "scope": ["coupon.py"], "route": ["fix", "verify"],
         "rationale": "受理：投诉场景与修复目标明确（核销有效期边界），"
                      "变更仅含 coupon.py，材料完整可进门禁"}, role="triage")
+    call(gw, "notary_skill.match",
+         {"signal": "ambiguous-requirement"}, role="contract")
     call(gw, "notary_flow.diagnosis", {
         "root_cause": "时区混比：expires_at 为模块级 naive datetime，支付网关传入 "
                       "aware UTC，Python3 混比抛 TypeError，落入 redeem 的 "
@@ -79,8 +85,12 @@ def phase_a(gw: str) -> None:
             "basis": "工单未指明时区与日界；暂按既有行为与下游对账约定默认，"
                      "依据待补"}],
         "in_scope": ["coupon.py"]}, role="contract")
+    call(gw, "notary_skill.match",
+         {"signal": "exception-handling-present"}, role="author")
     call(gw, "notary_author.submit_implementation",
          {"files": {"coupon.py": v1}}, role="author")
+    call(gw, "notary_skill.match",
+         {"signal": "enumerate-boundaries"}, role="tester")
     call(gw, "notary_tester.submit_tests",
          {"files": {"test_blind_contract.py": blind}}, role="tester")
     call(gw, "notary_gate.run_test_gate", role="gatekeeper")
