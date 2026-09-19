@@ -3152,13 +3152,16 @@ async function loadTasks(){
     .sort((x,y)=>(y.last_ts||0)-(x.last_ts||0));  // 最新动态在最上
   // 默认展开最新任务的时间线——进大厅即见进展，不必先点
   if(!CUR && all.length && !location.hash){ CUR="__auto__"; openTask(all[0].run_id); }
-  document.getElementById("tasks").innerHTML = all.map(c=>
+  // 同一工单的多版本只留最新版（版本链在看板/任务详情仍完整可查）
+  const seen = new Set(), latest = [];
+  for(const c of all){ if(seen.has(c.title)) continue; seen.add(c.title);
+    latest.push(c); }
+  document.getElementById("tasks").innerHTML = latest.map(c=>
     `<div class="task" onclick="openTask('${esc(c.run_id)}')">
       <b>${esc(c.title)}</b>
       <div class="mut">${esc(c.state_label||"")}${c.gates_progress?
         " · "+c.gates_progress:""}${c.version_count>1?
-        " · 第 "+c.version_index+"/"+c.version_count+" 版"+(c.is_latest?
-        "（最新）":""):""}</div></div>`).join("") ||
+        " · 该工单共 "+c.version_count+" 版，此为最新":""}</div></div>`).join("") ||
       '<div class="mut">还没有任务</div>';
 }
 async function openTask(sid){
