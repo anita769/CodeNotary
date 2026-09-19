@@ -3307,7 +3307,7 @@ async function refresh(){
     hint='——<b>现在轮到您了</b>：亲手签署裁决';
     link='<a href="/workbench#card=coupon_tour&kind=escalated"><b>打开裁决卡 →</b></a>';
   }
-  else if(s.state==='RELEASED')hint='——已公证交付 🎉 去任务详情看证书，或点「复位体验案例」让给下一位';
+  else if(s.state==='RELEASED')hint='——已公证交付 🎉 去任务详情看证书';
   else if(s.state==='REJECTED')hint='——门禁红灯，正在升级等待裁决';
   show('体验案例运行中：状态 <b>'+(s.state_label||s.state)+'</b>'+hint+
     '<br>'+link);
