@@ -1075,6 +1075,8 @@ def _tour_wipe_run(runs_dir: Path, sid: str) -> None:
 
 
 def _tour_reset_all(runs_dir: Path) -> list[str]:
+    # 先停驱动器——否则 reset 后它仍在写，沙盒会"复活"（竞态实证）
+    subprocess.run(["pkill", "-f", "tour_drive.py"], capture_output=True)
     wiped = []
     if (runs_dir / TOUR_SID).is_dir():
         _tour_wipe_run(runs_dir, TOUR_SID)
@@ -2758,6 +2760,17 @@ async function openCard(sid, kind){
     const mc = await (await fetch("/api/merge_card/"+sid)).json();
     ov.innerHTML = mergeCard(sid, mc);
   }
+  // 导览沙盒：预填裁决理由与补证附件（可改），游客只需检查后签署
+  if(sid==="coupon_tour"){
+    const rat=document.getElementById("rationale");
+    if(rat&&!rat.value) rat.value="契约条款的需求依据不足：工单「有效至 11 月 10 日」未指明时区与日界——是当天 00:00 还是 24:00，相差一整天。依据《渠道对账协议 v2.3》第 4 条，核销以业务所在地自然日为准，含当天。";
+    const rf=document.getElementById("refs");
+    if(rf&&!rf.value) rf.value="《渠道对账协议 v2.3》第 4 条：核销有效期以业务所在地自然日为准，末日 24:00 前均可核销";
+    const dec=document.querySelector("input[name=dec][value=revise]");
+    if(dec&&!document.querySelector("input[name=dec]:checked"))
+      dec.checked=true;
+    onDecChange();  // 预填后重算签署按钮启用态
+  }
 }
 function closeOverlay(){ document.getElementById("overlay").innerHTML=""; }
 
@@ -3184,6 +3197,13 @@ loadTasks().then(()=>{
   const h = location.hash.match(/task=([\w-]+)/);
   if(h) openTask(h[1]);
 });
+// 导览台预填：游客从 /tour 带来问题文本，仍可亲手修改后再起草
+try{
+  const pf = localStorage.getItem('cn_tour_prefill');
+  if(pf){ localStorage.removeItem('cn_tour_prefill');
+    const ta = document.getElementById('ask');
+    if(ta && !ta.value){ ta.value = pf; ta.focus(); } }
+}catch(e){}
 setInterval(loadTasks, 4000);
 </script>
 </body>
@@ -3239,12 +3259,13 @@ code{background:#eef2f7;padding:1px 5px;border-radius:4px;font-size:12px}
 <div class="wrap">
 <div class="hero">
 <h1>🎓 评委导览台</h1>
-<p class="sub">这是一套真系统在真数据上的体验环境。点「开始体验」后，
-优惠券案例的公证流水线将在真实网关上跑起来；流水线停在红灯时，
-由<b>您亲手</b>在真正的裁决卡上签署裁决（无需令牌，签署即留痕）。
+<p class="sub">这是一套真系统在真数据上的体验环境。动线只有四步：
+① 去大厅<b>提交你的问题</b>（已为你预填，可改）→ ② 看流水线真跑（修复、
+盲测、门禁全是真执行）→ ③ 红灯时<b>你亲手签署裁决</b>（裁决卡上理由已预填，
+无需令牌）→ ④ 看全绿交付与证书。
 整个站点随便逛——正式案例只读可看，怎么点都改不坏；玩完可复位，不留痕迹。</p>
 <p style="margin-top:14px">
-<button class="btn" id="beginBtn" onclick="begin()">开始体验</button>
+<button class="btn" id="beginBtn" onclick="begin()">开始体验：去大厅提交问题</button>
 <button class="btn ghost" onclick="resetTour()">复位体验案例</button>
 </p>
 </div>
@@ -3269,7 +3290,7 @@ async function j(u,o){const r=await fetch(u,o);return r.json()}
 function show(t){const s=document.getElementById('status');s.style.display='block';s.innerHTML=t}
 async function refresh(){
   const s=await j('/api/tour/status');
-  if(!s.exists){show('尚未开始。点「开始体验」，流水线即刻发车。');return}
+  if(!s.exists){show('尚未开始。点「开始体验」去大厅提交问题，流水线即刻发车。');return}
   document.getElementById('stops').style.display='grid';
   let hint='';
   if(s.state==='ESCALATED')hint='——<b>现在轮到您了</b>：去任务工作台，打开红点卡，亲手签署裁决';
@@ -3279,14 +3300,10 @@ async function refresh(){
     '<br><a href="/run?sid=coupon_tour">看实时进展 →</a>');
 }
 async function begin(){
-  document.getElementById('beginBtn').disabled=true;
-  const r=await j('/api/tour/begin',{method:'POST',
-    headers:{'Content-Type':'application/json'},body:'{}'});
-  document.getElementById('beginBtn').disabled=false;
-  if(!r.ok){show('⚠️ '+(r.error||'启动失败'));return}
-  show('✅ 已发车！流水线正在跑：哨兵→分诊→根因→契约→修复→盲测→门禁。'+
-    '红灯停等时去任务工作台，点开红点卡亲手签署裁决。');
-  document.getElementById('stops').style.display='grid';
+  // 预填问题，带游客去大厅亲手提交——问题文本会进入证据链
+  try{localStorage.setItem('cn_tour_prefill',
+    '优惠券有效至 11 月 10 日，但没到期就核销不了');}catch(e){}
+  location.href='/hall';
 }
 async function resetTour(){
   const r=await j('/api/tour/reset',{method:'POST',
@@ -4008,7 +4025,46 @@ class Handler(BaseHTTPRequestHandler):
             claims = self._check_token() or dict(TOUR_VISITOR_CLAIMS)
         if path == "/api/intake":
             payload["role"] = "ci"
-            # 公开取号一律登记，导览台「复位」时一并清场
+            # 导览动线：只提问题（无源码/补丁）且走默认靶场 → 这就是体验
+            # 案例本身：游客自己的问题文本写入 coupon_tour 场景，流水线
+            # 随即真跑。附代码的取号仍建独立 run（登记，复位清场）。
+            if not payload.get("source_files") and not payload.get("files"):
+                title = str(payload.get("title", "")).strip()
+                report = str(payload.get("report", "")).strip()
+                expected = str(payload.get("expected_behavior", "")).strip()
+                if len(title) < 8 or len(report) < 20 or len(expected) < 20:
+                    self._send(200, json.dumps({"ok": False, "error":
+                        "名称、问题描述、验收标准分别需要至少 "
+                        "8/20/20 字——写清楚，公证才有意义"}))
+                    return
+                exists, state, last_ts = _tour_state(self.runs_dir)
+                if exists:
+                    idle = time.time() - (last_ts or 0)
+                    if state not in ("RELEASED", "NOTARIZED") \
+                            and idle < TOUR_IDLE_SEC:
+                        self._send(200, json.dumps({"ok": False, "error":
+                            "有访客正在体验中，请稍后再来（或先逛逛"
+                            "只读页面）"}))
+                        return
+                    _tour_reset_all(self.runs_dir)
+                base = read_json(PKG_ROOT / "scenarios"
+                                 / f"{TOUR_SID}.json") or {}
+                issue = dict(base.get("issue") or {})
+                issue.update({"id": "ISSUE-TOUR", "title": title,
+                              "report": report,
+                              "expected_behavior": expected,
+                              "source": "console upload (大厅导览)"})
+                base.update({"scenario_id": TOUR_SID, "mode": "inhouse",
+                             "title": title, "issue": issue})
+                (PKG_ROOT / "scenarios" / f"{TOUR_SID}.json").write_text(
+                    json.dumps(base, ensure_ascii=False, indent=1),
+                    encoding="utf-8")
+                _tour_drive("A", self.runs_dir)
+                self._send(200, json.dumps({"ok": True, "result": {
+                    "scenario_id": TOUR_SID, "status": "registered",
+                    "mode": "inhouse"}}))
+                return
+            # 公开取号（附代码）一律登记，导览台「复位」时一并清场
             payload.setdefault("source", "public")
             code, body = gateway_post("_intake", "notary_intake.submit_issue",
                                       payload)
