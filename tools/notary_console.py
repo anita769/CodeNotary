@@ -3154,8 +3154,9 @@ async function loadTasks(){
   if(!CUR && all.length && !location.hash){ CUR="__auto__"; openTask(all[0].run_id); }
   // 同一工单的多版本只留最新版（版本链在看板/任务详情仍完整可查）
   const seen = new Set(), latest = [];
-  for(const c of all){ if(seen.has(c.title)) continue; seen.add(c.title);
-    latest.push(c); }
+  const norm = t => String(t||"").replace(/[\s，,、.。]/g,"");
+  for(const c of all){ const k = norm(c.title); if(seen.has(k)) continue;
+    seen.add(k); latest.push(c); }
   document.getElementById("tasks").innerHTML = latest.map(c=>
     `<div class="task" onclick="openTask('${esc(c.run_id)}')">
       <b>${esc(c.title)}</b>
