@@ -1,0 +1,23 @@
+{
+ "scenario_id": "coupon_inhouse_v1",
+ "mode": "inhouse",
+ "title": "优惠券有效至 11 月 10 日,但没到期就核销不了",
+ "issue": {
+  "id": "ISSUE-C1-IH",
+  "source": "console upload (大厅点火)",
+  "title": "优惠券有效至 11 月 10 日,但没到期就核销不了",
+  "report": "用户投诉集中在今天上午:券还在有效期内,结算时提示无法核销。优惠券规则:有效至 11 月 10 日。请尽快修复,大促期间影响支付核销、订单结算、退款补偿三个流程。",
+  "expected_behavior": "1) 有效期内的优惠券在结算时可正常核销;2) 11 月 10 日当天是否可核销按既定业务口径执行(契约冻结时形式化);3) 修改范围仅限 coupon.py;4) 公开函数签名不得变更:Coupon(code, expires_at)、is_expired(now)、redeem(coupon, now)。"
+ },
+ "target_files": [
+  "coupon.py"
+ ],
+ "baseline_test_files": [
+  "test_coupon_baseline.py"
+ ],
+ "reference": {
+  "note": "评审用参考产物,不对 Worker 提供。local_dryrun.py 用同内容产出样例运行证据。",
+  "implementation": "\"\"\"Coupon redemption validity — billing service.\"\"\"\nfrom __future__ import annotations\n\nfrom datetime import datetime, timedelta, timezone\n\n# 业务口径:有效至 11 月 10 日(含当天),按业务所在地自然日 Asia/Shanghai。\nEXPIRES_AT = datetime(2026, 11, 10, 23, 59, 59,\n                      tzinfo=timezone(timedelta(hours=8)))\n\n\nclass Coupon:\n    def __init__(self, code: str, expires_at: datetime = EXPIRES_AT):\n        self.code = code\n        self.expires_at = expires_at\n\n    def is_expired(self, now: datetime) -> bool:\n        # 统一换算到 UTC 再比较,naive/aware 混比消除;naive 输入按系统本地时区解释。\n        return now.astimezone(timezone.utc) > EXPIRES_AT.astimezone(timezone.utc)\n\n\ndef redeem(coupon: Coupon, now: datetime | None = None) -> dict:\n    now = now or datetime.now(timezone.utc)\n    if coupon.is_expired(now):\n        return {\"ok\": False, \"code\": coupon.code, \"reason\": \"expired\"}\n    return {\"ok\": True, \"code\": coupon.code, \"redeemed_at\": now.isoformat()}\n",
+  "tests": "import unittest\nfrom datetime import datetime, timedelta, timezone\n\nfrom coupon import Coupon, redeem\n\nSH = timezone(timedelta(hours=8))\n\n\nclass TestCouponExpiryContract(unittest.TestCase):\n    def test_morning_of_last_day_not_expired(self):\n        c = Coupon(\"A\")\n        self.assertFalse(c.is_expired(datetime(2026, 11, 10, 9, 0, tzinfo=SH)))\n\n    def test_evening_of_last_day_not_expired(self):\n        c = Coupon(\"A\")\n        self.assertFalse(c.is_expired(datetime(2026, 11, 10, 18, 0, tzinfo=SH)))\n\n    def test_last_second_of_last_day_not_expired(self):\n        c = Coupon(\"A\")\n        self.assertFalse(c.is_expired(datetime(2026, 11, 10, 23, 59, 59, tzinfo=SH)))\n\n    def test_next_day_expired(self):\n        c = Coupon(\"A\")\n        self.assertTrue(c.is_expired(datetime(2026, 11, 11, 0, 0, tzinfo=SH)))\n\n    def test_redeem_ok_within_validity(self):\n        r = redeem(Coupon(\"A\"), datetime(2026, 11, 10, 12, 0, tzinfo=SH))\n        self.assertTrue(r[\"ok\"])\n\n    def test_redeem_rejects_after_expiry(self):\n        r = redeem(Coupon(\"A\"), datetime(2026, 11, 11, 12, 0, tzinfo=SH))\n        self.assertFalse(r[\"ok\"])\n        self.assertEqual(r[\"reason\"], \"expired\")\n\n    def test_utc_absolute_equivalence(self):\n        c = Coupon(\"A\")\n        self.assertFalse(c.is_expired(datetime(2026, 11, 10, 15, 59, 59, tzinfo=timezone.utc)))\n        self.assertTrue(c.is_expired(datetime(2026, 11, 10, 16, 0, 0, tzinfo=timezone.utc)))\n\n\nif __name__ == \"__main__\":\n    unittest.main()\n"
+ }
+}
