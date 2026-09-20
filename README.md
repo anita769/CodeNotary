@@ -49,7 +49,7 @@ agentteams/
 ├── runs/                          # 36 个回放样本的证据目录（无 LLM 回放产物，可复算）
 ├── demo/
 │   ├── demo-new.mp4                 # Demo 视频
-│   ├── demo-v4-inhouse.mp4          # inhouse 全流程演示（4 分 43 秒；原始画质版见 Release 附件）
+│   ├── demo-coupon-pr.mp4           # 演示视频:GitHub PR 公证全流程(5 分 12 秒;原始画质版见 Release 附件)
 │   ├── demo-分镜介绍.md            # 视频分镜内容介绍
 └── evidence/
     ├── sample_run/                # 样例运行证据（local_dryrun 的真实产出）
@@ -113,7 +113,7 @@ make verify EVIDENCE=evidence-pack.zip
 
 ## 文档与演示
 
-- **演示视频**：`demo/demo-v4-inhouse.mp4`——内部团队（inhouse）模式全流程实录剪辑，4 分 43 秒：一句话工单 → 十角色接力 → 门禁红灯自动重修 → 人工裁决修订契约 → 公证交付 → 证据复算与重启恢复。原始画质版（174MB）见 GitHub Release 附件。
+- **演示视频**：`demo/demo-coupon-pr.mp4`——GitHub PR 公证全流程实录剪辑，5 分 12 秒：AI 把修复推成 PR → 公证审计红（自带测试全绿也没用）→ 人工裁决修订契约 → 重写转绿 → 合并放行 → 证据复算与重启恢复。原始画质版（225MB）见 GitHub Release 附件。
 - **使用手册**：`docs/manuals/使用手册/`——三条接入线：GitHub PR 接入到合并、ZIP 上传送审、纯问题工单；附证据包复算操作。
 - **体验版操作手册**：`docs/manuals/体验版操作手册/`——在线体验站 12 步逐步实拍，从零到亲手签署一张裁决卡。
 - **在线体验**：https://ara.sciba.cn/tour ——全站只读开放，沙盒案例可亲手走通裁决签署。
