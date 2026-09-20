@@ -871,6 +871,7 @@ def skillboard_data() -> dict:
                      "runs": sorted(v["runs"]), "last_ts": v["last_ts"]}
                  for k, v in trial.items()}
     cards = []
+    skills_by_name = {sk["name"]: sk for sk in base.get("skills", [])}
     for sk in base.get("skills", []):
         if "status" not in sk:
             if sk.get("retired"):
@@ -879,11 +880,23 @@ def skillboard_data() -> dict:
                 sk["status"] = "probation"
             else:
                 sk["status"] = "loaded"
-        sigs = by_skill.get(sk["name"], [])
+        # 信号归属沿 supersedes 取代链继承：信号表登记的是名字（通常是
+        # 旧版），但网关 _resolve_latest 运行时把链头（新版）送去服务——
+        # 新版卡片也必须显示这些信号，否则误报"未被信号表引用"
+        # （实证：timezone-semantics-review-v2 有真实命中却被误标）
+        sigs = list(by_skill.get(sk["name"], []))
+        ancestor = sk.get("supersedes")
+        seen = {sk["name"]}
+        while ancestor and ancestor not in seen:
+            seen.add(ancestor)
+            sigs.extend(by_skill.get(ancestor, []))
+            ancestor = (skills_by_name.get(ancestor) or {}).get("supersedes")
+        deduped = {s["signal"]: s for s in sigs}
         cards.append({**sk, "trial": trial_out.get(sk["name"]), "signals": [
             {"signal": s["signal"], "trigger": s["trigger"],
              "roles": s.get("roles", []),
-             "coverage_n": len(s.get("coverage", []))} for s in sigs]})
+             "coverage_n": len(s.get("coverage", []))}
+            for s in deduped.values()]})
     # 被取代的旧版不进追认队列：追认的对象是版本链链头，旧版留档备查
     superseded = {c["supersedes"] for c in cards if c.get("supersedes")}
     for c in cards:
