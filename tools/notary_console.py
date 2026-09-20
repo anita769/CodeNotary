@@ -3485,7 +3485,7 @@ code{background:#eef2f7;padding:1px 5px;border-radius:4px;font-size:12px}
 体验说明：该案例为体验案例。
 <br>想在自己的机器上完整跑一遍？整套系统是开源的：
 <a href="https://github.com/anita769/CodeNotary">github.com/anita769/CodeNotary</a>
-——克隆后一条命令起网关与本界面，流水线随你跑。
+——克隆后命令起网关与本界面。
 </div>
 </div>
 <script>
