@@ -21,6 +21,8 @@ import hmac
 import io
 import json
 import os
+import re
+import secrets
 import subprocess
 import sys
 import time
@@ -30,7 +32,7 @@ import zipfile
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import threading
 from pathlib import Path
-from urllib.parse import urlparse
+from urllib.parse import urlparse, parse_qs
 
 PKG_ROOT = Path(__file__).resolve().parent.parent
 
@@ -228,10 +230,12 @@ def board_data(runs_dir: Path) -> dict:
         }
         cards.append(card)
     # 同工单多版本标注：卡面直读"第几版/共几版、最新版到哪了"，
-    # 同标题多版本不再被误读成重复任务。
+    # 同标题多版本不再被误读成重复任务。体验沙盒实例（coupon_tour_*）
+    # 各自独立，即使标题相同也绝不互相归并成"版本"。
     by_title: dict[str, list] = {}
     for c in cards:
-        by_title.setdefault(c["title"], []).append(c)
+        key = c["run_id"] if _is_tour_sid(c["run_id"]) else c["title"]
+        by_title.setdefault(key, []).append(c)
     for group in by_title.values():
         if len(group) < 2:
             continue
@@ -695,13 +699,14 @@ def runview_data(run_dir: Path, runs_root: Path) -> dict:
                             else "未开始"},
     }
 
-    # 版本链：同 issue 的多个 run
+    # 版本链：同 issue 的多个 run。体验沙盒（coupon_tour_*）不参与——
+    # 不同访客的实例可能同标题，但彼此绝不是"同一工单的版本"。
     issue_title = (facts["issue"] or {}).get("title")
     chain = []
-    if issue_title and runs_root.is_dir():
+    if issue_title and not _is_tour_sid(sid) and runs_root.is_dir():
         siblings = []
         for d in runs_root.iterdir():
-            if not d.is_dir():
+            if not d.is_dir() or _is_tour_sid(d.name):
                 continue
             iss = read_json(d / "issue.json") or {}
             if iss.get("title") == issue_title:
@@ -1039,52 +1044,56 @@ def gateway_get(path: str) -> dict | None:
 
 
 # ---------------------------------------------------------------------------
-# Judge tour (/tour): hands-on sandbox on the REAL system. One isolated run
-# (coupon_tour) is driven by scripts/tour_drive.py; judges roam the real
-# pages with an annotation bar and a sid-locked capability token. Reset wipes
-# the sandbox run and any tour-tagged intake cards; formal runs are
-# unreachable because every write endpoint enforces the sid lock server-side.
+# Judge tour (/tour): hands-on sandbox on the REAL system. Each visitor gets
+# their own isolated run (coupon_tour_<session>) driven by its own
+# scripts/tour_drive.py process; judges roam the real pages and sign the
+# sandbox adjudication without a token (path-locked to the coupon_tour_*
+# prefix, so formal runs are physically unreachable). A sweeper thread
+# reaps each instance on its own TTL — one visitor's reset never disturbs
+# another's session. Formal runs and every other write endpoint still
+# require a real JWT.
 # ---------------------------------------------------------------------------
-TOUR_SID = "coupon_tour"
-TOUR_IDLE_SEC = 900  # idle auto-reset: next visitor always gets a clean slate
+TOUR_PREFIX = "coupon_tour"
+TOUR_SID = TOUR_PREFIX  # 基准场景模板名（scenarios/coupon_tour.json）
+TOUR_SID_RE = re.compile(r"^coupon_tour(?:_[0-9a-f]{6})?$")
+TOUR_MAX_INSTANCES = 3  # 同时进行的体验席位上限
+TOUR_IDLE_SEC = 900  # 实例空闲超时自动清场：后来的访客永远拿到干净沙盒
 TOUR_RELEASED_TTL = 65  # 证书发布后约 1 分钟自动复位(导览台不设手动复位)
 
-_tour_timer = None
-_tour_timer_lock = threading.Lock()
+
+def _is_tour_sid(sid: str) -> bool:
+    return bool(TOUR_SID_RE.match(sid or ""))
 
 
-def _tour_auto_reset_arm(runs_dir: Path) -> None:
-    """沙盒一进入 RELEASED 就武装一次性计时器;begin/reset 会取消它。"""
-    global _tour_timer
-    with _tour_timer_lock:
-        if _tour_timer and _tour_timer.is_alive():
-            return
-
-        def _fire():
-            exists, state, _ = _tour_state(runs_dir)
-            if exists and state == "RELEASED":
-                _tour_reset_all(runs_dir)
-
-        _tour_timer = threading.Timer(TOUR_RELEASED_TTL, _fire)
-        _tour_timer.daemon = True
-        _tour_timer.start()
-
-
-def _tour_auto_reset_cancel() -> None:
-    global _tour_timer
-    with _tour_timer_lock:
-        if _tour_timer:
-            _tour_timer.cancel()
-            _tour_timer = None
-
-
-def _tour_state(runs_dir: Path) -> tuple[bool, str, float | None]:
-    """(exists, state, last_activity_ts) of the sandbox run, from disk facts."""
-    run_dir = runs_dir / TOUR_SID
+def _tour_state(runs_dir: Path, sid: str) -> tuple[bool, str, float | None]:
+    """(exists, state, last_activity_ts) of one sandbox run, from disk facts."""
+    run_dir = runs_dir / sid
     if not run_dir.is_dir():
         return False, "", None
     summary = run_summary(run_dir)
     return True, summary["state"], summary.get("last_ts")
+
+
+def _tour_instances(runs_dir: Path) -> list[str]:
+    """All live sandbox instance sids — keyed by per-instance scenario
+    files (written at mint time, so a just-accepted intake counts toward
+    the seat limit even before its driver lands the first beat), plus
+    the legacy base-sid run if one is still on disk."""
+    scen = PKG_ROOT / "scenarios"
+    sids = [p.stem for p in scen.glob("coupon_tour_*.json")
+            if _is_tour_sid(p.stem)]
+    if (runs_dir / TOUR_PREFIX).is_dir():
+        sids.append(TOUR_PREFIX)
+    return sorted(set(sids))
+
+
+def _tour_mint_sid(runs_dir: Path) -> str:
+    for _ in range(20):
+        sid = f"{TOUR_PREFIX}_{secrets.token_hex(3)}"
+        if not (runs_dir / sid).exists() \
+                and not (PKG_ROOT / "scenarios" / f"{sid}.json").exists():
+            return sid
+    raise RuntimeError("cannot mint a unique tour sid")
 
 
 def _tour_registry_path(runs_dir: Path) -> Path:
@@ -1099,24 +1108,36 @@ def _tour_remember(runs_dir: Path, sid: str) -> None:
         p.write_text(json.dumps(ids, ensure_ascii=False), encoding="utf-8")
 
 
+def _tour_kill_driver(sid: str) -> None:
+    """只杀这一个实例的驱动器——按命令行里的 --sid 精确匹配，
+    绝不能误伤其它访客正在跑的驱动进程。"""
+    pat = "tour_drive.py" if sid == TOUR_PREFIX else f"tour_drive.py.*{sid}"
+    subprocess.run(["pkill", "-f", pat], capture_output=True)
+
+
 def _tour_wipe_run(runs_dir: Path, sid: str) -> None:
     """Reset via the gateway (in-memory + rebuild authorization), then remove
     the on-disk run so the card disappears from board/hall immediately."""
     import shutil
+    if _is_tour_sid(sid):
+        # 先停驱动器——否则 wipe 后它仍在写，沙盒会"复活"（竞态实证）
+        _tour_kill_driver(sid)
     gateway_post(sid, "reset", {})
     run_dir = runs_dir / sid
     if run_dir.is_dir():
         shutil.rmtree(run_dir)
+    # 每实例一份的场景文件随实例清除（基准模板 coupon_tour.json 不动）
+    if sid != TOUR_PREFIX and _is_tour_sid(sid):
+        (PKG_ROOT / "scenarios" / f"{sid}.json").unlink(missing_ok=True)
+        (runs_dir / f"_tour_drive_{sid}.log").unlink(missing_ok=True)
 
 
 def _tour_reset_all(runs_dir: Path) -> list[str]:
-    _tour_auto_reset_cancel()
-    # 先停驱动器——否则 reset 后它仍在写，沙盒会"复活"（竞态实证）
-    subprocess.run(["pkill", "-f", "tour_drive.py"], capture_output=True)
+    """全场清场（运维用）：所有体验实例 + 登记册里的公开取号。"""
     wiped = []
-    if (runs_dir / TOUR_SID).is_dir():
-        _tour_wipe_run(runs_dir, TOUR_SID)
-        wiped.append(TOUR_SID)
+    for sid in _tour_instances(runs_dir):
+        _tour_wipe_run(runs_dir, sid)
+        wiped.append(sid)
     reg = _tour_registry_path(runs_dir)
     for sid in (read_json(reg) or []):
         if (runs_dir / sid).is_dir():
@@ -1126,18 +1147,93 @@ def _tour_reset_all(runs_dir: Path) -> list[str]:
     return wiped
 
 
-def _tour_drive(phase: str, runs_dir: Path) -> None:
-    log = open(runs_dir / "_tour_drive.log", "ab")
+def _tour_sweep(runs_dir: Path) -> list[str]:
+    """按各实例自己的 TTL 清场：发布后超时、或空闲超时的实例单独回收，
+    互不牵连；登记册里的公开取号空闲超时同样清场。"""
+    now = time.time()
+    wiped = []
+    for sid in _tour_instances(runs_dir):
+        exists, state, last_ts = _tour_state(runs_dir, sid)
+        if not exists:
+            # run 目录还没落盘=驱动器启动中；场景文件老于空闲超时=孤儿回收
+            if sid != TOUR_PREFIX:
+                sf = PKG_ROOT / "scenarios" / f"{sid}.json"
+                try:
+                    age = now - sf.stat().st_mtime
+                except OSError:
+                    continue
+                if age > TOUR_IDLE_SEC:
+                    _tour_wipe_run(runs_dir, sid)
+                    wiped.append(sid)
+            continue
+        age = now - (last_ts or 0)
+        terminal = state in ("RELEASED", "NOTARIZED")
+        if (terminal and age > TOUR_RELEASED_TTL) \
+                or (not terminal and age > TOUR_IDLE_SEC):
+            _tour_wipe_run(runs_dir, sid)
+            wiped.append(sid)
+    reg = _tour_registry_path(runs_dir)
+    ids = read_json(reg) or []
+    keep = []
+    changed = False
+    for sid in ids:
+        rd = runs_dir / sid
+        if not rd.is_dir():
+            changed = True  # 已不在盘上，从登记册除名
+            continue
+        summary = run_summary(rd)
+        if now - (summary.get("last_ts") or 0) > TOUR_IDLE_SEC:
+            _tour_wipe_run(runs_dir, sid)
+            wiped.append(sid)
+            changed = True
+        else:
+            keep.append(sid)
+    if changed:
+        if keep:
+            reg.write_text(json.dumps(keep, ensure_ascii=False),
+                           encoding="utf-8")
+        else:
+            reg.unlink(missing_ok=True)
+    return wiped
+
+
+_tour_sweeper_started = False
+_tour_sweeper_lock = threading.Lock()
+_tour_intake_lock = threading.Lock()  # 席位检查+发号+落场景文件须原子
+
+
+def _tour_sweeper_start(runs_dir: Path) -> None:
+    global _tour_sweeper_started
+    with _tour_sweeper_lock:
+        if _tour_sweeper_started:
+            return
+        _tour_sweeper_started = True
+
+    def _loop():
+        while True:
+            try:
+                _tour_sweep(runs_dir)
+            except Exception:
+                pass
+            time.sleep(15)
+
+    t = threading.Thread(target=_loop, daemon=True)
+    t.start()
+
+
+def _tour_drive(phase: str, runs_dir: Path, sid: str) -> None:
+    log = open(runs_dir / f"_tour_drive_{sid}.log", "ab")
     subprocess.Popen(
         [sys.executable, str(PKG_ROOT / "scripts" / "tour_drive.py"),
-         phase, "--gateway", GATEWAY],
+         phase, "--gateway", GATEWAY, "--sid", sid,
+         "--pace", os.environ.get("CODENOTARY_TOUR_PACE", "8")],
         stdout=log, stderr=subprocess.STDOUT,
         start_new_session=True)
 
 
-# Claims used when a visitor signs the sandbox adjudication without a token.
-# The endpoint is path-locked to TOUR_SID, so this identity can never touch
-# a formal run.
+# Claims used when a visitor signs a sandbox adjudication without a token.
+# The endpoint is path-locked to the coupon_tour_* prefix, so this identity
+# can never touch a formal run.
 TOUR_VISITOR_CLAIMS = {"subject": "访客（导览）", "role": "adjudicator",
                        "scope": ["adjudicate"],
                        "credential_id": "tour-open"}
@@ -2797,7 +2893,7 @@ async function openCard(sid, kind){
     ov.innerHTML = mergeCard(sid, mc);
   }
   // 导览沙盒：预填裁决理由与补证附件（可改），游客只需检查后签署
-  if(sid==="coupon_tour"){
+  if(sid.startsWith("coupon_tour")){
     const rat=document.getElementById("rationale");
     if(rat&&!rat.value) rat.value="契约条款的需求依据不足：工单「有效至 11 月 10 日」未指明时区与日界——是当天 00:00 还是 24:00，相差一整天。依据《渠道对账协议 v2.3》第 4 条，核销以业务所在地自然日为准，含当天。";
     const rf=document.getElementById("refs");
@@ -2951,7 +3047,7 @@ function tokenSub(sid){
     return JSON.parse(atob(t.replace(/-/g,"+").replace(/_/g,"/"))).sub||"未知";
   }catch(e){
     // 沙盒案例开放访客签署（服务端按路径锁定）；正式案例无令牌将被拒
-    return sid==="coupon_tour" ? "访客（导览）" : "未填令牌（将被拒）";
+    return sid.startsWith("coupon_tour") ? "访客（导览）" : "未填令牌（将被拒）";
   }
 }
 
@@ -3191,6 +3287,9 @@ async function submitIntake(){
   document.getElementById("ask").value=""; loadTasks();
   // 右侧即刻切到新任务（驱动器建 run 有秒级延迟，重试几次）
   const sid = r.result && r.result.scenario_id;
+  // 导览沙盒：记住自己这只实例的 sid，导览台/裁决签署都认它
+  if(sid && sid.startsWith("coupon_tour")){
+    try{localStorage.setItem('cn_tour_sid',sid);}catch(e){} }
   if(sid){ let n=0; const t=setInterval(async ()=>{
     const resp = await fetch("/api/hall/"+sid);
     if(resp.ok || ++n>=8){ clearInterval(t); if(resp.ok) openTask(sid); }
@@ -3205,10 +3304,12 @@ async function loadTasks(){
     .sort((x,y)=>(y.last_ts||0)-(x.last_ts||0));  // 最新动态在最上
   // 默认展开最新任务的时间线——进大厅即见进展，不必先点
   if(!CUR && all.length && !location.hash){ CUR="__auto__"; openTask(all[0].run_id); }
-  // 同一工单的多版本只留最新版（版本链在看板/任务详情仍完整可查）
+  // 同一工单的多版本只留最新版（版本链在看板/任务详情仍完整可查）；
+  // 体验沙盒实例除外——不同访客即使同标题也是各自独立的体验
   const seen = new Set(), latest = [];
   const norm = t => String(t||"").replace(/[\s，,、.。]/g,"");
-  for(const c of all){ const k = norm(c.title); if(seen.has(k)) continue;
+  for(const c of all){ const k = c.run_id.startsWith("coupon_tour") ?
+    c.run_id : norm(c.title); if(seen.has(k)) continue;
     seen.add(k); latest.push(c); }
   document.getElementById("tasks").innerHTML = latest.map(c=>
     `<div class="task" onclick="openTask('${esc(c.run_id)}')">
@@ -3334,9 +3435,9 @@ code{background:#eef2f7;padding:1px 5px;border-radius:4px;font-size:12px}
 </div>
 <div class="status" id="status"></div>
 <div class="stops" id="stops" style="display:none">
-<div class="stop"><b>① 办事大厅</b><p>看这条工单的信封时间线：每一封都写着发生了什么、意味着什么、下一步。</p><span class="try">试试：追问区问「失败的是哪个场景？」</span><p><a href="/hall#task=coupon_tour">打开大厅 →</a></p></div>
+<div class="stop"><b>① 办事大厅</b><p>看这条工单的信封时间线：每一封都写着发生了什么、意味着什么、下一步。</p><span class="try">试试：追问区问「失败的是哪个场景？」</span><p><a id="stopHall" href="/hall">打开大厅 →</a></p></div>
 <div class="stop"><b>② 任务工作台</b><p>五列看板。红灯时体验案例停在「待人工裁决」，点开就是真裁决卡。</p><span class="try">红灯时点开红点卡 → 修订/签署，访客身份即可落锤</span><p><a href="/workbench">打开工作台 →</a></p></div>
-<div class="stop"><b>③ 任务详情</b><p>十步接力条、14 态状态机、处理过程表——每一棒留痕。</p><span class="try">试试：查看审计记录</span><p><a href="/run?sid=coupon_tour">打开任务详情 →</a></p></div>
+<div class="stop"><b>③ 任务详情</b><p>十步接力条、14 态状态机、处理过程表——每一棒留痕。</p><span class="try">试试：查看审计记录</span><p><a id="stopRun" href="/run">打开任务详情 →</a></p></div>
 <div class="stop"><b>④ Skill 看板</b><p>经验沉淀与追认制：新经验先试用、留痕，转正由人签。</p><span class="try">追认/否决对体验身份关闭（第三道人工门）</span><p><a href="/skillboard">打开 Skill 看板 →</a></p></div>
 </div>
 <div class="foot">
@@ -3349,15 +3450,23 @@ code{background:#eef2f7;padding:1px 5px;border-radius:4px;font-size:12px}
 <script>
 async function j(u,o){const r=await fetch(u,o);return r.json()}
 function show(t){const s=document.getElementById('status');s.style.display='block';s.innerHTML=t}
+function mySid(){try{return localStorage.getItem('cn_tour_sid')||''}catch(e){return ''}}
 async function refresh(){
-  const s=await j('/api/tour/status');
-  if(!s.exists){show('尚未开始。点「开始体验」去大厅提交问题，流水线即刻发车。');return}
+  const sid=mySid();
+  if(!sid){show('尚未开始。点「开始体验」去大厅提交问题，流水线即刻发车。');return}
+  const s=await j('/api/tour/status?sid='+encodeURIComponent(sid));
+  if(!s.exists){  // 自己那例已到期的访客重新发车即可，不影响别人
+    try{localStorage.removeItem('cn_tour_sid')}catch(e){}
+    show('上一轮体验已结束。点「开始体验」可以再跑一轮。');return}
+  if(s.starting){show('已取号，流水线发车中…');return}
   document.getElementById('stops').style.display='grid';
+  document.getElementById('stopHall').href='/hall#task='+sid;
+  document.getElementById('stopRun').href='/run?sid='+sid;
   let hint='';
-  let link='<a href="/run?sid=coupon_tour">看实时进展 →</a>';
+  let link='<a href="/run?sid='+sid+'">看实时进展 →</a>';
   if(s.state==='ESCALATED'){
     hint='——<b>现在轮到您了</b>：亲手签署裁决';
-    link='<a href="/workbench#card=coupon_tour&kind=escalated"><b>打开裁决卡 →</b></a>';
+    link='<a href="/workbench#card='+sid+'&kind=escalated"><b>打开裁决卡 →</b></a>';
   }
   else if(s.state==='RELEASED')hint='——已公证交付 🎉 去任务详情看证书';
   else if(s.state==='REJECTED')hint='——门禁红灯，正在升级等待裁决';
@@ -3890,21 +3999,25 @@ class Handler(BaseHTTPRequestHandler):
         return None
 
     def _tour_begin(self) -> None:
-        """Start (or restart) the sandbox run. Busy when another session is
-        active and not idle-expired; a terminal or idle-stale sandbox is
-        auto-reset so the next visitor always gets a clean slate."""
-        exists, state, last_ts = _tour_state(self.runs_dir)
-        if exists:
-            idle = time.time() - (last_ts or 0)
-            terminal = state in ("RELEASED", "NOTARIZED")
-            if not terminal and idle < TOUR_IDLE_SEC:
+        """Start a fresh sandbox instance for this visitor. Each visitor
+        gets their own sid; the experience is full only when
+        TOUR_MAX_INSTANCES sandboxes are live at once."""
+        with _tour_intake_lock:
+            _tour_sweep(self.runs_dir)  # 先清到期实例再数席位
+            if len(_tour_instances(self.runs_dir)) >= TOUR_MAX_INSTANCES:
                 self._send(200, json.dumps({"ok": False, "error":
-                    "有访客正在体验中。可以先逛逛只读页面（大厅/任务详情"
-                    "里的正式案例同样精彩），或稍后再来。"}))
+                    "体验席位已满（有访客正在体验中）。可以先逛逛只读页面"
+                    "（大厅/任务详情里的正式案例同样精彩），或稍后再来。"}))
                 return
-            _tour_reset_all(self.runs_dir)
-        _tour_drive("A", self.runs_dir)
-        self._send(200, json.dumps({"ok": True}))
+            sid = _tour_mint_sid(self.runs_dir)
+            base = read_json(PKG_ROOT / "scenarios" / f"{TOUR_SID}.json") \
+                or {}
+            base["scenario_id"] = sid
+            (PKG_ROOT / "scenarios" / f"{sid}.json").write_text(
+                json.dumps(base, ensure_ascii=False, indent=1),
+                encoding="utf-8")
+            _tour_drive("A", self.runs_dir, sid)
+        self._send(200, json.dumps({"ok": True, "sid": sid}))
 
 
     def do_GET(self):  # noqa: N802
@@ -3924,12 +4037,19 @@ class Handler(BaseHTTPRequestHandler):
         elif path == "/tour":
             self._send(200, TOUR_PAGE, "text/html")
         elif path == "/api/tour/status":
-            exists, state, last_ts = _tour_state(self.runs_dir)
-            if exists and state == "RELEASED":
-                _tour_auto_reset_arm(self.runs_dir)
+            sid = (parse_qs(urlparse(self.path).query).get("sid") or [""])[0]
+            if not _is_tour_sid(sid):
+                self._send(200, json.dumps({"ok": True, "exists": False}))
+                return
+            exists, state, last_ts = _tour_state(self.runs_dir, sid)
+            # 已取号但驱动器尚未落第一棒=发车中（场景文件在、run 目录未建；
+            # 基准模板 coupon_tour.json 恒在，legacy 无后缀 sid 不算发车中）
+            starting = not exists and sid != TOUR_PREFIX and \
+                (PKG_ROOT / "scenarios" / f"{sid}.json").exists()
             idle = (time.time() - last_ts) if last_ts else None
             self._send(200, json.dumps({
-                "ok": True, "exists": exists, "state": state,
+                "ok": True, "exists": exists or starting,
+                "starting": starting, "state": state,
                 "state_label": STATE_LABELS.get(state, state),
                 "idle_s": round(idle) if idle is not None else None}))
         elif path == "/run":
@@ -3989,7 +4109,6 @@ class Handler(BaseHTTPRequestHandler):
             self._send(200, json.dumps(skills_data()))
         elif path.startswith("/api/skill_get"):
             # 按名取 Skill（runless 代理，供办事大厅 /skill 命令）
-            from urllib.parse import parse_qs
             q = parse_qs(urlparse(self.path).query)
             name = (q.get("name") or [""])[0]
             _code, body = gateway_post("skill-showcase", "notary_skill.get",
@@ -4061,16 +4180,28 @@ class Handler(BaseHTTPRequestHandler):
             self._send(400, json.dumps({"ok": False, "error": "bad json"}))
             return
         # 公开面即导览面：只读会话/起草/取号/现场复验/导览台端点，以及
-        # 沙盒案例的裁决签署（路径锁死 TOUR_SID，物理上够不到正式案例）。
-        # 其余写端（正式案例的裁决/复位/人工门/Skill 治理）必须真实 JWT。
+        # 沙盒案例的裁决签署（路径锁死 coupon_tour_* 前缀且该实例必须在
+        # 盘上存在，物理上够不到正式案例）。其余写端（正式案例的裁决/
+        # 复位/人工门/Skill 治理）必须真实 JWT。
         if path in ("/api/tour/begin", "/api/tour/reset"):
             if path == "/api/tour/begin":
                 self._tour_begin()
             else:
-                wiped = _tour_reset_all(self.runs_dir)
+                sid = str(payload.get("sid") or "")
+                if not _is_tour_sid(sid):
+                    self._send(400, json.dumps(
+                        {"ok": False, "error": "missing/invalid tour sid"}))
+                    return
+                wiped = []
+                if (self.runs_dir / sid).is_dir():
+                    _tour_wipe_run(self.runs_dir, sid)
+                    wiped.append(sid)
                 self._send(200, json.dumps({"ok": True, "wiped": wiped}))
             return
-        tour_open_sign = path == f"/api/adjudicate/{TOUR_SID}"
+        m_tour_sign = re.fullmatch(
+            r"/api/adjudicate/(coupon_tour(?:_[0-9a-f]{6})?)", path)
+        tour_open_sign = bool(m_tour_sign) and \
+            (self.runs_dir / m_tour_sign.group(1)).is_dir()
         claims = None
         if path not in ("/api/intake", "/api/assist", "/api/skill_match",
                         "/api/hall_chat") \
@@ -4087,8 +4218,9 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/intake":
             payload["role"] = "ci"
             # 导览动线：只提问题（无源码/补丁）且走默认靶场 → 这就是体验
-            # 案例本身：游客自己的问题文本写入 coupon_tour 场景，流水线
-            # 随即真跑。附代码的取号仍建独立 run（登记，复位清场）。
+            # 案例本身：游客自己的问题文本写入自己那一份沙盒场景（每人
+            # 一个 coupon_tour_<会话> 实例），流水线随即真跑。附代码的
+            # 取号仍建独立 run（登记，空闲超时清场）。
             if not payload.get("source_files") and not payload.get("files"):
                 title = str(payload.get("title", "")).strip()
                 report = str(payload.get("report", "")).strip()
@@ -4098,31 +4230,32 @@ class Handler(BaseHTTPRequestHandler):
                         "名称、问题描述、验收标准分别需要至少 "
                         "8/20/20 字——写清楚，公证才有意义"}))
                     return
-                exists, state, last_ts = _tour_state(self.runs_dir)
-                if exists:
-                    idle = time.time() - (last_ts or 0)
-                    if state not in ("RELEASED", "NOTARIZED") \
-                            and idle < TOUR_IDLE_SEC:
+                with _tour_intake_lock:
+                    _tour_sweep(self.runs_dir)  # 先清到期实例再数席位
+                    if len(_tour_instances(self.runs_dir)) \
+                            >= TOUR_MAX_INSTANCES:
                         self._send(200, json.dumps({"ok": False, "error":
-                            "有访客正在体验中，请稍后再来（或先逛逛"
-                            "只读页面）"}))
+                            "体验席位已满（有访客正在体验中）。可以先逛逛"
+                            "只读页面（大厅/任务详情里的正式案例同样精彩），"
+                            "或稍后再来。"}))
                         return
-                    _tour_reset_all(self.runs_dir)
-                base = read_json(PKG_ROOT / "scenarios"
-                                 / f"{TOUR_SID}.json") or {}
-                issue = dict(base.get("issue") or {})
-                issue.update({"id": "ISSUE-TOUR", "title": title,
-                              "report": report,
-                              "expected_behavior": expected,
-                              "source": "console upload (大厅导览)"})
-                base.update({"scenario_id": TOUR_SID, "mode": "inhouse",
-                             "title": title, "issue": issue})
-                (PKG_ROOT / "scenarios" / f"{TOUR_SID}.json").write_text(
-                    json.dumps(base, ensure_ascii=False, indent=1),
-                    encoding="utf-8")
-                _tour_drive("A", self.runs_dir)
+                    sid = _tour_mint_sid(self.runs_dir)
+                    base = read_json(PKG_ROOT / "scenarios"
+                                     / f"{TOUR_SID}.json") or {}
+                    issue = dict(base.get("issue") or {})
+                    issue.update({"id": f"ISSUE-TOUR-{sid.rsplit('_', 1)[-1]}",
+                                  "title": title,
+                                  "report": report,
+                                  "expected_behavior": expected,
+                                  "source": "console upload (大厅导览)"})
+                    base.update({"scenario_id": sid, "mode": "inhouse",
+                                 "title": title, "issue": issue})
+                    (PKG_ROOT / "scenarios" / f"{sid}.json").write_text(
+                        json.dumps(base, ensure_ascii=False, indent=1),
+                        encoding="utf-8")
+                    _tour_drive("A", self.runs_dir, sid)
                 self._send(200, json.dumps({"ok": True, "result": {
-                    "scenario_id": TOUR_SID, "status": "registered",
+                    "scenario_id": sid, "status": "registered",
                     "mode": "inhouse"}}))
                 return
             # 公开取号（附代码）一律登记，导览台「复位」时一并清场
@@ -4239,8 +4372,8 @@ class Handler(BaseHTTPRequestHandler):
                 body.setdefault("result", {})["contract_revision"] = \
                     fbody.get("result", fbody)
             # 体验案例：裁决落锤后流水线自动接重修段（真人裁决是唯一等待点）
-            if sid == TOUR_SID and body.get("ok"):
-                _tour_drive("C", self.runs_dir)
+            if _is_tour_sid(sid) and body.get("ok"):
+                _tour_drive("C", self.runs_dir, sid)
             self._send(200, json.dumps(body))
         elif path == "/api/skill_confirm":
             if "adjudicate" not in claims.get("scope", []):
@@ -4310,6 +4443,7 @@ def main():
     if args.token_secret:
         TOKEN_SECRET = Path(args.token_secret).read_text(encoding="utf-8").strip()
     Handler.runs_dir = Path(args.runs)
+    _tour_sweeper_start(Handler.runs_dir)
     srv = ThreadingHTTPServer((args.host, args.port), Handler)
     mode = ("capability-JWT" if TOKEN_SECRET else
             "static" if TOKEN else "OFF (demo mode)")

@@ -135,11 +135,14 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("phase", choices=["A", "C"])
     ap.add_argument("--gateway", default="http://127.0.0.1:18090")
+    ap.add_argument("--sid", default="coupon_tour",
+                    help="sandbox run id — one isolated instance per visitor")
     ap.add_argument("--pace", type=float, default=8.0,
                     help="seconds to dwell between pipeline steps")
     args = ap.parse_args()
-    global PACE
+    global PACE, SID
     PACE = args.pace
+    SID = args.sid
     # Small pacing so a watching judge sees the steps land in order.
     if args.phase == "A":
         phase_a(args.gateway)
