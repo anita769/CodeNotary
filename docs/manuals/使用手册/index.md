@@ -1,6 +1,6 @@
 # CodeNotary 使用手册
 
-> 演示站：`http://ara.sciba.cn` ｜ 开源仓库：github.com/anita769/CodeNotary（系统本体）、github.com/anita769/codenotary-demo（GitHub 接入样例）
+> 演示站：`https://ara.sciba.cn` ｜ 开源仓库：github.com/anita769/CodeNotary（系统本体）、github.com/anita769/codenotary-demo（GitHub 接入样例）
 
 CodeNotary 是代码公证处：AI 或人写的代码，经过「契约冻结 → 双盲修复/验证 → 三道确定性门禁 → 公证封印」再交付；契约歧义、合并放行、经验转正三件事永远由人签署。本手册覆盖三条使用线，全部以真实演示案例截图说明。
 
@@ -146,11 +146,16 @@ make verify EVIDENCE=evidence-pack.zip
 
 ![证据页验哈希](f02-file-view.png)
 
-修复好的文件就在证据包里（如 `work/author_wt/coupon.py`），也可以直接通过文件接口取出——返回内容 + 声明哈希 + 现场复算哈希：
+**直接下载**：任务工作台「已发布」列的卡片上有「**⬇ 交付物**」按钮——交付卡列出修复好的文件（如 `work/author_wt/coupon.py`）与公证书，逐件下载；每个文件标注 SHA-256 指纹，与封印清单（manifest）逐项可核对：
+
+![交付物卡](../体验版操作手册/s12-deliver.png)
+
+也可以通过文件接口取出——返回内容 + 声明哈希 + 现场复算哈希（加 `?download=1` 则直接下载原始文件）：
 
 ```bash
-curl "http://ara.sciba.cn/api/file/<任务号>/work/author_wt/coupon.py"
+curl "https://ara.sciba.cn/api/file/<任务号>/work/author_wt/coupon.py"
 # 返回：文件内容 + 封印清单里的声明哈希 + 现场复算哈希（两者相等即未被篡改）
+curl -OJ "https://ara.sciba.cn/api/file/<任务号>/work/author_wt/coupon.py?download=1"
 ```
 
 要拿走完整证据包离线复算，用线 ① 第 6 节的 `make verify`。
@@ -166,7 +171,7 @@ curl "http://ara.sciba.cn/api/file/<任务号>/work/author_wt/coupon.py"
 
 **修复发生在哪**：绝不在你的正式仓库里直接改。每次任务在 `runs/<任务号>/work/` 下开隔离工作区，修复、盲测、门禁全部在隔离区完成；公证通过后交付物进证据包，**写回正式仓库由负责人授权**——系统的权力止于你的仓库之外。
 
-完整操作见《体验版操作手册》（导览台 `http://ara.sciba.cn/tour` 四步动线：提交问题 → 看流水线 → 亲手裁决 → 交付证书）。
+完整操作见《体验版操作手册》（导览台 `https://ara.sciba.cn/tour` 四步动线：提交问题 → 看流水线 → 亲手裁决 → 交付证书与修复文件）。
 
 ---
 
