@@ -28,6 +28,7 @@ import urllib.request
 import urllib.error
 import zipfile
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+import threading
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -481,7 +482,7 @@ def hall_chat_reply(run_dir: Path, history: list, message: str) -> dict:
         req = urllib.request.Request(
             f"{LLM_BASE}/chat/completions",
             data=json.dumps({"model": LLM_MODEL, "messages": msgs,
-                             "max_tokens": 800, "temperature": 0.2}
+                             "max_tokens": 2000, "temperature": 0.2}
                             ).encode("utf-8"),
             headers={"Content-Type": "application/json",
                      "Authorization": f"Bearer {LLM_KEY}"},
@@ -489,8 +490,13 @@ def hall_chat_reply(run_dir: Path, history: list, message: str) -> dict:
         try:
             with urllib.request.urlopen(req, timeout=30) as resp:
                 data = json.loads(resp.read().decode("utf-8"))
-            return {"ok": True, "llm": True,
-                    "reply": data["choices"][0]["message"]["content"]}
+            reply = (data["choices"][0]["message"].get("content")
+                     or "").strip()
+            if not reply:
+                # 推理型模型的 reasoning 可能挤占 max_tokens,content 返回空
+                # ——视为失败,落到确定性兜底答复
+                raise ValueError("empty llm reply")
+            return {"ok": True, "llm": True, "reply": reply}
         except Exception:
             pass  # fall through to the deterministic window answer
     v = facts["verdicts"]
@@ -1041,6 +1047,35 @@ def gateway_get(path: str) -> dict | None:
 # ---------------------------------------------------------------------------
 TOUR_SID = "coupon_tour"
 TOUR_IDLE_SEC = 900  # idle auto-reset: next visitor always gets a clean slate
+TOUR_RELEASED_TTL = 65  # 证书发布后约 1 分钟自动复位(导览台不设手动复位)
+
+_tour_timer = None
+_tour_timer_lock = threading.Lock()
+
+
+def _tour_auto_reset_arm(runs_dir: Path) -> None:
+    """沙盒一进入 RELEASED 就武装一次性计时器;begin/reset 会取消它。"""
+    global _tour_timer
+    with _tour_timer_lock:
+        if _tour_timer and _tour_timer.is_alive():
+            return
+
+        def _fire():
+            exists, state, _ = _tour_state(runs_dir)
+            if exists and state == "RELEASED":
+                _tour_reset_all(runs_dir)
+
+        _tour_timer = threading.Timer(TOUR_RELEASED_TTL, _fire)
+        _tour_timer.daemon = True
+        _tour_timer.start()
+
+
+def _tour_auto_reset_cancel() -> None:
+    global _tour_timer
+    with _tour_timer_lock:
+        if _tour_timer:
+            _tour_timer.cancel()
+            _tour_timer = None
 
 
 def _tour_state(runs_dir: Path) -> tuple[bool, str, float | None]:
@@ -1075,6 +1110,7 @@ def _tour_wipe_run(runs_dir: Path, sid: str) -> None:
 
 
 def _tour_reset_all(runs_dir: Path) -> list[str]:
+    _tour_auto_reset_cancel()
     # 先停驱动器——否则 reset 后它仍在写，沙盒会"复活"（竞态实证）
     subprocess.run(["pkill", "-f", "tour_drive.py"], capture_output=True)
     wiped = []
@@ -2769,6 +2805,13 @@ async function openCard(sid, kind){
     const dec=document.querySelector("input[name=dec][value=revise]");
     if(dec&&!document.querySelector("input[name=dec]:checked"))
       dec.checked=true;
+    // 预填修订文本:v1 断言2 的"全天"模糊措辞 → v1.1 精确时刻+书面依据
+    // (对照视图因此有真实差异可核)
+    const rt=document.getElementById("revisionText");
+    if(rt) rt.value=rt.value.split("\n").map(l=>
+      l.indexOf("核销有效期覆盖")>=0
+      ? "核销有效期覆盖至 2026-11-10 24:00（Asia/Shanghai 业务自然日，含当天，23:59:59.999999+08:00 前可核销）；之后失效（依据：《渠道对账协议 v2.3》第 4 条）"
+      : l).join("\n");
     onDecChange();  // 预填后重算签署按钮启用态
   }
 }
@@ -2876,10 +2919,14 @@ async function adjAsk(sid){
   document.getElementById("adjQ").value="";
   const log=document.getElementById("adjChat");
   log.innerHTML+=`<div><span class="u">你：</span>${esc(q)}</div>`;
-  const r=await (await fetch("/api/hall_chat",{method:"POST",
-    headers:{"Content-Type":"application/json"},
-    body:JSON.stringify({sid:sid,message:q,history:[]})})).json();
-  log.innerHTML+=`<div><span>窗口：</span>${esc(r.reply||r.error||"")}</div>`;
+  let rep;
+  try{
+    const r=await (await fetch("/api/hall_chat",{method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({sid:sid,message:q,history:[]})})).json();
+    rep = r.reply||r.error||"";
+  }catch(e){ rep = "网络开小差了,没收到回信——请再发一次。"; }
+  log.innerHTML+=`<div><span>窗口：</span>${esc(rep)}</div>`;
   log.scrollTop=log.scrollHeight;
 }
 document.addEventListener("change", e=>{
@@ -3197,10 +3244,15 @@ async function askFollow(){
   const log = document.getElementById("chatlog");
   log.innerHTML += `\n<span class="u">您：</span>${esc(q)}\n`;
   HISTORY.push({role:"user",content:q});
-  const r = await (await fetch("/api/hall_chat",{method:"POST",
-    headers:{"Content-Type":"application/json"},
-    body:JSON.stringify({sid:CUR,message:q,history:HISTORY})})).json();
-  const reply = r.reply||("出错了："+(r.error||""));
+  let reply;
+  try{
+    const r = await (await fetch("/api/hall_chat",{method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({sid:CUR,message:q,history:HISTORY})})).json();
+    reply = r.reply||("出错了："+(r.error||""));
+  }catch(e){
+    reply = "网络开小差了,没收到回信——请再发一次。";
+  }
   HISTORY.push({role:"assistant",content:reply});
   log.innerHTML += `<span>窗口：</span>${esc(reply)}\n`;
   log.scrollTop = log.scrollHeight;
@@ -3278,7 +3330,6 @@ code{background:#eef2f7;padding:1px 5px;border-radius:4px;font-size:12px}
 无需令牌）→ ④ 看全绿交付与证书。</p>
 <p style="margin-top:14px">
 <button class="btn" id="beginBtn" onclick="begin()">开始体验：去大厅提交问题</button>
-<button class="btn ghost" onclick="resetTour()">复位体验案例</button>
 </p>
 </div>
 <div class="status" id="status"></div>
@@ -3308,7 +3359,7 @@ async function refresh(){
     hint='——<b>现在轮到您了</b>：亲手签署裁决';
     link='<a href="/workbench#card=coupon_tour&kind=escalated"><b>打开裁决卡 →</b></a>';
   }
-  else if(s.state==='RELEASED')hint='——已公证交付 🎉 去任务详情看证书';
+  else if(s.state==='RELEASED')hint='——已公证交付 🎉 去任务详情看证书;本案例将在 1 分钟后自动复位,供下一位访客体验';
   else if(s.state==='REJECTED')hint='——门禁红灯，正在升级等待裁决';
   show('体验案例运行中：状态 <b>'+(s.state_label||s.state)+'</b>'+hint+
     '<br>'+link);
@@ -3318,12 +3369,6 @@ async function begin(){
   try{localStorage.setItem('cn_tour_prefill',
     '优惠券有效至 11 月 10 日，但没到期就核销不了');}catch(e){}
   location.href='/hall';
-}
-async function resetTour(){
-  const r=await j('/api/tour/reset',{method:'POST',
-    headers:{'Content-Type':'application/json'},body:'{}'});
-  show('已复位：'+(r.wiped&&r.wiped.length?r.wiped.join('、'):'本来就是干净的')+
-    '。下一位访客将从空白开始。');
 }
 refresh(); setInterval(refresh,4000);
 </script>
@@ -3880,6 +3925,8 @@ class Handler(BaseHTTPRequestHandler):
             self._send(200, TOUR_PAGE, "text/html")
         elif path == "/api/tour/status":
             exists, state, last_ts = _tour_state(self.runs_dir)
+            if exists and state == "RELEASED":
+                _tour_auto_reset_arm(self.runs_dir)
             idle = (time.time() - last_ts) if last_ts else None
             self._send(200, json.dumps({
                 "ok": True, "exists": exists, "state": state,

@@ -73,7 +73,7 @@ def phase_a(gw: str) -> None:
     call(gw, "notary_contract.freeze", {
         "assertions": [
             "所有过期比较必须在 UTC 下进行，naive/aware 混比已修复",
-            "核销有效期覆盖至 2026-11-10 24:00（Asia/Shanghai 业务自然日，"
+            "核销有效期覆盖 11 月 10 日全天（按 Asia/Shanghai 自然日，"
             "含当天）；之后失效",
             "修改范围仅限 coupon.py",
             "公开函数签名不得变更：Coupon(code, expires_at)、"
