@@ -175,6 +175,17 @@ curl -OJ "https://ara.sciba.cn/api/file/<任务号>/work/author_wt/coupon.py?dow
 
 ---
 
+## 10 Worker 协作形态：AgentTeams 部署
+
+生产环境以「10 个最小权限 Worker + TeamLeader 编排」的形态运行：每一棒由独立 worker 执行、留痕到人，岗位分离，Team 房间全程可围观。部署材料在仓库 `at/` 目录：
+
+- **前提**：Docker + 一台可安装 AgentTeams 的机器 + 一个 LLM API Key（配在 AgentTeams 安装器里；本代码包不包含模型密钥）
+- `at/AGENTTEAMS_RUNBOOK.md`：从零到判通的完整手册——起网关 → 装 AgentTeams → 建 10 个 Worker 与 Team → 发公证任务
+- `at/create_agents_messages.md`、`at/run_demo_task_message.md`：一段式建队消息与两个演示任务（green / red 路径）
+- `at/team_spec.json`：Team 拓扑与工作流（机器可读）；`agents/<role>/Agent.md`：10 个角色的完整身份规约
+
+---
+
 ## 附录 · 自行部署：密钥与令牌配置
 
 ```bash
