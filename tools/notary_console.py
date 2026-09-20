@@ -3407,8 +3407,6 @@ border-radius:6px;padding:10px 22px;font-size:15px;cursor:pointer;
 text-decoration:none}
 .btn.ghost{background:#fff;color:var(--blue);border:1px solid var(--blue)}
 .btn:disabled{opacity:.5;cursor:not-allowed}
-.status{background:#fffbeb;border:1px solid #f59e0b;border-radius:10px;
-padding:16px 20px;margin-bottom:18px;font-size:14px;display:none}
 .stops{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:18px 0}
 .stop{background:var(--card);border:1px solid var(--line);border-radius:10px;
 padding:14px 16px}
@@ -3433,8 +3431,7 @@ code{background:#eef2f7;padding:1px 5px;border-radius:4px;font-size:12px}
 <button class="btn" id="beginBtn" onclick="begin()">开始体验：去大厅提交问题</button>
 </p>
 </div>
-<div class="status" id="status"></div>
-<div class="stops" id="stops" style="display:none">
+<div class="stops" id="stops">
 <div class="stop"><b>① 办事大厅</b><p>看这条工单的信封时间线：每一封都写着发生了什么、意味着什么、下一步。</p><span class="try">试试：追问区问「失败的是哪个场景？」</span><p><a id="stopHall" href="/hall">打开大厅 →</a></p></div>
 <div class="stop"><b>② 任务工作台</b><p>五列看板。红灯时体验案例停在「待人工裁决」，点开就是真裁决卡。</p><span class="try">红灯时点开红点卡 → 修订/签署，访客身份即可落锤</span><p><a href="/workbench">打开工作台 →</a></p></div>
 <div class="stop"><b>③ 任务详情</b><p>十步接力条、14 态状态机、处理过程表——每一棒留痕。</p><span class="try">试试：查看审计记录</span><p><a id="stopRun" href="/run">打开任务详情 →</a></p></div>
@@ -3448,38 +3445,26 @@ code{background:#eef2f7;padding:1px 5px;border-radius:4px;font-size:12px}
 </div>
 </div>
 <script>
-async function j(u,o){const r=await fetch(u,o);return r.json()}
-function show(t){const s=document.getElementById('status');s.style.display='block';s.innerHTML=t}
+// 多实例导览：各访客进度不同，页面不汇报状态——只把「自己那例」的
+// sid 缝进停靠点链接；没有进行中实例的访客进通用页即可。
 function mySid(){try{return localStorage.getItem('cn_tour_sid')||''}catch(e){return ''}}
-async function refresh(){
+(function(){
   const sid=mySid();
-  if(!sid){show('尚未开始。点「开始体验」去大厅提交问题，流水线即刻发车。');return}
-  const s=await j('/api/tour/status?sid='+encodeURIComponent(sid));
-  if(!s.exists){  // 自己那例已到期的访客重新发车即可，不影响别人
-    try{localStorage.removeItem('cn_tour_sid')}catch(e){}
-    show('上一轮体验已结束。点「开始体验」可以再跑一轮。');return}
-  if(s.starting){show('已取号，流水线发车中…');return}
-  document.getElementById('stops').style.display='grid';
-  document.getElementById('stopHall').href='/hall#task='+sid;
-  document.getElementById('stopRun').href='/run?sid='+sid;
-  let hint='';
-  let link='<a href="/run?sid='+sid+'">看实时进展 →</a>';
-  if(s.state==='ESCALATED'){
-    hint='——<b>现在轮到您了</b>：亲手签署裁决';
-    link='<a href="/workbench#card='+sid+'&kind=escalated"><b>打开裁决卡 →</b></a>';
-  }
-  else if(s.state==='RELEASED')hint='——已公证交付 🎉 去任务详情看证书';
-  else if(s.state==='REJECTED')hint='——门禁红灯，正在升级等待裁决';
-  show('体验案例运行中：状态 <b>'+(s.state_label||s.state)+'</b>'+hint+
-    '<br>'+link);
-}
+  if(!sid)return;
+  // 静默核对实例还在不在（已到期回收就丢掉旧 sid），不在页面显示任何状态
+  fetch('/api/tour/status?sid='+encodeURIComponent(sid)).then(r=>r.json())
+    .then(s=>{
+      if(!s.exists){try{localStorage.removeItem('cn_tour_sid')}catch(e){}return}
+      document.getElementById('stopHall').href='/hall#task='+sid;
+      document.getElementById('stopRun').href='/run?sid='+sid;
+    }).catch(()=>{});
+})();
 async function begin(){
   // 预填问题，带游客去大厅亲手提交——问题文本会进入证据链
   try{localStorage.setItem('cn_tour_prefill',
     '优惠券有效至 11 月 10 日，但没到期就核销不了');}catch(e){}
   location.href='/hall';
 }
-refresh(); setInterval(refresh,4000);
 </script>
 </body>
 </html>
