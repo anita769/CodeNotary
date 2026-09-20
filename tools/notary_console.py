@@ -32,7 +32,7 @@ import zipfile
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import threading
 from pathlib import Path
-from urllib.parse import urlparse, parse_qs
+from urllib.parse import urlparse, parse_qs, unquote, quote
 
 PKG_ROOT = Path(__file__).resolve().parent.parent
 
@@ -2873,7 +2873,10 @@ function render(){
             onclick="event.stopPropagation();openCard('${esc(c.run_id)}','escalated')">⚖️ 裁决</button>`
         : key==="notarized" ?
           `<button class="ghost" style="margin-top:6px;padding:3px 10px;font-size:12px"
-            onclick="event.stopPropagation();openCard('${esc(c.run_id)}','notarized')">合并就绪</button>` : "";
+            onclick="event.stopPropagation();openCard('${esc(c.run_id)}','notarized')">合并就绪</button>`
+        : key==="released" ?
+          `<button class="ghost" style="margin-top:6px;padding:3px 10px;font-size:12px"
+            onclick="event.stopPropagation();openCard('${esc(c.run_id)}','deliver')">⬇ 交付物</button>` : "";
         return `<div class="card${vcls}" ${clickable}>
           <div class="t">${esc(c.title)}</div>
           <div class="m">${esc(c.state_label||"")}${c.gates_progress?
@@ -2888,6 +2891,9 @@ async function openCard(sid, kind){
   if(kind==="escalated"){
     const ctx = await (await fetch("/api/adjudication_context/"+sid)).json();
     ov.innerHTML = adjudCard(sid, ctx);
+  }else if(kind==="deliver"){
+    const dl = await (await fetch("/api/deliverables/"+sid)).json();
+    ov.innerHTML = deliverCard(sid, dl);
   }else{
     const mc = await (await fetch("/api/merge_card/"+sid)).json();
     ov.innerHTML = mergeCard(sid, mc);
@@ -3121,6 +3127,44 @@ function mergeCard(sid, mc){
     ${body}
     <div class="row"><span class="mut">
       就绪后请到 GitHub PR 页执行合并——系统的权力止于就绪意见，合并动作只属于人。</span></div>
+  </div></div>`;
+}
+
+function deliverCard(sid, dl){
+  const fmtSize = n => n<1024 ? n+" B" : (n/1024).toFixed(1)+" KB";
+  const encPath = p => p.split("/").map(encodeURIComponent).join("/");
+  const dlUrl = p => "/api/file/"+encodeURIComponent(sid)+"/"+encPath(p)+
+    "?download=1";
+  const rows = (dl.files||[]).map(f=>
+    `<div class="opt" style="cursor:default">
+      <span>📄</span>
+      <span style="flex:1"><b>${esc(f.name)}</b>
+        <div class="hint">${esc(f.path)} · ${fmtSize(f.size)} · `+
+        `sha256 ${f.sha256.slice(0,16)}…</div></span>
+      <a class="ghost" style="padding:3px 10px;font-size:12px"
+        href="${dlUrl(f.path)}">下载</a>
+    </div>`).join("");
+  const cert = dl.has_certificate ?
+    `<div class="opt" style="cursor:default">
+      <span>📜</span>
+      <span style="flex:1"><b>公证书 certificate.md</b>
+        <div class="hint">绑定代码与契约双版本，可独立复算</div></span>
+      <a class="ghost" style="padding:3px 10px;font-size:12px"
+        href="${dlUrl("certificate.md")}">下载</a>
+    </div>` : "";
+  const empty = (!rows && !cert) ?
+    `<div class="layer">该工单为送审模式：代码本属送审方，
+      交付物是结论与证据，没有可下载的修复文件。</div>` : "";
+  return `<div class="overlay" onclick="if(event.target===this)closeOverlay()">
+  <div class="sheet">
+    <h3>交付物 · ${esc(sid)}</h3>
+    <div class="principle">下载到的每个文件都带 sha256 指纹，
+      与封印清单（manifest）逐项可核对。</div>
+    ${rows?`<div class="layer"><b>修复后的代码</b>${rows}</div>`:""}
+    ${cert?`<div class="layer"><b>证书</b>${cert}</div>`:""}
+    ${empty}
+    <div class="row"><span class="mut">整包证据（含测试、门禁输出、签名）
+      可用仓库里的 make verify 独立复算。</span></div>
   </div></div>`;
 }
 
@@ -4132,13 +4176,47 @@ class Handler(BaseHTTPRequestHandler):
             self._send(200, json.dumps({
                 "files": out, "source": src if out else None,
                 "advisory": bool(fx2.get("advisory"))}))
+        elif path.startswith("/api/deliverables/"):
+            # 交付物清单：inhouse 修复工作树里的修复文件 + 公证书。
+            # external 送审模式的代码本属送审方，交付物是结论与证据。
+            sid = path.rsplit("/", 1)[-1]
+            run_dir = self.runs_dir / sid
+            if not run_dir.is_dir():
+                self._send(404, json.dumps({"error": "unknown run"}))
+            else:
+                files = []
+                aw = run_dir / "work" / "author_wt"
+                if aw.is_dir():
+                    for fp in sorted(p for p in aw.rglob("*")
+                                     if p.is_file()):
+                        files.append({
+                            "path": str(fp.relative_to(run_dir)),
+                            "name": fp.name,
+                            "size": fp.stat().st_size,
+                            "sha256": hashlib.sha256(
+                                fp.read_bytes()).hexdigest()})
+                self._send(200, json.dumps({
+                    "files": files,
+                    "has_certificate":
+                        (run_dir / "certificate.md").is_file()}))
         elif path.startswith("/api/file/"):
-            rest = path[len("/api/file/"):]
+            rest = unquote(path[len("/api/file/"):])
             sid, _, rel = rest.partition("/")
             f = (self.runs_dir / sid / rel).resolve()
             root = (self.runs_dir / sid).resolve()
             if not str(f).startswith(str(root)) or not f.is_file():
                 self._send(404, json.dumps({"error": "no such file"}))
+            elif parse_qs(urlparse(self.path).query).get("download"):
+                # 原始字节下载（交付物卡用）；同样的路径越界防护
+                raw = f.read_bytes()
+                self.send_response(200)
+                self.send_header("Content-Type", "application/octet-stream")
+                self.send_header(
+                    "Content-Disposition",
+                    f"attachment; filename*=UTF-8''{quote(f.name)}")
+                self.send_header("Content-Length", str(len(raw)))
+                self.end_headers()
+                self.wfile.write(raw)
             else:
                 try:
                     raw = f.read_bytes()
