@@ -48,7 +48,8 @@ agentteams/
 │   └── one_click_setup.sh         #   一键起网关+前台+自检+验收报告
 ├── runs/                          # 36 个回放样本的证据目录（无 LLM 回放产物，可复算）
 ├── demo/
-│   ├── demo_new.mp4          	   # Demo 视频
+│   ├── demo-new.mp4                 # Demo 视频
+│   ├── demo-v4-inhouse.mp4          # inhouse 全流程演示（4 分 43 秒；原始画质版见 Release 附件）
 │   ├── demo-分镜介绍.md            # 视频分镜内容介绍
 └── evidence/
     ├── sample_run/                # 样例运行证据（local_dryrun 的真实产出）
@@ -109,6 +110,13 @@ make verify EVIDENCE=evidence-pack.zip
 ```
 
 复算四层：Ed25519 签名（封印者身份，公钥在 `keys/notary_ed25519.pub`）→ manifest 哈希链 + trace 封印前缀 → 契约 frozen_hash 重算 → 三门禁在包内代码上重跑并与封存 verdict 比对。第一层（复算）任何人可跑；第二层（含 LLM 的完整重跑）需自带模型 key。
+
+## 文档与演示
+
+- **演示视频**：`demo/demo-v4-inhouse.mp4`——内部团队（inhouse）模式全流程实录剪辑，4 分 43 秒：一句话工单 → 十角色接力 → 门禁红灯自动重修 → 人工裁决修订契约 → 公证交付 → 证据复算与重启恢复。原始画质版（174MB）见 GitHub Release 附件。
+- **使用手册**：`docs/manuals/使用手册/`——三条接入线：GitHub PR 接入到合并、ZIP 上传送审、纯问题工单；附证据包复算操作。
+- **体验版操作手册**：`docs/manuals/体验版操作手册/`——在线体验站 12 步逐步实拍，从零到亲手签署一张裁决卡。
+- **在线体验**：https://ara.sciba.cn/tour ——全站只读开放，沙盒案例可亲手走通裁决签署。
 
 ## 开源与许可声明
 
