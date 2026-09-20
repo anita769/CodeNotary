@@ -175,6 +175,30 @@ curl -OJ "https://ara.sciba.cn/api/file/<任务号>/work/author_wt/coupon.py?dow
 
 ---
 
+## 附录 · 自行部署：密钥与令牌配置
+
+```bash
+# 1. 封印签名密钥对（每次封印用它签名，公钥供任何人验签）
+mkdir -p keys
+openssl genpkey -algorithm ed25519 -out keys/notary_ed25519.pem
+openssl pkey -in keys/notary_ed25519.pem -pubout > keys/notary_ed25519.pub
+chmod 600 keys/notary_ed25519.pem
+
+# 2. 令牌签发密钥与裁决令牌（console 的写操作凭它）
+python3 tools/notary_token.py mint --sub 张三 --role adjudicator \
+    --scope adjudicate --ttl 86400 --secret-file keys/token_secret
+
+# 3. LLM key（大厅接待员用，任何 OpenAI 兼容服务）
+export CODENOTARY_LLM_KEY=sk-...
+
+# 4.（接 GitHub 时）合并就绪卡核对真实 check 状态
+export GH_TOKEN=ghp_...
+```
+
+console 启动时带上令牌密钥：`python3 tools/notary_console.py --token-secret keys/token_secret`。私钥与 token_secret 已在 `.gitignore` 中，不要提交。
+
+---
+
 ## 附录 · 三条线的共同终点
 
 不管哪条线，终点都是同一份公证：**证书（契约哈希 + 门禁判定 + 人工介入次数）+ 签名封印的证据包 + 可离线复算**。验收、合并、发布是三件事——系统出验收结论，合并归负责人，发布走你原有的流程。
