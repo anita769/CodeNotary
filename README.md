@@ -48,7 +48,6 @@ agentteams/
 │   └── one_click_setup.sh         #   一键起网关+前台+自检+验收报告
 ├── runs/                          # 36 个回放样本的证据目录（无 LLM 回放产物，可复算）
 ├── demo/
-│   ├── demo-new.mp4                 # Demo 视频
 │   ├── demo-coupon-pr.mp4           # 演示视频:GitHub PR 公证全流程(5 分 12 秒;原始画质版见 Release 附件)
 │   ├── demo-分镜介绍.md            # 视频分镜内容介绍
 └── evidence/
