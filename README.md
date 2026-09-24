@@ -112,7 +112,7 @@ make verify EVIDENCE=evidence-pack.zip
 
 ## 文档与演示
 
-- **演示视频**：`demo/demo-coupon-pr.mp4`——GitHub PR 公证全流程实录剪辑，5 分 12 秒：AI 把修复推成 PR → 公证审计红（自带测试全绿也没用）→ 人工裁决修订契约 → 重写转绿 → 合并放行 → 证据复算与重启恢复。原始画质版（约 292MB）见 GitHub Release 附件。
+- **演示视频**：`demo/demo-v9.mp4`——全流程实录剪辑，5 分 48 秒（新前端版）：AgentTeams 聊天室十棒接力修复缺陷 → 任务页三门禁与公证书 → 人工裁决修订契约 → GitHub PR 接入演示（真实 PR #2 录像）→ Skill 沉淀与 60 份证据哈希封存。同版视频附件见 GitHub Release。逐秒分镜对账见 `demo/demo-分镜介绍.md`。
 - **使用手册**：`docs/manuals/使用手册/`——三条接入线：GitHub PR 接入到合并、ZIP 上传送审、纯问题工单；附证据包复算操作。
 - **体验版操作手册**：`docs/manuals/体验版操作手册/`——在线体验站 12 步逐步实拍，从零到亲手签署一张裁决卡。
 - **在线体验**：~~https://ara.sciba.cn/tour~~ —— **体验站已于 2026-09-24 赛后下线**（资源回收）。等价体验路径：`scripts/one_click_setup.sh` 本地一键起全套 + `docs/manuals/体验版操作手册/` 12 步逐步实拍对照操作，裁决卡签署与沙盒案例均可本地走通。
