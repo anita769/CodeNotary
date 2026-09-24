@@ -1,6 +1,6 @@
 # CodeNotary 使用手册
 
-> 演示站：`https://ara.sciba.cn` ｜ 开源仓库：github.com/anita769/CodeNotary（系统本体）、github.com/anita769/codenotary-demo（GitHub 接入样例）
+> 演示站：`https://ara.sciba.cn`（**已于 2026-09-24 赛后下线**，文中 curl 示例供参考，本地复现请用 `scripts/one_click_setup.sh`）｜ 开源仓库：github.com/anita769/CodeNotary（系统本体）、github.com/anita769/codenotary-demo（GitHub 接入样例）
 
 CodeNotary 是代码公证处：AI 或人写的代码，经过「契约冻结 → 双盲修复/验证 → 三道确定性门禁 → 公证封印」再交付；契约歧义、合并放行、经验转正三件事永远由人签署。本手册覆盖三条使用线，全部以真实演示案例截图说明。
 
